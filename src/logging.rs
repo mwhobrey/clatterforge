@@ -7,7 +7,7 @@
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
     sync::{
@@ -131,13 +131,22 @@ impl Default for LogConfig {
     }
 }
 
+/// Size-rotated JSONL file sink that is safe to share a path with other sinks and processes.
+///
+/// It holds no open handle and no byte counter. Each line opens the live path in append
+/// mode, writes in one call and closes, so every writer (the global logger, a `JsonLogger`
+/// in `serve`, MCP and CLI processes) always appends to whatever file currently sits at the
+/// live path, and a rotation by any of them is followed at once. The rotation decision reads
+/// the real file size, and rotation itself runs under an exclusive lock file, so two writers
+/// never rotate the same file twice.
 struct FileSink {
     path: PathBuf,
-    file: File,
-    bytes_written: u64,
     max_bytes: u64,
     max_rotated: usize,
 }
+
+/// A rotation lock older than this is treated as left behind by a crashed writer.
+const ROTATION_LOCK_STALE_MS: u64 = 30_000;
 
 impl FileSink {
     fn open(path: PathBuf, max_bytes: u64, max_rotated: usize) -> Result<Self> {
@@ -146,39 +155,79 @@ impl FileSink {
         {
             fs::create_dir_all(parent)?;
         }
-        let existing_len = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-        let file = OpenOptions::new().create(true).append(true).open(&path)?;
+        // Fail early, as before, when the path cannot be appended to at all.
+        drop(OpenOptions::new().create(true).append(true).open(&path)?);
         Ok(Self {
             path,
-            file,
-            bytes_written: existing_len,
             max_bytes: max_bytes.max(1024),
             max_rotated,
         })
     }
 
     fn write_line(&mut self, line: &str) {
-        let len = (line.len() + 1) as u64;
-        if self.bytes_written.saturating_add(len) > self.max_bytes {
+        let mut record = String::with_capacity(line.len() + 1);
+        record.push_str(line);
+        record.push('\n');
+        let current = fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0);
+        if current.saturating_add(record.len() as u64) > self.max_bytes {
             self.rotate();
         }
-        if writeln!(self.file, "{line}").is_ok() {
-            self.bytes_written = self.bytes_written.saturating_add(len);
+        // One `write_all` of the whole record on an append handle: concurrent writers can
+        // interleave lines but not split one.
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)
+        {
+            let _ = file.write_all(record.as_bytes());
         }
     }
 
+    fn lock_path(&self) -> PathBuf {
+        let mut os = self.path.as_os_str().to_os_string();
+        os.push(".rotate.lock");
+        PathBuf::from(os)
+    }
+
+    /// Takes the cross-process rotation lock, clearing one stale lock left by a crashed
+    /// writer. Returns `None` when another writer is rotating; this writer then just appends.
+    fn acquire_rotation_lock(&self) -> Option<RotationLock> {
+        let lock = self.lock_path();
+        for _ in 0..2 {
+            match OpenOptions::new().write(true).create_new(true).open(&lock) {
+                Ok(_) => return Some(RotationLock(lock)),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    let stale = fs::metadata(&lock)
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|at| SystemTime::now().duration_since(at).ok())
+                        .is_some_and(|age| age.as_millis() as u64 > ROTATION_LOCK_STALE_MS);
+                    if !stale {
+                        return None;
+                    }
+                    let _ = fs::remove_file(&lock);
+                }
+                Err(_) => return None,
+            }
+        }
+        None
+    }
+
     fn rotate(&mut self) {
-        let _ = self.file.flush();
+        let Some(_lock) = self.acquire_rotation_lock() else {
+            return;
+        };
+        // Another writer may have rotated between our size check and taking the lock.
+        let current = fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0);
+        if current < self.max_bytes {
+            return;
+        }
         if self.max_rotated == 0 {
-            if let Ok(f) = OpenOptions::new()
-                .create(true)
+            // Explicitly configured to keep no history.
+            let _ = OpenOptions::new()
                 .write(true)
                 .truncate(true)
-                .open(&self.path)
-            {
-                self.file = f;
-                self.bytes_written = 0;
-            }
+                .open(&self.path);
             return;
         }
         for idx in (1..=self.max_rotated).rev() {
@@ -193,17 +242,20 @@ impl FileSink {
                 }
             }
         }
-        let first = rotated_path(&self.path, 1);
-        let _ = fs::rename(&self.path, &first);
-        if let Ok(f) = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&self.path)
-        {
-            self.file = f;
-            self.bytes_written = 0;
-        }
+        // If this rename fails (the file is held without share-delete, an AV scanner has it
+        // open), the live log is left exactly as it is and keeps growing until a later write
+        // rotates it. It is never truncated: the next append recreates the live file only
+        // after a successful rename has moved the old one out of the way.
+        let _ = fs::rename(&self.path, rotated_path(&self.path, 1));
+    }
+}
+
+/// Removes the rotation lock file when the rotation finishes or unwinds.
+struct RotationLock(PathBuf);
+
+impl Drop for RotationLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
     }
 }
 
@@ -771,5 +823,112 @@ mod tests {
         }
         assert!(rot_path.is_file());
         assert!(rotated_path(&rot_path, 1).is_file());
+    }
+
+    fn line(writer: &str, seq: usize) -> String {
+        format_structured_record(
+            LogLevel::Info,
+            writer,
+            "seq",
+            None,
+            "event",
+            Some(json!({"seq": seq, "pad": "y".repeat(64)})),
+        )
+    }
+
+    fn lines_in(path: &Path) -> Vec<Value> {
+        fs::read_to_string(path)
+            .unwrap_or_default()
+            .lines()
+            .filter_map(|l| serde_json::from_str(l).ok())
+            .collect()
+    }
+
+    #[test]
+    fn two_sinks_on_one_path_keep_writing_to_the_live_file_across_rotations() {
+        // Issue #4: `serve` had the global sink and a `JsonLogger` sink on the same path, each
+        // with its own counter. After one rotated, the other kept appending to the renamed
+        // file, so `/api/logs` (live file only) missed its newest lines.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("logs/shared.jsonl");
+        let mut a = FileSink::open(path.clone(), 2048, 50).unwrap();
+        let mut b = FileSink::open(path.clone(), 2048, 50).unwrap();
+        let total = 120;
+        for seq in 0..total {
+            a.write_line(&line("a", seq));
+            b.write_line(&line("b", seq));
+        }
+        let live = lines_in(&path);
+        for writer in ["a", "b"] {
+            assert!(
+                live.iter()
+                    .any(|e| e["component"] == writer && e["fields"]["seq"] == total - 1),
+                "newest line from {writer} must be in the live file"
+            );
+        }
+        // Nothing lost and nothing double-rotated: every line is in exactly one file.
+        let mut count = live.len();
+        for idx in 1..=50 {
+            count += lines_in(&rotated_path(&path, idx)).len();
+        }
+        assert_eq!(count, total * 2);
+        assert!(
+            !FileSink::open(path.clone(), 2048, 50)
+                .unwrap()
+                .lock_path()
+                .exists()
+        );
+    }
+
+    #[test]
+    fn a_failed_rotation_rename_never_truncates_the_live_log() {
+        // Issue #6: a failed `rename(live, .1)` used to be followed by truncate(true).
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("logs/blocked.jsonl");
+        // A non-empty directory at `.1` makes both the remove and the rename fail on every
+        // platform, standing in for a file held open without share-delete.
+        let blocker = rotated_path(&path, 1);
+        fs::create_dir_all(&blocker).unwrap();
+        fs::write(blocker.join("keep"), "x").unwrap();
+        let mut sink = FileSink::open(path.clone(), 1024, 1).unwrap();
+        for seq in 0..40 {
+            sink.write_line(&line("w", seq));
+        }
+        let live = lines_in(&path);
+        assert_eq!(
+            live.len(),
+            40,
+            "every line must survive the failed rotations"
+        );
+        assert_eq!(live[0]["fields"]["seq"], 0);
+        assert!(!sink.lock_path().exists());
+    }
+
+    #[test]
+    fn a_fresh_rotation_lock_defers_and_a_stale_one_is_cleared() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("logs/locked.jsonl");
+        let mut sink = FileSink::open(path.clone(), 1024, 2).unwrap();
+        let lock = sink.lock_path();
+
+        // Another writer is mid-rotation: this one only appends.
+        fs::write(&lock, "").unwrap();
+        for seq in 0..30 {
+            sink.write_line(&line("w", seq));
+        }
+        assert!(!rotated_path(&path, 1).exists());
+        assert_eq!(lines_in(&path).len(), 30);
+
+        // The lock was left by a crashed writer long ago: it is cleared and rotation runs.
+        let old = SystemTime::now() - std::time::Duration::from_millis(ROTATION_LOCK_STALE_MS * 2);
+        fs::File::options()
+            .write(true)
+            .open(&lock)
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+        sink.write_line(&line("w", 30));
+        assert!(rotated_path(&path, 1).is_file());
+        assert!(!lock.exists());
     }
 }
