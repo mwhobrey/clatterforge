@@ -91,16 +91,88 @@ pub fn extract_effort_from_command(cmd: &[String]) -> Option<String> {
     None
 }
 
+/// Reads at most the **last** `MAX_STDOUT_PARSE_BYTES` of a stdout log. Every supported
+/// CLI writes its usage receipt last (Codex `turn.completed`, AGY/Cursor final result), so
+/// keeping the head of a long log loses exactly the part that matters. When the file is
+/// truncated, the cut-off first line is dropped so JSONL parsing starts on a whole record.
 fn read_bounded_utf8(path: &Path) -> Option<String> {
-    let file = fs::File::open(path).ok()?;
+    use std::io::{Seek, SeekFrom};
+    let mut file = fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let truncated = len > MAX_STDOUT_PARSE_BYTES;
+    if truncated {
+        file.seek(SeekFrom::Start(len - MAX_STDOUT_PARSE_BYTES))
+            .ok()?;
+    }
     let mut buf = Vec::new();
     file.take(MAX_STDOUT_PARSE_BYTES)
         .read_to_end(&mut buf)
         .ok()?;
+    if truncated {
+        // Keep the partial first line if there is no newline at all: a single huge JSON
+        // document still carries a recoverable trailing `"usage"` object.
+        if let Some(newline) = buf.iter().position(|b| *b == b'\n') {
+            buf.drain(..=newline);
+        }
+    }
     if buf.is_empty() {
         return None;
     }
     Some(String::from_utf8_lossy(&buf).into_owned())
+}
+
+/// Last-resort recovery for a single JSON document whose start was cut off: parse the last
+/// complete `"usage": {...}` object found in the text. Brace matching skips string bodies.
+fn trailing_usage_object(text: &str) -> Option<CliUsageMetrics> {
+    let bytes = text.as_bytes();
+    let mut search_end = text.len();
+    while let Some(key) = text[..search_end].rfind("\"usage\"") {
+        search_end = key;
+        let rest = &text[key + "\"usage\"".len()..];
+        let Some(open_rel) = rest.find(|c: char| !c.is_whitespace() && c != ':') else {
+            continue;
+        };
+        if !rest[open_rel..].starts_with('{') {
+            continue;
+        }
+        let start = key + "\"usage\"".len() + open_rel;
+        let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+        for (offset, &b) in bytes[start..].iter().enumerate() {
+            if in_string {
+                match (escaped, b) {
+                    (true, _) => escaped = false,
+                    (false, b'\\') => escaped = true,
+                    (false, b'"') => in_string = false,
+                    _ => {}
+                }
+                continue;
+            }
+            match b {
+                b'"' => in_string = true,
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let object = &text[start..=start + offset];
+                        // Only a receipt with real counts counts as reported usage; an
+                        // unrelated `"usage": {}` in agent output must not.
+                        if let Ok(usage) = serde_json::from_str::<Value>(object) {
+                            let metrics = parse_usage_object(&usage);
+                            if metrics.input_tokens > 0
+                                || metrics.output_tokens > 0
+                                || metrics.total_tokens > 0
+                            {
+                                return Some(metrics);
+                            }
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    None
 }
 
 fn u64_any(obj: &Value, keys: &[&str]) -> u64 {
@@ -198,7 +270,7 @@ pub fn parse_cli_usage_from_str(text: &str) -> Option<CliUsageMetrics> {
             best = Some(m);
         }
     }
-    best
+    best.or_else(|| trailing_usage_object(trimmed))
 }
 
 fn extract_metrics_from_json(doc: &Value) -> Option<CliUsageMetrics> {
@@ -250,6 +322,10 @@ pub struct CliModelOutcomeRow {
     pub thinking_tokens: u64,
     pub num_turns: u64,
     pub recorded_at: u64,
+    /// False when the CLI printed no usage receipt. Its token fields are then 0 because
+    /// they are unknown, not because the run was free; totals must not treat them as data.
+    #[serde(default)]
+    pub usage_reported: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -272,6 +348,8 @@ pub struct OutcomeAggregate {
     pub total_cached_tokens: u64,
     pub total_thinking_tokens: u64,
     pub total_turns: u64,
+    /// Attempts whose CLI printed no usage receipt (their tokens are unknown, not zero).
+    pub usage_unreported: u64,
     pub last_used_at: u64,
     signal_sum: f64,
 }
@@ -317,6 +395,9 @@ impl OutcomeAggregate {
             .total_thinking_tokens
             .saturating_add(row.thinking_tokens);
         self.total_turns = self.total_turns.saturating_add(row.num_turns);
+        if !row.usage_reported {
+            self.usage_unreported += 1;
+        }
         self.last_used_at = self.last_used_at.max(row.recorded_at);
         self.signal_sum += outcome_signal(row);
     }
@@ -567,6 +648,7 @@ impl CliModelScoreboard {
                 total_output_tokens: agg.total_output_tokens,
                 total_cached_tokens: agg.total_cached_tokens,
                 total_thinking_tokens: agg.total_thinking_tokens,
+                usage_unreported: agg.usage_unreported,
                 learned_weight: agg.smoothed_weight(),
             })
             .collect();
@@ -592,6 +674,7 @@ impl CliModelScoreboard {
             total_output_tokens: totals.total_output_tokens,
             total_cached_tokens: totals.total_cached_tokens,
             total_thinking_tokens: totals.total_thinking_tokens,
+            total_usage_unreported: totals.usage_unreported,
             by_backend,
             by_model,
             by_pair_complexity,
@@ -624,6 +707,8 @@ pub struct AnalyticsPairRow {
     pub total_cached_tokens: u64,
     pub total_thinking_tokens: u64,
     pub total_turns: u64,
+    #[serde(default)]
+    pub usage_unreported: u64,
     pub learned_weight: f64,
     pub last_used_at: u64,
 }
@@ -658,6 +743,7 @@ impl AnalyticsPairRow {
             total_cached_tokens: agg.total_cached_tokens,
             total_thinking_tokens: agg.total_thinking_tokens,
             total_turns: agg.total_turns,
+            usage_unreported: agg.usage_unreported,
             learned_weight,
             last_used_at: agg.last_used_at,
         }
@@ -684,6 +770,8 @@ pub struct AnalyticsBackendRow {
     pub total_output_tokens: u64,
     pub total_cached_tokens: u64,
     pub total_thinking_tokens: u64,
+    #[serde(default)]
+    pub usage_unreported: u64,
     pub learned_weight: f64,
 }
 
@@ -695,10 +783,35 @@ pub struct AnalyticsReport {
     pub total_output_tokens: u64,
     pub total_cached_tokens: u64,
     pub total_thinking_tokens: u64,
+    /// Attempts with no usage receipt; the token totals above exclude them as unknown.
+    #[serde(default)]
+    pub total_usage_unreported: u64,
     pub by_backend: Vec<AnalyticsBackendRow>,
     pub by_model: Vec<AnalyticsPairRow>,
     pub by_pair_complexity: Vec<AnalyticsPairRow>,
     pub recent_outcomes: Vec<CliModelOutcomeRow>,
+}
+
+/// Adds the nullable `usage_reported` column to a table created before it existed. Old
+/// binaries keep working because they name their columns explicitly. Two processes racing
+/// the migration is fine: the loser sees "duplicate column" and carries on.
+fn add_usage_reported_column(connection: &Connection) -> Result<()> {
+    let present: bool = connection
+        .prepare(
+            "SELECT 1 FROM pragma_table_info('cli_model_outcomes') WHERE name='usage_reported'",
+        )?
+        .exists([])?;
+    if present {
+        return Ok(());
+    }
+    match connection.execute(
+        "ALTER TABLE cli_model_outcomes ADD COLUMN usage_reported INTEGER",
+        [],
+    ) {
+        Ok(_) => Ok(()),
+        Err(error) if error.to_string().contains("duplicate column") => Ok(()),
+        Err(error) => Err(error).context("add usage_reported column"),
+    }
 }
 
 pub struct RoutingMetricsStore {
@@ -741,9 +854,11 @@ impl RoutingMetricsStore {
                 thinking_tokens INTEGER NOT NULL DEFAULT 0,
                 num_turns INTEGER NOT NULL DEFAULT 0,
                 recorded_at INTEGER NOT NULL,
+                usage_reported INTEGER,
                 PRIMARY KEY(task_id, attempt_seq)
             );",
         )?;
+        add_usage_reported_column(&connection)?;
         Ok(Self {
             connection,
             root: root.to_path_buf(),
@@ -760,8 +875,8 @@ impl RoutingMetricsStore {
                 complexity, effort, exec_outcome, verify_outcome, review_outcome,
                 quota_exhausted, timed_out, exec_failed, verify_failed, redone, exceptional,
                 duration_ms, verify_ms, input_tokens, output_tokens, cached_tokens,
-                thinking_tokens, num_turns, recorded_at
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27)
+                thinking_tokens, num_turns, recorded_at, usage_reported
+            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28)
             ON CONFLICT(task_id, attempt_seq) DO UPDATE SET
                 workflow_id=COALESCE(excluded.workflow_id, cli_model_outcomes.workflow_id),
                 profile_name=COALESCE(excluded.profile_name, cli_model_outcomes.profile_name),
@@ -794,7 +909,8 @@ impl RoutingMetricsStore {
                 cached_tokens=MAX(cli_model_outcomes.cached_tokens, excluded.cached_tokens),
                 thinking_tokens=MAX(cli_model_outcomes.thinking_tokens, excluded.thinking_tokens),
                 num_turns=MAX(cli_model_outcomes.num_turns, excluded.num_turns),
-                recorded_at=MAX(cli_model_outcomes.recorded_at, excluded.recorded_at)",
+                recorded_at=MAX(cli_model_outcomes.recorded_at, excluded.recorded_at),
+                usage_reported=MAX(COALESCE(cli_model_outcomes.usage_reported, 0), excluded.usage_reported)",
             params![
                 row.task_id,
                 row.attempt_seq,
@@ -823,6 +939,7 @@ impl RoutingMetricsStore {
                 row.thinking_tokens as i64,
                 row.num_turns as i64,
                 row.recorded_at as i64,
+                i32::from(row.usage_reported),
             ],
         )?;
         tx.commit()?;
@@ -872,12 +989,12 @@ impl RoutingMetricsStore {
                     complexity, effort, exec_outcome, verify_outcome, review_outcome,
                     quota_exhausted, timed_out, exec_failed, verify_failed, redone, exceptional,
                     duration_ms, verify_ms, input_tokens, output_tokens, cached_tokens,
-                    thinking_tokens, num_turns, recorded_at
+                    thinking_tokens, num_turns, recorded_at, usage_reported
              FROM cli_model_outcomes",
         )?;
         let rows = stmt
             .query_map([], |r| {
-                Ok(CliModelOutcomeRow {
+                let mut row = CliModelOutcomeRow {
                     task_id: r.get(0)?,
                     attempt_seq: r.get::<_, u32>(1)?,
                     workflow_id: r.get(2)?,
@@ -905,7 +1022,15 @@ impl RoutingMetricsStore {
                     thinking_tokens: r.get::<_, i64>(24)?.max(0) as u64,
                     num_turns: r.get::<_, i64>(25)?.max(0) as u64,
                     recorded_at: r.get::<_, i64>(26)?.max(0) as u64,
-                })
+                    usage_reported: false,
+                };
+                // Rows written before the column existed carry NULL: nonzero tokens can only
+                // have come from a parsed receipt, so all-zero is treated as unknown.
+                row.usage_reported = match r.get::<_, Option<i64>>(27)? {
+                    Some(flag) => flag != 0,
+                    None => row.input_tokens > 0 || row.output_tokens > 0 || row.cached_tokens > 0,
+                };
+                Ok(row)
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
@@ -1157,7 +1282,9 @@ pub fn build_row_from_parts(
             .join(&task.id)
             .join("execution.stdout.log")
     };
-    let usage = parse_cli_usage_from_path(&backend, &stdout_path).unwrap_or_default();
+    let parsed_usage = parse_cli_usage_from_path(&backend, &stdout_path);
+    let usage_reported = parsed_usage.is_some();
+    let usage = parsed_usage.unwrap_or_default();
     let verify_outcome = verification.map(|v| v.outcome.clone());
     let timed_out = exec.outcome == "timed_out";
     let exec_failed = exec.outcome != "succeeded" && !timed_out && !quota_exhausted;
@@ -1205,6 +1332,7 @@ pub fn build_row_from_parts(
         thinking_tokens: usage.thinking_tokens,
         num_turns: usage.num_turns.unwrap_or(0),
         recorded_at: exec.ended_at.max(now()),
+        usage_reported,
     })
 }
 
@@ -1297,6 +1425,7 @@ mod tests {
                 thinking_tokens: 20,
                 num_turns: 1,
                 recorded_at: 1000 + i,
+                usage_reported: true,
             });
             rows.push(CliModelOutcomeRow {
                 task_id: format!("lose-{i}"),
@@ -1326,6 +1455,7 @@ mod tests {
                 thinking_tokens: 0,
                 num_turns: 0,
                 recorded_at: 2000 + i,
+                usage_reported: false,
             });
         }
         let board = CliModelScoreboard::from_rows(rows);
@@ -1337,5 +1467,138 @@ mod tests {
         assert!(loser.learned_weight < -0.5);
         assert!(winner.total_score > untried.total_score);
         assert!(untried.total_score > loser.total_score);
+    }
+
+    fn filler_lines(bytes: u64) -> String {
+        let line = "{\"type\":\"item.delta\",\"text\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}\n";
+        line.repeat((bytes as usize) / line.len() + 1)
+    }
+
+    #[test]
+    fn usage_receipt_after_more_than_four_mib_of_output_is_still_read() {
+        // Issue #2: the receipt comes last, so reading only the head recorded zero tokens.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("execution.stdout.log");
+        let mut text = filler_lines(MAX_STDOUT_PARSE_BYTES + 512 * 1024);
+        text.push_str("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":4242,\"cached_input_tokens\":100,\"output_tokens\":77}}\n");
+        assert!(text.len() as u64 > MAX_STDOUT_PARSE_BYTES);
+        fs::write(&path, &text).unwrap();
+        let usage = parse_cli_usage_from_path("codex", &path).expect("tail receipt parsed");
+        assert_eq!(usage.input_tokens, 4242);
+        assert_eq!(usage.output_tokens, 77);
+    }
+
+    #[test]
+    fn oversized_single_json_document_recovers_its_trailing_usage_object() {
+        // AGY/Cursor `--output-format json` print one document; cutting its head off makes
+        // it unparseable, so the trailing usage object is recovered on its own.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("execution.stdout.log");
+        let body = "a".repeat((MAX_STDOUT_PARSE_BYTES + 1024) as usize);
+        let doc = format!(
+            "{{\"type\":\"result\",\"response\":\"{body} {{\\\"usage\\\": {{}}}}\",\"usage\":{{\"input_tokens\":900,\"output_tokens\":12,\"total_tokens\":912}}}}"
+        );
+        fs::write(&path, &doc).unwrap();
+        let usage = parse_cli_usage_from_path("agy", &path).expect("trailing usage recovered");
+        assert_eq!(usage.input_tokens, 900);
+        assert_eq!(usage.output_tokens, 12);
+    }
+
+    #[test]
+    fn output_without_a_receipt_is_unknown_not_zero() {
+        // Issue #3: plain text or a JSON object without real counts is not a usage receipt.
+        assert!(parse_cli_usage_from_str("Plan:\n1. edit src/lib.rs\n").is_none());
+        assert!(parse_cli_usage_from_str("{\"type\":\"result\",\"response\":\"ok\"}").is_none());
+        assert!(parse_cli_usage_from_str("note: {\"usage\": {}} in prose").is_none());
+    }
+
+    fn row(task: &str, reported: bool, input: u64) -> CliModelOutcomeRow {
+        CliModelOutcomeRow {
+            task_id: task.into(),
+            attempt_seq: 1,
+            workflow_id: None,
+            profile_name: None,
+            worker: None,
+            backend: "agy".into(),
+            model: "m".into(),
+            tier: "standard".into(),
+            complexity: "standard".into(),
+            effort: None,
+            exec_outcome: "succeeded".into(),
+            verify_outcome: Some("succeeded".into()),
+            review_outcome: "pending".into(),
+            quota_exhausted: false,
+            timed_out: false,
+            exec_failed: false,
+            verify_failed: false,
+            redone: false,
+            exceptional: false,
+            duration_ms: 10,
+            verify_ms: 5,
+            input_tokens: input,
+            output_tokens: input / 10,
+            cached_tokens: 0,
+            thinking_tokens: 0,
+            num_turns: 1,
+            recorded_at: 1,
+            usage_reported: reported,
+        }
+    }
+
+    #[test]
+    fn unreported_usage_is_counted_separately_and_persisted() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = RoutingMetricsStore::open(dir.path()).unwrap();
+        store.upsert_row(&row("known", true, 1000)).unwrap();
+        store.upsert_row(&row("plan-mode", false, 0)).unwrap();
+        let rows = store.rows().unwrap();
+        let by_id = |id: &str| {
+            rows.iter()
+                .find(|r| r.task_id == id)
+                .unwrap()
+                .usage_reported
+        };
+        assert!(by_id("known"));
+        assert!(!by_id("plan-mode"));
+        let report = store.scoreboard().unwrap().analytics_report();
+        assert_eq!(report.total_attempts, 2);
+        assert_eq!(report.total_usage_unreported, 1);
+        assert_eq!(report.total_input_tokens, 1000);
+        assert_eq!(report.by_backend[0].usage_unreported, 1);
+    }
+
+    #[test]
+    fn legacy_table_gains_the_column_and_infers_reported_from_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        {
+            let store = RoutingMetricsStore::open(dir.path()).unwrap();
+            // Simulate a table created by an older binary: drop the new column.
+            store
+                .connection
+                .execute_batch("ALTER TABLE cli_model_outcomes DROP COLUMN usage_reported;")
+                .unwrap();
+            for (id, tokens) in [("old-known", 500_i64), ("old-zero", 0)] {
+                store
+                    .connection
+                    .execute(
+                        "INSERT INTO cli_model_outcomes(task_id, attempt_seq, backend, model, tier, complexity, exec_outcome, review_outcome, input_tokens, recorded_at)
+                         VALUES (?1, 1, 'codex', 'm', 'standard', 'standard', 'succeeded', 'pending', ?2, 1)",
+                        params![id, tokens],
+                    )
+                    .unwrap();
+            }
+        }
+        let store = RoutingMetricsStore::open(dir.path()).unwrap();
+        let rows = store.rows().unwrap();
+        let by_id = |id: &str| {
+            rows.iter()
+                .find(|r| r.task_id == id)
+                .unwrap()
+                .usage_reported
+        };
+        assert!(by_id("old-known"));
+        assert!(!by_id("old-zero"));
+        // Reopening again must not fail on the already-migrated table.
+        RoutingMetricsStore::open(dir.path()).unwrap();
     }
 }

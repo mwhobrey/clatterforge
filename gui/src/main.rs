@@ -933,6 +933,8 @@ struct TokenTelemetrySummary {
     total_output_tokens: u64,
     total_cached_tokens: u64,
     total_tasks_reported: usize,
+    #[serde(default)]
+    total_tasks_unreported: usize,
     estimated_cost_usd: Option<String>,
 }
 
@@ -976,6 +978,8 @@ struct AnalyticsReport {
     total_cached_tokens: u64,
     #[serde(default)]
     total_thinking_tokens: u64,
+    #[serde(default)]
+    total_usage_unreported: u64,
     #[serde(default)]
     by_pair_complexity: Vec<AnalyticsPairRow>,
 }
@@ -4298,6 +4302,11 @@ fn ProviderMonitor(config: ApiConnection) -> Element {
                             }
                         }
                     }
+                    if data.token_summary.total_tasks_unreported > 0 {
+                        p { class: "text-xs text-amber-400/90 -mt-2 mb-3",
+                            "{data.token_summary.total_tasks_unreported} CLI run(s) printed no usage receipt; totals exclude them as unknown, not free."
+                        }
+                    }
 
                     div { class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3",
                         for prov in data.providers {
@@ -4386,7 +4395,7 @@ fn ProviderMonitor(config: ApiConnection) -> Element {
                         div { class: "mt-3 rounded border border-neutral-800 bg-neutral-950/80 p-3",
                             div { class: "flex flex-wrap items-center justify-between gap-2 mb-2",
                                 span { class: "text-xs font-semibold text-sky-300",
-                                    "📊 CLI & Model Performance Weights ({stats.total_attempts} tracked attempts · thinking {format_tokens(stats.total_thinking_tokens)})"
+                                    "📊 CLI & Model Performance Weights ({stats.total_attempts} tracked attempts · {stats.total_usage_unreported} without usage data · thinking {format_tokens(stats.total_thinking_tokens)})"
                                 }
                             }
                             if stats.by_pair_complexity.is_empty() {

@@ -28,6 +28,10 @@ pub struct TokenTelemetrySummary {
     pub total_output_tokens: u64,
     pub total_cached_tokens: u64,
     pub total_tasks_reported: usize,
+    /// Delegated CLI attempts that printed no usage receipt. Their tokens are unknown and
+    /// are excluded from the totals above rather than counted as zero.
+    #[serde(default)]
+    pub total_tasks_unreported: usize,
     pub estimated_cost_usd: Option<String>,
 }
 
@@ -590,12 +594,12 @@ pub fn collect_token_telemetry(state_root: &Path) -> TokenTelemetrySummary {
             summary.total_cached_tokens = summary
                 .total_cached_tokens
                 .saturating_add(report.total_cached_tokens);
-            let reported = report
-                .recent_outcomes
-                .iter()
-                .filter(|r| r.input_tokens > 0 || r.output_tokens > 0 || r.cached_tokens > 0)
-                .count();
+            // Count every recorded attempt, not just the bounded `recent_outcomes` sample.
+            let unreported = report.total_usage_unreported as usize;
+            let reported = (report.total_attempts as usize).saturating_sub(unreported);
             summary.total_tasks_reported = summary.total_tasks_reported.saturating_add(reported);
+            summary.total_tasks_unreported =
+                summary.total_tasks_unreported.saturating_add(unreported);
         }
     }
 

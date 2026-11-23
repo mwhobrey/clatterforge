@@ -5064,6 +5064,7 @@ mod tests {
                     thinking_tokens: 50,
                     num_turns: 1,
                     recorded_at: 100 + i,
+                    usage_reported: true,
                 })
                 .unwrap();
             metrics
@@ -5095,6 +5096,7 @@ mod tests {
                     thinking_tokens: 0,
                     num_turns: 1,
                     recorded_at: 200 + i,
+                    usage_reported: true,
                 })
                 .unwrap();
         }
