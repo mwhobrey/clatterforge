@@ -76,6 +76,9 @@ struct ServeState {
     port: u16,
     token: String,
     sessions: Mutex<SessionStore>,
+    /// Persisted paired-device sessions, opened once at startup (schema included) and only
+    /// ever used from `spawn_blocking`, never on an async worker thread.
+    session_db: Arc<Mutex<Sessions>>,
     access: AccessPolicy,
     logger: Arc<JsonLogger>,
     onboard_progress:
@@ -208,37 +211,61 @@ enum Actor {
 /// first place (a malicious page can't attach a custom `Authorization` header
 /// cross-origin without the configured CORS policy allowing it), so this only applies
 /// to the cookie-authenticated path.
-fn authenticate(
+async fn authenticate(
     headers: &HeaderMap,
-    state: &ServeState,
+    state: &Arc<ServeState>,
     mutating: bool,
 ) -> Result<Actor, AuthError> {
     check_origin(headers, state)?;
     if has_valid_bearer(headers, state) {
         return Ok(Actor::Bearer);
     }
-    let session_id = cookie_value(headers, SESSION_COOKIE)
-        .ok_or((StatusCode::UNAUTHORIZED, "missing bearer token or session"))?;
-    let sessions = Sessions::open(&state.root).map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "session store unavailable",
-        )
-    })?;
-    let session = sessions
-        .verify(session_id)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "session lookup failed"))?
-        .ok_or((StatusCode::UNAUTHORIZED, "missing or expired session"))?;
-    if mutating {
-        let csrf_header = headers
+    let session_token = cookie_value(headers, SESSION_COOKIE)
+        .ok_or((StatusCode::UNAUTHORIZED, "missing bearer token or session"))?
+        .to_string();
+    let csrf_header = mutating.then(|| {
+        headers
             .get(CSRF_HEADER)
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if csrf_header.is_empty() || !sessions.verify_csrf(&session, csrf_header) {
-            return Err((StatusCode::FORBIDDEN, "missing or invalid CSRF token"));
+            .unwrap_or("")
+            .to_string()
+    });
+    // SQLite lookup plus the sliding-expiry write: blocking work, so keep it off the
+    // async worker threads that serve every other request.
+    with_session_db(state, move |sessions| {
+        let Some(session) = sessions.verify(&session_token)? else {
+            return Ok(Err((
+                StatusCode::UNAUTHORIZED,
+                "missing or expired session",
+            )));
+        };
+        if let Some(csrf) = csrf_header
+            && (csrf.is_empty() || !sessions.verify_csrf(&session, &csrf))
+        {
+            return Ok(Err((
+                StatusCode::FORBIDDEN,
+                "missing or invalid CSRF token",
+            )));
         }
-    }
-    Ok(Actor::Session(session.principal))
+        Ok(Ok(Actor::Session(session.principal)))
+    })
+    .await
+    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "session lookup failed"))?
+}
+
+/// Runs `f` against the shared session store on the blocking pool. A poisoned lock is
+/// recovered: the connection itself is still valid after a panic in another request.
+async fn with_session_db<T: Send + 'static>(
+    state: &Arc<ServeState>,
+    f: impl FnOnce(&Sessions) -> anyhow::Result<T> + Send + 'static,
+) -> anyhow::Result<T> {
+    let db = Arc::clone(&state.session_db);
+    tokio::task::spawn_blocking(move || {
+        let sessions = db.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        f(&sessions)
+    })
+    .await
+    .context("session store task failed")?
 }
 
 fn error_response(err: anyhow::Error) -> Response {
@@ -268,7 +295,7 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 async fn get_me(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    match authenticate(&headers, &state, false) {
+    match authenticate(&headers, &state, false).await {
         Ok(Actor::Session(principal)) => {
             Json(serde_json::json!({"auth": "session", "principal": principal})).into_response()
         }
@@ -281,7 +308,7 @@ async fn get_me(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Res
 }
 
 async fn get_tasks(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -308,7 +335,7 @@ async fn post_clear_tasks(
     headers: HeaderMap,
     Json(body): Json<ClearTasksBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -338,7 +365,7 @@ async fn delete_task(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -364,7 +391,7 @@ async fn get_task(
     Path(id): Path<String>,
     Query(query): Query<DetailQuery>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -420,7 +447,7 @@ async fn get_providers(
     headers: HeaderMap,
     Query(query): Query<ProviderQuery>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -441,7 +468,7 @@ async fn get_providers(
 }
 
 async fn get_analytics(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -501,7 +528,7 @@ async fn get_workflow_profiles(
     State(state): State<Arc<ServeState>>,
     headers: HeaderMap,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -552,7 +579,7 @@ async fn post_workflow_profile_suggest_files(
     Path(name): Path<String>,
     Json(body): Json<SuggestFilesBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -581,7 +608,7 @@ async fn get_workflow_profile_files(
     headers: HeaderMap,
     Path(name): Path<String>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -607,7 +634,7 @@ async fn get_workflow_profile_repo_status(
     headers: HeaderMap,
     Path(name): Path<String>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -638,7 +665,7 @@ async fn put_workflow_profile_timeouts(
     Path(name): Path<String>,
     Json(body): Json<crate::workflow::TimeoutOverrides>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -711,7 +738,7 @@ async fn get_onboard_progress(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let snapshot = state
@@ -732,7 +759,7 @@ async fn post_workflow_profile_reonboard(
     Query(query): Query<ProgressQuery>,
     body: Option<Json<ReonboardBody>>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -860,7 +887,7 @@ async fn delete_workflow_profile(
     headers: HeaderMap,
     Path(name): Path<String>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -884,7 +911,7 @@ async fn delete_workflow_profile(
 }
 
 async fn get_agent_presets(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -915,7 +942,7 @@ async fn put_agent_preset_routing(
     Path(name): Path<String>,
     Json(body): Json<PresetRoutingBody>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -949,7 +976,7 @@ async fn delete_agent_preset(
     headers: HeaderMap,
     Path(name): Path<String>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -977,7 +1004,7 @@ async fn post_workflow(
     headers: HeaderMap,
     Json(body): Json<WorkflowBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1041,7 +1068,7 @@ async fn post_onboard_probe(
     headers: HeaderMap,
     Json(body): Json<ProbeBody>,
 ) -> Response {
-    match authenticate(&headers, &state, false) {
+    match authenticate(&headers, &state, false).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -1094,7 +1121,7 @@ async fn post_onboard(
     Query(query): Query<ProgressQuery>,
     Json(body): Json<crate::onboard::OnboardRequest>,
 ) -> Response {
-    match authenticate(&headers, &state, true) {
+    match authenticate(&headers, &state, true).await {
         // Onboarding registers a host verifier executable and repository path (`D4`);
         // restrict it to local bearer-authenticated callers only.
         Ok(Actor::Bearer) => {}
@@ -1274,7 +1301,7 @@ async fn post_integration_prepare(
     Path(id): Path<String>,
     Json(body): Json<IntegrationPrepareBody>,
 ) -> Response {
-    let by = match authenticate(&headers, &state, true) {
+    let by = match authenticate(&headers, &state, true).await {
         Ok(Actor::Session(principal)) => principal,
         Ok(Actor::Bearer) => body.by,
         Err(err) => return err.into_response(),
@@ -1297,7 +1324,7 @@ async fn post_integrate(
     Path(id): Path<String>,
     Json(body): Json<IntegrationBody>,
 ) -> Response {
-    let by = match authenticate(&headers, &state, true) {
+    let by = match authenticate(&headers, &state, true).await {
         Ok(Actor::Session(principal)) => principal,
         Ok(Actor::Bearer) => body.by,
         Err(err) => return err.into_response(),
@@ -1326,7 +1353,7 @@ async fn post_approve(
     Path(id): Path<String>,
     Json(body): Json<ApproveBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1352,7 +1379,7 @@ async fn post_run(
     Path(id): Path<String>,
     Json(body): Json<RevisionBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1371,7 +1398,7 @@ async fn post_cancel(
     Path(id): Path<String>,
     Json(body): Json<CancelBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1397,7 +1424,7 @@ async fn post_reconcile(
     Path(id): Path<String>,
     Json(body): Json<RevisionBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1418,7 +1445,7 @@ async fn post_review(
     Path(id): Path<String>,
     Json(body): Json<ReviewBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1444,7 +1471,7 @@ async fn post_retry(
     Path(id): Path<String>,
     Json(body): Json<RetryBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1483,7 +1510,7 @@ async fn post_depend(
     Path(id): Path<String>,
     Json(body): Json<DependBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1499,7 +1526,7 @@ async fn post_depend(
 }
 
 async fn get_leases(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1526,7 +1553,7 @@ async fn post_leases_acknowledge(
     headers: HeaderMap,
     Json(body): Json<AcknowledgeLeaseBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1571,7 +1598,7 @@ async fn post_policy(
     headers: HeaderMap,
     Json(body): Json<PolicyCreateBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1615,7 +1642,7 @@ async fn get_policy(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1641,7 +1668,7 @@ async fn post_policy_revoke(
     Path(id): Path<String>,
     Json(body): Json<PolicyRevokeBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1688,7 +1715,7 @@ async fn post_policy_hold_my_beer(
     Path(id): Path<String>,
     Json(body): Json<HoldMyBeerBody>,
 ) -> Response {
-    if let Err(err) = authenticate(&headers, &state, true) {
+    if let Err(err) = authenticate(&headers, &state, true).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1708,7 +1735,7 @@ async fn post_policy_hold_my_beer(
 }
 
 async fn get_stop(State(state): State<Arc<ServeState>>, headers: HeaderMap) -> Response {
-    if let Err(err) = authenticate(&headers, &state, false) {
+    if let Err(err) = authenticate(&headers, &state, false).await {
         return err.into_response();
     }
     let root = state.root.clone();
@@ -1736,7 +1763,7 @@ async fn post_stop(
     headers: HeaderMap,
     Json(body): Json<StopBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1760,7 +1787,7 @@ async fn post_stop_resume(
     headers: HeaderMap,
     Json(body): Json<StopBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(actor) => actor,
         Err(err) => return err.into_response(),
     };
@@ -1858,30 +1885,38 @@ async fn post_pair(
         return (StatusCode::BAD_REQUEST, "principal is required").into_response();
     }
     let presented = body.code.trim().to_ascii_uppercase();
-    let mut store = state.sessions.lock().expect("sessions mutex poisoned");
-    let now = crate::now();
-    let mut failed_attempts = 0u8;
-    let mut burned = false;
-    let matched = match store.pending.as_mut() {
-        Some(pending) if pending.expires_at <= now => {
-            store.pending = None;
-            burned = true;
-            false
-        }
-        Some(pending) if constant_time_eq(&presented, &pending.code) => true,
-        Some(pending) => {
-            pending.failed_attempts = pending.failed_attempts.saturating_add(1);
-            failed_attempts = pending.failed_attempts;
-            if pending.failed_attempts >= MAX_PAIR_ATTEMPTS {
+    // The guard lives only inside this block, so it is never held across the `.await` on the
+    // session store below (a std `MutexGuard` would also make this handler non-`Send`).
+    let (matched, failed_attempts, burned) = {
+        let mut store = state.sessions.lock().expect("sessions mutex poisoned");
+        let now = crate::now();
+        let mut failed_attempts = 0u8;
+        let mut burned = false;
+        let matched = match store.pending.as_mut() {
+            Some(pending) if pending.expires_at <= now => {
                 store.pending = None;
                 burned = true;
+                false
             }
-            false
+            Some(pending) if constant_time_eq(&presented, &pending.code) => true,
+            Some(pending) => {
+                pending.failed_attempts = pending.failed_attempts.saturating_add(1);
+                failed_attempts = pending.failed_attempts;
+                if pending.failed_attempts >= MAX_PAIR_ATTEMPTS {
+                    store.pending = None;
+                    burned = true;
+                }
+                false
+            }
+            None => false,
+        };
+        if matched {
+            // Single use: consume the challenge before the session is created.
+            store.pending = None;
         }
-        None => false,
+        (matched, failed_attempts, burned)
     };
     if !matched {
-        drop(store);
         state.logger.warn(
             "serve",
             "pair.failed",
@@ -1895,13 +1930,16 @@ async fn post_pair(
         );
         return (StatusCode::UNAUTHORIZED, "invalid or expired pairing code").into_response();
     }
-    store.pending = None;
-    drop(store);
     let session_id = random_token();
     let csrf = random_token();
-    let summary = match Sessions::open(&state.root)
-        .and_then(|s| s.create(&session_id, &csrf, &principal, SESSION_TTL_MS))
-    {
+    let created = {
+        let (session_id, csrf, principal) = (session_id.clone(), csrf.clone(), principal.clone());
+        with_session_db(&state, move |s| {
+            s.create(&session_id, &csrf, &principal, SESSION_TTL_MS)
+        })
+        .await
+    };
+    let summary = match created {
         Ok(summary) => summary,
         Err(err) => return error_response(err),
     };
@@ -1947,10 +1985,9 @@ async fn post_logout(State(state): State<Arc<ServeState>>, headers: HeaderMap) -
     if let Err(err) = check_origin(&headers, &state) {
         return err.into_response();
     }
-    if let Some(session_id) = cookie_value(&headers, SESSION_COOKIE)
-        && let Ok(sessions) = Sessions::open(&state.root)
-    {
-        let _ = sessions.revoke_by_token(session_id);
+    if let Some(session_id) = cookie_value(&headers, SESSION_COOKIE) {
+        let session_id = session_id.to_string();
+        let _ = with_session_db(&state, move |s| s.revoke_by_token(&session_id)).await;
     }
     let secure = cookies_should_be_secure(&headers, &state);
     (
@@ -1977,11 +2014,9 @@ async fn get_sessions(State(state): State<Arc<ServeState>>, headers: HeaderMap) 
         )
             .into_response();
     }
-    let root = state.root.clone();
-    match tokio::task::spawn_blocking(move || Sessions::open(&root)?.list_active()).await {
-        Ok(Ok(list)) => Json(list).into_response(),
-        Ok(Err(err)) => error_response(err),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    match with_session_db(&state, |s| s.list_active()).await {
+        Ok(list) => Json(list).into_response(),
+        Err(err) => error_response(err),
     }
 }
 
@@ -2000,11 +2035,9 @@ async fn post_session_revoke(
         )
             .into_response();
     }
-    let root = state.root.clone();
-    match tokio::task::spawn_blocking(move || Sessions::open(&root)?.revoke_by_id(&id)).await {
-        Ok(Ok(revoked)) => Json(serde_json::json!({"revoked": revoked})).into_response(),
-        Ok(Err(err)) => error_response(err),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    match with_session_db(&state, move |s| s.revoke_by_id(&id)).await {
+        Ok(revoked) => Json(serde_json::json!({"revoked": revoked})).into_response(),
+        Err(err) => error_response(err),
     }
 }
 
@@ -2022,11 +2055,9 @@ async fn post_sessions_revoke_all(
         )
             .into_response();
     }
-    let root = state.root.clone();
-    match tokio::task::spawn_blocking(move || Sessions::open(&root)?.revoke_all()).await {
-        Ok(Ok(revoked)) => Json(serde_json::json!({"revoked": revoked})).into_response(),
-        Ok(Err(err)) => error_response(err),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    match with_session_db(&state, |s| s.revoke_all()).await {
+        Ok(revoked) => Json(serde_json::json!({"revoked": revoked})).into_response(),
+        Err(err) => error_response(err),
     }
 }
 
@@ -2264,7 +2295,7 @@ async fn post_client_log(
     headers: HeaderMap,
     Json(body): Json<ClientLogBody>,
 ) -> Response {
-    let actor = match authenticate(&headers, &state, true) {
+    let actor = match authenticate(&headers, &state, true).await {
         Ok(Actor::Bearer) => "bearer".to_string(),
         Ok(Actor::Session(principal)) => format!("session:{principal}"),
         Err(err) => return err.into_response(),
@@ -2306,7 +2337,7 @@ async fn get_logs(
     headers: HeaderMap,
     Query(query): Query<LogsQuery>,
 ) -> Response {
-    match authenticate(&headers, &state, false) {
+    match authenticate(&headers, &state, false).await {
         Ok(Actor::Bearer) => {}
         Ok(Actor::Session(_)) => {
             return (
@@ -2668,6 +2699,9 @@ pub async fn run_with_rotation(
         port,
         token,
         sessions: Mutex::new(SessionStore::default()),
+        session_db: Arc::new(Mutex::new(
+            Sessions::open(&root).context("open paired session store")?,
+        )),
         access,
         logger: Arc::clone(&logger),
         onboard_progress: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -2728,10 +2762,11 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let logger = Arc::new(JsonLogger::with_options(&root, false));
         let state = Arc::new(ServeState {
-            root,
+            root: root.clone(),
             port,
             token: "test-bearer-token".into(),
             sessions: Mutex::new(SessionStore::default()),
+            session_db: Arc::new(Mutex::new(Sessions::open(&root).unwrap())),
             access,
             logger,
             onboard_progress: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -2741,6 +2776,91 @@ mod tests {
             let _ = axum::serve(listener, app).await;
         });
         (port, handle)
+    }
+
+    #[tokio::test]
+    async fn session_lookup_waiting_on_a_locked_database_does_not_stall_other_requests() {
+        // Issue #7: session verification ran SQLite (including the sliding-expiry write) on
+        // the async worker. On this single-threaded test runtime that blocked every request
+        // until the lock cleared. Now it runs on the blocking pool.
+        let dir = tempfile::tempdir().unwrap();
+        let (port, handle) = spawn_test_server(
+            dir.path().to_path_buf(),
+            AccessPolicy::default_local(),
+            None,
+        )
+        .await;
+        let base = format!("http://127.0.0.1:{port}");
+        let client = reqwest::Client::new();
+        let code = client
+            .post(format!("{base}/api/pair/start"))
+            .header("Authorization", "Bearer test-bearer-token")
+            .send()
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap()["code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let paired = client
+            .post(format!("{base}/api/pair"))
+            .json(&serde_json::json!({"code": code, "principal": "Phone"}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(paired.status(), reqwest::StatusCode::OK);
+        let session_cookie = paired
+            .headers()
+            .get_all(reqwest::header::SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|v| v.starts_with(SESSION_COOKIE))
+            .and_then(|v| v.split(';').next())
+            .unwrap()
+            .to_string();
+
+        // Age the session so verification must write its sliding renewal, then hold the
+        // write lock from another connection so that write has to wait.
+        let lock = rusqlite::Connection::open(dir.path().join("state.sqlite")).unwrap();
+        lock.execute("UPDATE paired_sessions SET last_seen_at = 0", [])
+            .unwrap();
+        lock.execute_batch("BEGIN EXCLUSIVE").unwrap();
+
+        let me = tokio::spawn({
+            let client = client.clone();
+            let url = format!("{base}/api/me");
+            async move {
+                client
+                    .get(url)
+                    .header(reqwest::header::COOKIE, session_cookie)
+                    .send()
+                    .await
+                    .unwrap()
+            }
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let health = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            client.get(format!("{base}/health")).send(),
+        )
+        .await
+        .expect("/health must answer while a session lookup waits on the database lock")
+        .unwrap();
+        assert_eq!(health.status(), reqwest::StatusCode::OK);
+        assert!(
+            !me.is_finished(),
+            "the session lookup should still be waiting on the lock"
+        );
+
+        lock.execute_batch("ROLLBACK").unwrap();
+        let me = me.await.unwrap();
+        assert_eq!(me.status(), reqwest::StatusCode::OK);
+        let body: serde_json::Value = me.json().await.unwrap();
+        assert_eq!(body["auth"], "session");
+        assert_eq!(body["principal"], "Phone");
+        handle.abort();
     }
 
     #[tokio::test]
