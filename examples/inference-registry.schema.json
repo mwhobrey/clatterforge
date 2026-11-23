@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dev Conductor inference registry v1",
+  "description": "Structural schema. Rust import additionally validates target/config/hardware identity, future dates and capability bounds; routing checks freshness and resolved runtime/artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "records"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "records": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/record"}}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+    "date": {"type": "integer", "minimum": 0},
+    "evidence": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "capabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["streaming", "tools", "required_tool_choice", "parallel_tools", "structured_output", "media", "reasoning_control"],
+      "properties": {
+        "streaming": {"type": "boolean"}, "tools": {"type": "boolean"},
+        "required_tool_choice": {"type": "boolean"}, "parallel_tools": {"type": "boolean"},
+        "structured_output": {"type": "boolean"}, "media": {"type": "boolean"},
+        "reasoning_control": {"type": "boolean"}
+      }
+    },
+    "tested": {
+      "type": "object", "additionalProperties": false,
+      "required": ["capabilities", "tested_at", "runtime_version", "artifact_digest", "evidence"],
+      "properties": {
+        "capabilities": {"$ref": "#/$defs/capabilities"}, "tested_at": {"$ref": "#/$defs/date"},
+        "runtime_version": {"type": "string", "minLength": 1, "maxLength": 256},
+        "artifact_digest": {"$ref": "#/$defs/digest"}, "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hardware_id", "workload", "request_digest", "measured_at", "evidence"],
+      "properties": {
+        "hardware_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "workload": {"enum": ["text-v1", "checked-add-v1"]},
+        "request_digest": {"$ref": "#/$defs/digest"}, "measured_at": {"$ref": "#/$defs/date"},
+        "latency_ms": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "record": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_id", "configuration_digest", "tested"],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "configuration_digest": {"$ref": "#/$defs/digest"}, "tested": {"$ref": "#/$defs/tested"},
+        "measurement": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/measurement"}]}
+      }
+    }
+  }
+}

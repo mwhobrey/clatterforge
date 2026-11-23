@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "default_target": "gemma26b-coder",
+  "hardware_id": "REPLACE-WITH-VERIFIED-HOST-HARDWARE-AND-DRIVER",
+  "admission_db": "../.conductor/inference-admission.sqlite",
+  "max_active_per_resource": 1,
+  "registry_max_age_ms": 604800000,
+  "fallback_before_dispatch": false,
+  "targets": [{
+    "id": "gemma26b-coder",
+    "provider": "ollama",
+    "endpoint": "http://127.0.0.1:11434/",
+    "model": "gemma4:26b",
+    "expected_artifact_digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+    "context_limit": 32768,
+    "output_limit": 4096,
+    "capabilities": {"streaming": true, "tools": false, "required_tool_choice": false, "parallel_tools": false, "structured_output": false, "media": false, "reasoning_control": true},
+    "capability_source": "Illustrative conservative profile; inspect installed artifact and validate capabilities and capacity on your host before use",
+    "priority": 0,
+    "resource_id": "local-gpu0"
+  }]
+}

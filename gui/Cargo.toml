@@ -1,0 +1,28 @@
+[workspace]
+
+[package]
+name = "conductor-gui"
+version = "0.1.0"
+authors = ["Clatterforge contributors"]
+license = "Apache-2.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = { version = "0.7.1", features = [] }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
+js-sys = "0.3.106"
+reqwest = { version = "0.13.5", default-features = false, features = ["json"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
+serde_json = "1.0.154"
+wasm-bindgen = "0.2.129"
+wasm-bindgen-futures = "0.4.79"
+web-sys = { version = "0.3.106", features = ["Window", "Document", "HtmlDocument", "Location", "Storage"] }
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]

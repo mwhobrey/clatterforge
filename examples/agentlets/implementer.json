@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "implementer",
+  "version": 1,
+  "purpose": "Implement a bounded change within the approved file scope",
+  "instructions": "Read the objective, acceptance checks and prior-stage results. Inspect the current workspace and Git evidence as needed. Implement only the assigned change within the approved paths. Preserve unrelated and inherited changes. Report what you established and any unresolved problems using the agentlet result contract. Do not claim verifier success from your own prose or perform source integration, commits, pushes or deployments.",
+  "capability": "edit_approved_files",
+  "completion_gate": false
+}

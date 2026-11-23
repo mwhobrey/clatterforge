@@ -1,0 +1,45 @@
+# Specialist agentlets
+
+Agentlets are reusable specialist instructions and a strict result contract, bound to locally approved Cursor/Codex execution presets. Gemma chooses them through the existing workflow catalog. The host owns dispatch, scope checks, verification and review.
+
+## Import and bind
+
+Create an ordinary execution preset for your exact repository, CLI executable/model, verifier, paths and budgets first. Use `agent-preset-create --help` for required arguments. Existing credentials and models are installed separately. The following commands import data and create local bindings; they launch no model or coding task:
+
+```powershell
+dev-conductor agentlet-import --definition examples/agentlets/implementer.json --by "Your name"
+dev-conductor agentlet-import --definition examples/agentlets/reviewer.json --by "Your name"
+dev-conductor agentlet-list
+dev-conductor agentlet-show reviewer --version 1
+dev-conductor agentlet-bind implementer --version 1 --preset project-cli --name project-implement --by "Your name"
+dev-conductor agentlet-bind reviewer --version 1 --preset project-cli --name project-review --by "Your name"
+```
+
+Definitions have a schema version, ID, positive integer version, purpose, instructions, capability and completion gate. Imported versions are immutable. Review imported instructions before binding. A definition cannot declare arbitrary executables, tools, endpoints, credentials or editable paths. Changing a specialist requires a new version and a new binding/profile; existing approvals keep their snapshot.
+
+An editor inherits the base preset's exact editable paths. A reviewer gets no editable candidate paths. Cursor bindings require a newly inspected preset with a hash-pinned JS entry point; recreate an older preset explicitly if binding reports that its pin is missing. Executables, models, verifier commands and budgets stay under the local preset's control. Codex uses its pinned account home; Cursor uses the installed CLI's login profile for the current OS user.
+
+## Route and inspect
+
+```powershell
+dev-conductor workflow-profile-create --name project-specialists --config examples/orchestration-gemma26b-config.json --worker "project-implement=Implement the scoped objective" --worker "project-review=Review the completed candidate" --max-steps 4 --by "Your name"
+dev-conductor workflow-create --profile project-specialists --objective "Your objective" --acceptance "Independent acceptance checks"
+```
+
+Edit the illustrative model/hardware configuration for your host before creating the profile. Approve the returned assignment digest/revision, then run it through the ordinary [workflow controls](workflows.md). HTTP/MCP clients still use `workflow-v1` and the named profile; they cannot import definitions or change the approved catalog. In the UI, inspect **Approved specialists**, pending reviews, individual findings and actual worker routing receipts.
+
+Gemma receives specialist purpose/capability/version, prior reports and verifier evidence. CLI workers receive a versioned objective/acceptance/repository input and operate in the existing shared worktree. Reports contain outcome (`completed`, `needs_work`, `blocked`), summary, findings (`severity`, `message`) and an optional next objective. Host verification and human acceptance remain separate.
+
+A reviewer with `completion_gate: true` must report completed with passing independent verification on the final candidate tree. Further candidate changes require a fresh review. A passing verifier cannot override a blocked report. Malformed reports, false-success error findings, missing terminal CLI events, truncated output, scope violations and evidence tampering stop advancement with retained evidence; no worker is automatically replayed.
+
+## Security and limits
+
+Candidate permissions are checked by the host. They do not sandbox CLI filesystem/network access or installed hooks. Review-mode Codex requests its own read-only sandbox; Cursor uses its existing platform policy. Use trusted repositories/accounts and an OS boundary for hostile inputs. Worker and verifier environments allow only platform/tool discovery values; ambient API keys, proxy overrides and unrelated variables are excluded. CLI file-based authentication remains separately available; Codex uses its pinned home.
+
+CLI global instructions, login configuration and hooks can still influence a worker. Inference routing is local, while frontier CLI prompts/results may reach their configured provider. Keep secrets out of definitions, objectives and reports, and keep runtime evidence private. These limits also apply when a specialist reports no findings; its report is not an independent security audit.
+
+Definitions are at most 16 KiB, instructions 8 KiB, reports 16 KiB and retained CLI stdout 64 KiB. The complete Windows invocation is checked against its native command-line capacity, including UTF-16 units and quoting. Reduce instruction/prior-result size if a run reports this limit; no CLI is launched and input is never silently truncated. These transport limits are separate from the configured model context window. Source and diffs stay in Git; role reports must not duplicate entire files. Older routing results retain outcomes/references rather than accumulating every report body.
+
+After aggregate human acceptance, use separately reviewed [source integration](integration.md). Agentlet findings and suggested next objectives never authorize source application, commit, push or deployment.
+
+See the [contract and authority decision](../adr/0016-reusable-agentlets.md) for compatibility and evidence details.

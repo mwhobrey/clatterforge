@@ -1,0 +1,20 @@
+[package]
+name = "dev-conductor-edge"
+version = "0.1.0"
+license = "Apache-2.0"
+edition = "2024"
+rust-version = "1.88"
+
+[[bin]]
+name = "dev-conductor-edge"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+conductor-protocol = { path = "../protocol" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rmcp = { version = "3", features = ["server", "macros", "transport-io"] }
+serde = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", "io-std", "io-util"] }

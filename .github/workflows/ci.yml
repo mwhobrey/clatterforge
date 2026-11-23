@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows-core:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install verified Rust toolchain
+        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy
+      - run: cargo +1.90.0 fmt --check
+      - run: cargo +1.90.0 clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo +1.90.0 test --locked --workspace -- --test-threads=4
+      - name: Verify PowerShell launcher and setup script syntax
+        shell: pwsh
+        run: |
+          $errors = $null
+          foreach ($file in Get-ChildItem scripts/*.ps1) {
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors)
+            if ($errors) { throw "Syntax error in $($file.Name): $errors" }
+          }
+      - name: Verify public source export boundaries
+        run: python scripts/test-public-release.py
+      - run: cargo +1.90.0 build --locked --workspace
+      - name: Verify managed-host restart and isolation
+        run: python scripts/test-managed-host.py target/debug/dev-conductor.exe
+
+  linux-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.90.0 --profile minimal --component clippy
+      - name: Verify POSIX launcher and setup script syntax
+        run: bash -n scripts/*.sh
+      - run: cargo +1.90.0 clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo +1.90.0 build --locked -p dev-conductor -p dev-conductor-edge
+      - run: cargo +1.90.0 test --locked -p conductor-protocol -p dev-conductor --lib
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.90.0 --profile minimal --target wasm32-unknown-unknown
+      - run: cargo +1.90.0 check --locked --manifest-path gui/Cargo.toml --target wasm32-unknown-unknown --features web
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan complete history with a verified Gitleaks binary
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output /tmp/gitleaks.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum --check
+          mkdir /tmp/conductor-gitleaks
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp/conductor-gitleaks gitleaks
+          /tmp/conductor-gitleaks/gitleaks git --log-opts='--all' --redact=100 --ignore-gitleaks-allow --no-banner .
+      - run: rustup toolchain install 1.90.0 --profile minimal
+      - run: cargo +1.90.0 install cargo-audit --version 0.22.2 --locked
+      - run: cargo +1.90.0 audit --file Cargo.lock
+      - run: cargo +1.90.0 audit --file gui/Cargo.lock
+      - run: cargo +1.90.0 audit --file gui/src-tauri/Cargo.lock

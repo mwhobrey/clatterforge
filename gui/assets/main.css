@@ -1,0 +1,149 @@
+/* CLATTERFORGE // CF DESIGN TOKENS */
+:root {
+    --cf-obsidian: #0C1118;
+    --cf-gunmetal: #202D3A;
+    --cf-signal-orange: #FF754F;
+    --cf-telemetry: #66D8CE;
+    --cf-steel: #8D9DAD;
+    --cf-white: #F2F5F7;
+}
+
+html, body {
+    background-color: var(--cf-obsidian);
+    color: var(--cf-white);
+    font-family: 'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace;
+    margin: 0;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+.cf-brand-heading {
+    margin: 0;
+}
+
+.cf-brand-logo {
+    display: block;
+    width: 34rem;
+    max-width: 100%;
+    height: auto;
+}
+
+button, a, input, select, textarea, summary {
+    touch-action: manipulation;
+}
+
+.cf-chassis {
+    background-color: var(--cf-obsidian);
+    color: var(--cf-white);
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.cf-pre-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.cf-panel {
+    background-color: rgba(32, 45, 58, 0.45);
+    border: 1px solid var(--cf-gunmetal);
+}
+
+.cf-action-btn {
+    background-color: var(--cf-signal-orange);
+    color: var(--cf-obsidian);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: filter 120ms ease;
+}
+
+.cf-action-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.cf-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.25);
+}
+
+.cf-telemetry-text {
+    color: var(--cf-telemetry);
+}
+
+.cf-signal-text {
+    color: var(--cf-signal-orange);
+}
+
+.cf-steel-text {
+    color: var(--cf-steel);
+}
+
+.cf-surface {
+    background-color: #0E151F;
+    border: 1px solid var(--cf-gunmetal);
+}
+
+.cf-surface-elevated {
+    background-color: rgba(32, 45, 58, 0.38);
+    border: 1px solid var(--cf-gunmetal);
+}
+
+.cf-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #2A3B4C #0C1118;
+}
+
+.cf-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.cf-scroll::-webkit-scrollbar-track {
+    background: #0C1118;
+}
+
+.cf-scroll::-webkit-scrollbar-thumb {
+    background: #2A3B4C;
+    border-radius: 3px;
+}
+
+.cf-scroll::-webkit-scrollbar-thumb:hover {
+    background: #3B5168;
+}
+
+@keyframes cf-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.35;
+        transform: scale(0.85);
+    }
+}
+
+.cf-pulse-dot {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    animation: cf-pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.cf-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.cf-tab-strip {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+.cf-tab-strip::-webkit-scrollbar {
+    display: none;
+}

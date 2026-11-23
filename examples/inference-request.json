@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "messages": [
+    {"role": "system", "parts": [{"type": "text", "text": "Answer concisely in one sentence. Do not request tools."}]},
+    {"role": "user", "parts": [{"type": "text", "text": "What is 2 plus 3? Include the number in your answer."}]}
+  ],
+  "tools": "disabled",
+  "require_tool": false,
+  "require_tested": false,
+  "max_output_tokens": 512,
+  "temperature": 0.0,
+  "stop": [],
+  "deadline_ms": 120000,
+  "reasoning": null
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "messages": [
+    {"role": "user", "parts": [{"type": "text", "text": "Use checked_add to add 2 and 3, then state the tool result."}]}
+  ],
+  "tools": "checked_add",
+  "require_tool": false,
+  "require_tested": false,
+  "max_output_tokens": 512,
+  "temperature": 0.0,
+  "stop": [],
+  "deadline_ms": 120000,
+  "reasoning": null
+}
