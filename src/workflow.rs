@@ -2674,7 +2674,36 @@ impl Workflows {
             Ok(())
         })
     }
+    /// Revision-tolerant: see [`crate::cancel_revision`].
     pub fn cancel(&mut self, id: &str, revision: u64) -> Result<Workflow> {
+        const HISTORY: crate::CancelHistory = crate::CancelHistory {
+            table: "workflow_events",
+            id_column: "workflow_id",
+            revision_column: "revision",
+            kind_column: "stage",
+            boundaries: &[
+                "workflow_approved",
+                "workflow_restarted",
+                "workflow_step_retried",
+                "workflow_resumed",
+            ],
+        };
+        let mut last = None;
+        for _ in 0..crate::CANCEL_RACE_ATTEMPTS {
+            let current = self.get(id)?.revision;
+            let effective =
+                crate::cancel_revision(&self.connection, &HISTORY, id, revision, current)?;
+            match self.cancel_at(id, effective) {
+                Err(error) if effective != revision && crate::is_revision_conflict(&error) => {
+                    last = Some(error);
+                }
+                outcome => return outcome,
+            }
+        }
+        Err(last.expect("cancel attempted at least once"))
+    }
+
+    fn cancel_at(&mut self, id: &str, revision: u64) -> Result<Workflow> {
         let w = self.change(id, revision, "cancellation_requested", |w| {
             ensure!(
                 matches!(

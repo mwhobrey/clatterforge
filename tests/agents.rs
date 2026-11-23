@@ -379,6 +379,7 @@ fn progress_observation_keeps_cancellation_immediate_and_revision_checked() {
     let (_dir, state, mut agents, approved) =
         activity_attempt("MODE:progress", 10_000, Some(2_000));
     let id = approved.id.clone();
+    let approved_revision = approved.revision;
     let worker_state = state.clone();
     let worker_id = id.clone();
     let worker = std::thread::spawn(move || {
@@ -394,8 +395,13 @@ fn progress_observation_keeps_cancellation_immediate_and_revision_checked() {
             .detail(&id, None)
             .unwrap();
         if detail.progress.is_some() && detail.status == "running" {
+            // A caller who never saw the approval is refused.
             assert!(agents.cancel(&id, 1).is_err());
-            agents.cancel(&id, detail.revision).unwrap();
+            // A caller holding the approved revision is not, even though the running
+            // attempt has advanced the revision since (issue #1: cancel must not lose a
+            // race against the task's own progress updates).
+            assert!(detail.revision > approved_revision);
+            agents.cancel(&id, approved_revision).unwrap();
             break;
         }
         assert!(start.elapsed() < std::time::Duration::from_secs(5));

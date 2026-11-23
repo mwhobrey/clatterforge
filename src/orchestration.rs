@@ -839,7 +839,31 @@ impl Orchestrator {
             .map_err(|e| anyhow::anyhow!("{}", e.diagnostic))?;
         Ok(request)
     }
+    /// Revision-tolerant: see [`crate::cancel_revision`].
     pub fn cancel(&mut self, id: &str, revision: u64) -> Result<Task> {
+        const HISTORY: crate::CancelHistory = crate::CancelHistory {
+            table: "orchestration_events",
+            id_column: "task_id",
+            revision_column: "sequence",
+            kind_column: "kind",
+            boundaries: &["approved", "task_retried"],
+        };
+        let mut last = None;
+        for _ in 0..crate::CANCEL_RACE_ATTEMPTS {
+            let current = self.task(id)?.revision;
+            let effective =
+                crate::cancel_revision(&self.store.connection, &HISTORY, id, revision, current)?;
+            match self.cancel_at(id, effective) {
+                Err(error) if effective != revision && crate::is_revision_conflict(&error) => {
+                    last = Some(error);
+                }
+                outcome => return outcome,
+            }
+        }
+        Err(last.expect("cancel attempted at least once"))
+    }
+
+    fn cancel_at(&mut self, id: &str, revision: u64) -> Result<Task> {
         self.change(id, revision, "cancel_requested", |t| {
             ensure!(
                 t.status.active()

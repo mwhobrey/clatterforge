@@ -973,11 +973,13 @@ fn revision_checked_cancellation_uses_live_owner_and_stops_descendants() {
     let task = process_task(&mut store, &id, FakeOutcome::SpawnDescendant, 30000);
     let root = store.root.clone();
     let task_id = task.id.clone();
+    let approved_revision = task.revision;
     let run = std::thread::spawn(move || store.run_fake(&task.id, task.revision).unwrap());
     let mut observer = Store::open(&root).unwrap();
     let active = poll_task(&observer, &task_id, |t| {
         t.status == Status::Running && t.attempts[0].process.is_some()
     });
+    assert!(active.revision > approved_revision);
     let descendant = descendant_identity(&root, &active);
     assert_eq!(
         dev_conductor::process::presence(&descendant),
@@ -991,13 +993,17 @@ fn revision_checked_cancellation_uses_live_owner_and_stops_descendants() {
             .contains("supervisor is alive")
     );
     assert!(observer.run_fake(&task_id, active.revision).is_err());
+    // A revision from before the approval is refused: that caller never saw it approved.
     assert!(
         observer
-            .cancel(&task_id, active.revision - 1, "fixture human")
-            .is_err()
+            .cancel(&task_id, approved_revision - 1, "fixture human")
+            .unwrap_err()
+            .to_string()
+            .contains("revision conflict")
     );
+    // A revision the running attempt has since advanced past is accepted (issue #1).
     let requested = observer
-        .cancel(&task_id, active.revision, "fixture human")
+        .cancel(&task_id, approved_revision, "fixture human")
         .unwrap();
     assert_eq!(
         requested.attempts[0].cancel_requested.as_ref().unwrap().by,

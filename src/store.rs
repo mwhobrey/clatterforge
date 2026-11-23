@@ -762,7 +762,34 @@ impl Store {
         })
     }
 
+    /// Revision-tolerant: see [`crate::cancel_revision`]. A stale `expected` is accepted
+    /// only while the task is still on the attempt and assignment the caller saw.
     pub fn cancel(&mut self, id: &str, expected: u64, by: &str) -> Result<Task> {
+        const HISTORY: crate::CancelHistory = crate::CancelHistory {
+            table: "events",
+            id_column: "task_id",
+            revision_column: "sequence",
+            kind_column: "kind",
+            boundaries: &["approved", "task_retried", "assignment_revised"],
+        };
+        let mut last = None;
+        for _ in 0..crate::CANCEL_RACE_ATTEMPTS {
+            let current: u64 =
+                self.connection
+                    .query_row("SELECT revision FROM tasks WHERE id=?1", [id], |r| r.get(0))?;
+            let revision =
+                crate::cancel_revision(&self.connection, &HISTORY, id, expected, current)?;
+            match self.cancel_at(id, revision, by) {
+                Err(error) if revision != expected && crate::is_revision_conflict(&error) => {
+                    last = Some(error);
+                }
+                outcome => return outcome,
+            }
+        }
+        Err(last.expect("cancel attempted at least once"))
+    }
+
+    fn cancel_at(&mut self, id: &str, expected: u64, by: &str) -> Result<Task> {
         self.mutate(id, expected, "cancel_requested", |task| {
             ensure!(
                 matches!(

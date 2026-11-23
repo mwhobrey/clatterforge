@@ -1768,7 +1768,31 @@ impl Agents {
     /// `Approved`) has nothing to interrupt, so cancellation takes effect
     /// immediately instead of leaving a flag nothing will ever check. A
     /// terminal task refuses - there is nothing left to cancel.
+    /// Revision-tolerant: see [`crate::cancel_revision`].
     pub fn cancel(&mut self, id: &str, revision: u64) -> Result<AgentTask> {
+        const HISTORY: crate::CancelHistory = crate::CancelHistory {
+            table: "agent_routing",
+            id_column: "task_id",
+            revision_column: "revision",
+            kind_column: "stage",
+            boundaries: &["assignment_approved", "task_retried"],
+        };
+        let mut last = None;
+        for _ in 0..crate::CANCEL_RACE_ATTEMPTS {
+            let current = self.task(id)?.revision;
+            let effective =
+                crate::cancel_revision(&self.connection, &HISTORY, id, revision, current)?;
+            match self.cancel_at(id, effective) {
+                Err(error) if effective != revision && crate::is_revision_conflict(&error) => {
+                    last = Some(error);
+                }
+                outcome => return outcome,
+            }
+        }
+        Err(last.expect("cancel attempted at least once"))
+    }
+
+    fn cancel_at(&mut self, id: &str, revision: u64) -> Result<AgentTask> {
         self.mutate(id, revision, "cancel_requested", "Agents::cancel", |t| {
             ensure!(
                 t.status.active()
