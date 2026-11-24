@@ -18,7 +18,9 @@ env:
 jobs:
   windows-core:
     runs-on: windows-latest
-    timeout-minutes: 30
+    # Hosted Windows runners spend ~20 min building plus ~30 min in tests/workflow.rs alone
+    # (process spawning dominates); 30 min cancelled a passing run mid-suite.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
