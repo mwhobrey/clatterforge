@@ -4719,9 +4719,12 @@ mod tests {
 
     #[test]
     fn workflow_retry_resumes_rewinds_and_restarts_shared_worktree() {
-        let dir = tempfile::tempdir().unwrap();
-        let state = dir.path().join("state");
-        let repo = dir.path().join("repo");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let state = dir_root.as_path().join("state");
+        let repo = dir_root.as_path().join("repo");
         fs::create_dir_all(&state).unwrap();
         fs::create_dir_all(repo.join("src")).unwrap();
         git(&repo, &["init", "-b", "main"]).unwrap();

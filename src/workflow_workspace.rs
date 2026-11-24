@@ -449,8 +449,11 @@ mod tests {
 
     #[test]
     fn checkpoints_retain_new_deleted_and_binary_files_without_changing_head_or_indexes() {
-        let dir = tempfile::tempdir().unwrap();
-        let repo = dir.path().join("repo");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let repo = dir_root.as_path().join("repo");
         fs::create_dir(&repo).unwrap();
         git(&repo, &["init", "-b", "main"]).unwrap();
         git(&repo, &["config", "core.autocrlf", "false"]).unwrap();
@@ -477,7 +480,7 @@ mod tests {
         .unwrap();
         let source = Repository::inspect(&repo).unwrap();
         let source_index = fs::read(repo.join(".git/index")).unwrap();
-        let workspace = dir.path().join("workspace");
+        let workspace = dir_root.as_path().join("workspace");
         git(
             &repo,
             &[
@@ -505,10 +508,10 @@ mod tests {
             "new.bin".to_string(),
             "new.txt".to_string(),
         ];
-        let first = capture(dir.path(), &workspace, &source.base, &scope, &id, 0).unwrap();
+        let first = capture(dir_root.as_path(), &workspace, &source.base, &scope, &id, 0).unwrap();
         validate_checkpoint(&source, &first).unwrap();
         assert!(
-            changed(dir.path(), &workspace, &first.tree, &scope)
+            changed(dir_root.as_path(), &workspace, &first.tree, &scope)
                 .unwrap()
                 .is_empty()
         );
@@ -519,16 +522,16 @@ mod tests {
         assert_eq!(stage_changes(&source, &source.base, &first).unwrap(), scope);
         fs::write(workspace.join("new.txt"), "raw\nbytes\n").unwrap();
         assert!(
-            changed(dir.path(), &workspace, &first.tree, &scope)
+            changed(dir_root.as_path(), &workspace, &first.tree, &scope)
                 .unwrap()
                 .contains(&"new.txt".into())
         );
         fs::write(workspace.join("new.txt"), "raw\r\nbytes\r\n").unwrap();
         fs::write(workspace.join("gone.txt"), "restored by second stage").unwrap();
         fs::remove_file(workspace.join("new.bin")).unwrap();
-        let second = capture(dir.path(), &workspace, &source.base, &scope, &id, 1).unwrap();
+        let second = capture(dir_root.as_path(), &workspace, &source.base, &scope, &id, 1).unwrap();
         assert!(
-            changed(dir.path(), &workspace, &second.tree, &scope)
+            changed(dir_root.as_path(), &workspace, &second.tree, &scope)
                 .unwrap()
                 .is_empty()
         );
@@ -542,7 +545,7 @@ mod tests {
         assert_eq!(Repository::inspect(&workspace).unwrap().base, source.base);
         fs::write(workspace.join("new.bin"), "unexpected reappearance").unwrap();
         assert!(
-            changed(dir.path(), &workspace, &second.tree, &scope)
+            changed(dir_root.as_path(), &workspace, &second.tree, &scope)
                 .unwrap()
                 .contains(&"new.bin".into())
         );

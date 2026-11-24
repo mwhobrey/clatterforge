@@ -3197,8 +3197,11 @@ mod tests {
 
     #[tokio::test]
     async fn api_workflow_profile_timeouts_and_dispatch_override_round_trip() {
-        let dir = tempfile::tempdir().unwrap();
-        let repo_dir = dir.path().join("repo");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let repo_dir = dir_root.as_path().join("repo");
         std::fs::create_dir_all(&repo_dir).unwrap();
         let init = std::process::Command::new("git")
             .arg("-C")
@@ -3242,7 +3245,7 @@ mod tests {
                 .success()
         );
 
-        let state_dir = dir.path().join("state");
+        let state_dir = dir_root.as_path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
         let exe = std::env::current_exe().unwrap();
         let backend = crate::agents::AgentBackend::Local(

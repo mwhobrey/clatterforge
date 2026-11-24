@@ -23,12 +23,21 @@ use std::{
 };
 use tempfile::TempDir;
 
+/// A temp directory plus its canonical path. Production canonicalizes every root at entry;
+/// CI's Windows TEMP is an 8.3 short path (RUNNER~1), so fixtures must use the canonical
+/// form or repository/workspace identity checks reject them.
+fn canonical_tempdir() -> (TempDir, PathBuf) {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dev_conductor::repository::canonical(dir.path()).unwrap();
+    (dir, root)
+}
+
 fn worker() -> &'static Path {
     static FIXTURE: OnceLock<(TempDir, PathBuf)> = OnceLock::new();
     &FIXTURE
         .get_or_init(|| {
-            let dir = tempfile::tempdir().unwrap();
-            let exe = dir.path().join("worker.exe");
+            let (dir, dir_root) = canonical_tempdir();
+            let exe = dir_root.as_path().join("worker.exe");
             assert!(
                 Command::new("rustc")
                     .args(["tests/fixtures/workflow_worker.rs", "-o"])
@@ -37,7 +46,7 @@ fn worker() -> &'static Path {
                     .unwrap()
                     .success()
             );
-            fs::write(dir.path().join("index.js"), "//fixture").unwrap();
+            fs::write(dir_root.as_path().join("index.js"), "//fixture").unwrap();
             (dir, exe)
         })
         .1
@@ -131,8 +140,8 @@ fn fixture(model: &Model, max_steps: usize) -> Fixture {
     fixture_with_readme(model, max_steps, "fixture")
 }
 fn fixture_with_readme(model: &Model, max_steps: usize, readme: &str) -> Fixture {
-    let dir = tempfile::tempdir().unwrap();
-    let repo = dir.path().join("repo");
+    let (dir, dir_root) = canonical_tempdir();
+    let repo = dir_root.as_path().join("repo");
     fs::create_dir(&repo).unwrap();
     for (name, contents) in [
         ("README.md", readme),
@@ -166,7 +175,7 @@ fn fixture_with_readme(model: &Model, max_steps: usize, readme: &str) -> Fixture
         ],
     )
     .unwrap();
-    let state = dir.path().join("state");
+    let state = dir_root.as_path().join("state");
     let mut presets = AgentPresets::open(&state).unwrap();
     let policy = AgentBackend::CursorAgent(
         CursorAgentPolicy::inspect(
@@ -176,7 +185,7 @@ fn fixture_with_readme(model: &Model, max_steps: usize, readme: &str) -> Fixture
         )
         .unwrap(),
     );
-    let verifier = dir.path().join("verifier.exe");
+    let verifier = dir_root.as_path().join("verifier.exe");
     fs::copy(worker(), &verifier).unwrap();
     for (name, path) in [("worker-a", "a.txt"), ("worker-b", "b.txt")] {
         presets
@@ -199,7 +208,7 @@ fn fixture_with_readme(model: &Model, max_steps: usize, readme: &str) -> Fixture
         schema_version: 1,
         default_target: "planner".into(),
         hardware_id: "fixture".into(),
-        admission_db: dir.path().join("admission.sqlite"),
+        admission_db: dir_root.as_path().join("admission.sqlite"),
         max_active_per_resource: 1,
         registry_max_age_ms: 60000,
         fallback_before_dispatch: false,
@@ -2645,8 +2654,8 @@ fn local_agent_worker_enforces_expected_artifact_digest_and_explicit_allowed_fil
         "summary": "Updated a.txt via local worker",
         "files": [{"path": "a.txt", "contents": "fixed-a-by-local-worker"}]
     })]);
-    let dir = tempfile::tempdir().unwrap();
-    let ws = dir.path().join("ws");
+    let (_dir, dir_root) = canonical_tempdir();
+    let ws = dir_root.as_path().join("ws");
     fs::create_dir_all(&ws).unwrap();
     fs::write(ws.join("a.txt"), "old-a").unwrap();
 
@@ -4180,8 +4189,8 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
         dispatch("review-final", "REVIEW_OK"),
         json!({"action":"finish","summary":"Verified candidate with untouched large scoped file"}),
     ]);
-    let dir = tempfile::tempdir().unwrap();
-    let repo = dir.path().join("repo");
+    let (_dir, dir_root) = canonical_tempdir();
+    let repo = dir_root.as_path().join("repo");
     fs::create_dir(&repo).unwrap();
     for (name, contents) in [
         ("README.md", "fixture"),
@@ -4220,7 +4229,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
     )
     .unwrap();
 
-    let state = dir.path().join("state");
+    let state = dir_root.as_path().join("state");
     let mut presets = AgentPresets::open(&state).unwrap();
     let policy = AgentBackend::CursorAgent(
         CursorAgentPolicy::inspect(
@@ -4230,7 +4239,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
         )
         .unwrap(),
     );
-    let verifier = dir.path().join("verifier.exe");
+    let verifier = dir_root.as_path().join("verifier.exe");
     fs::copy(worker(), &verifier).unwrap();
     for (name, allowed) in [
         ("worker-a", vec!["a.txt".to_string()]),
@@ -4259,7 +4268,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
         schema_version: 1,
         default_target: "planner".into(),
         hardware_id: "fixture".into(),
-        admission_db: dir.path().join("admission.sqlite"),
+        admission_db: dir_root.as_path().join("admission.sqlite"),
         max_active_per_resource: 1,
         registry_max_age_ms: 60000,
         fallback_before_dispatch: false,

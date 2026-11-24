@@ -3113,9 +3113,12 @@ gemini-4-argon-medium\tGemini 4 Argon (Medium)\n";
 
     #[test]
     fn standalone_agent_retry_rotates_to_alternate_cli_preset_and_bumps_effort() {
-        let dir = tempfile::tempdir().unwrap();
-        let state = dir.path().join("state");
-        let repo = dir.path().join("repo");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let state = dir_root.as_path().join("state");
+        let repo = dir_root.as_path().join("repo");
         fs::create_dir_all(&state).unwrap();
         fs::create_dir_all(repo.join("src")).unwrap();
         git(&repo, &["init", "-b", "main"]).unwrap();
@@ -3140,7 +3143,7 @@ gemini-4-argon-medium\tGemini 4 Argon (Medium)\n";
         .unwrap();
 
         let exe = std::env::current_exe().unwrap();
-        let codex_home = dir.path().join("codex-home");
+        let codex_home = dir_root.as_path().join("codex-home");
         fs::create_dir_all(&codex_home).unwrap();
         let mut presets = crate::agent_preset::AgentPresets::open(&state).unwrap();
         let agy_preset = presets

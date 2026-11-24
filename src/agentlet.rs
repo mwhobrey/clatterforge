@@ -711,13 +711,24 @@ mod tests {
         }
     }
 
+    /// `Executable::new` requires the execute bit on Unix; a plain `fs::write` leaves it off,
+    /// which only shows up on Linux/macOS runners.
+    fn write_fake_executable(path: &std::path::Path) {
+        fs::write(path, b"fake").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+
     #[test]
     fn agy_json_receipt_parses_trailing_report_and_rejects_errors() {
         let dir = tempfile::tempdir().unwrap();
         let fake_agy = dir
             .path()
             .join(format!("agy{}", std::env::consts::EXE_SUFFIX));
-        fs::write(&fake_agy, b"fake").unwrap();
+        write_fake_executable(&fake_agy);
         let agy_backend = AgentBackend::Agy(crate::agents::AgyAgentPolicy {
             executable: Executable::new(&fake_agy).unwrap(),
             version: "1.5.3".into(),
@@ -764,7 +775,7 @@ mod tests {
         let fake_agy = dir
             .path()
             .join(format!("agy{}", std::env::consts::EXE_SUFFIX));
-        fs::write(&fake_agy, b"fake").unwrap();
+        write_fake_executable(&fake_agy);
         let agy_backend = AgentBackend::Agy(crate::agents::AgyAgentPolicy {
             executable: Executable::new(&fake_agy).unwrap(),
             version: "1.5.3".into(),

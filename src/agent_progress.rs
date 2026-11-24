@@ -374,14 +374,17 @@ mod tests {
 
     #[test]
     fn silent_file_write_renews_only_idle_window_and_stale_snapshots_are_labelled() {
-        let dir = tempfile::tempdir().unwrap();
-        let workspace = dir.path().join("workspace");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let workspace = dir_root.as_path().join("workspace");
         fs::create_dir_all(&workspace).unwrap();
         fs::write(workspace.join("result.txt"), "before").unwrap();
-        fs::create_dir_all(dir.path().join("agent-artifacts/task")).unwrap();
+        fs::create_dir_all(dir_root.as_path().join("agent-artifacts/task")).unwrap();
         let files = vec!["result.txt".into()];
         let mut monitor = Monitor::new(
-            dir.path(),
+            dir_root.as_path(),
             "task",
             "generation",
             &workspace,
@@ -406,7 +409,7 @@ mod tests {
             monitor.observe(observation(950)).unwrap(),
             ProcessControl::Timeout(_)
         ));
-        let snapshot = read(dir.path(), "task", &files).unwrap();
+        let snapshot = read(dir_root.as_path(), "task", &files).unwrap();
         assert_eq!(snapshot.hard_limit_ms, 2_000);
         assert_eq!(snapshot.last_activity_at, Some(1_400));
         assert_eq!(snapshot.stdout_bytes, 0);
@@ -415,21 +418,24 @@ mod tests {
         let mut delayed = snapshot;
         delayed.observed_at = now().saturating_sub(6_000);
         fs::write(&monitor.destination, serde_json::to_vec(&delayed).unwrap()).unwrap();
-        assert!(read(dir.path(), "task", &files).unwrap().stale);
+        assert!(read(dir_root.as_path(), "task", &files).unwrap().stale);
         delayed.task_id = "someone-else".into();
         fs::write(&monitor.destination, serde_json::to_vec(&delayed).unwrap()).unwrap();
-        assert!(read(dir.path(), "task", &files).is_none());
+        assert!(read(dir_root.as_path(), "task", &files).is_none());
     }
 
     #[test]
     fn unavailable_file_observation_does_not_invent_activity_or_renew_a_budget() {
-        let dir = tempfile::tempdir().unwrap();
-        let workspace = dir.path().join("workspace");
+        let tmp = tempfile::tempdir().unwrap();
+        // Production canonicalizes every root at entry; CI's Windows TEMP is an 8.3 short
+        // path (RUNNER~1), so use the canonical form here too or path identity checks fail.
+        let dir_root = crate::repository::canonical(tmp.path()).unwrap();
+        let workspace = dir_root.as_path().join("workspace");
         fs::create_dir_all(workspace.join("result.txt")).unwrap();
-        fs::create_dir_all(dir.path().join("agent-artifacts/task")).unwrap();
+        fs::create_dir_all(dir_root.as_path().join("agent-artifacts/task")).unwrap();
         let files = vec!["result.txt".into()];
         let mut monitor = Monitor::new(
-            dir.path(),
+            dir_root.as_path(),
             "task",
             "generation",
             &workspace,
@@ -442,7 +448,7 @@ mod tests {
             monitor.observe(observation(600)).unwrap(),
             ProcessControl::Timeout(_)
         ));
-        let snapshot = read(dir.path(), "task", &files).unwrap();
+        let snapshot = read(dir_root.as_path(), "task", &files).unwrap();
         assert!(!snapshot.file_observation_available);
         assert!(snapshot.last_activity_at.is_none());
         assert!(snapshot.changed_files.is_empty());
@@ -463,6 +469,6 @@ mod tests {
         assert!(monitor.snapshot.last_activity_at.is_none());
         assert!(monitor.snapshot.changed_files.is_empty());
         fs::write(&monitor.destination, vec![b' '; 32_769]).unwrap();
-        assert!(read(dir.path(), "task", &files).is_none());
+        assert!(read(dir_root.as_path(), "task", &files).is_none());
     }
 }

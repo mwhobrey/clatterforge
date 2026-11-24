@@ -27,7 +27,7 @@ jobs:
         run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy
       - run: cargo +1.90.0 fmt --check
       - run: cargo +1.90.0 clippy --locked --workspace --all-targets -- -D warnings
-      - run: cargo +1.90.0 test --locked --workspace -- --test-threads=4
+      - run: cargo +1.90.0 test --locked --workspace --no-fail-fast -- --test-threads=4
       - name: Verify PowerShell launcher and setup script syntax
         shell: pwsh
         run: |
@@ -54,7 +54,7 @@ jobs:
         run: bash -n scripts/*.sh
       - run: cargo +1.90.0 clippy --locked --workspace --all-targets -- -D warnings
       - run: cargo +1.90.0 build --locked -p dev-conductor -p dev-conductor-edge
-      - run: cargo +1.90.0 test --locked -p conductor-protocol -p dev-conductor --lib
+      - run: cargo +1.90.0 test --locked --no-fail-fast -p conductor-protocol -p dev-conductor --lib
 
   web:
     runs-on: ubuntu-latest
