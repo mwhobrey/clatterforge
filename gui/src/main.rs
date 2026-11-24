@@ -216,12 +216,25 @@ fn default_api_base() -> String {
 
 const SAVED_BEARER_KEY: &str = "clatterforge.bearer.v1";
 
-fn local_storage() -> Option<web_sys::Storage> {
-    web_sys::window()?.local_storage().ok()?
+/// The bearer token is the master credential (it can mint pairing codes and revoke
+/// sessions), so it lives only in per-tab `sessionStorage`: it survives a reload but not
+/// closing the tab, and nothing is left in the browser profile afterwards. New windows get
+/// the token from the launcher's `#token=` handoff.
+fn bearer_storage() -> Option<web_sys::Storage> {
+    web_sys::window()?.session_storage().ok()?
+}
+
+/// Earlier builds kept the token in `localStorage`, which persists in the browser profile.
+/// Remove any such copy; it is never read again.
+fn scrub_legacy_bearer() {
+    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = storage.remove_item(SAVED_BEARER_KEY);
+    }
 }
 
 fn load_saved_bearer() -> Option<ApiConfig> {
-    let storage = local_storage()?;
+    scrub_legacy_bearer();
+    let storage = bearer_storage()?;
     let raw = storage.get_item(SAVED_BEARER_KEY).ok()??;
     let parsed: ApiConfig = serde_json::from_str(&raw).ok()?;
     let page_host = browser_page_origin_and_host().map(|(_, host, _)| host);
@@ -244,7 +257,7 @@ fn save_bearer(base: &str, token: &str) {
     if !is_allowed_auto_base(trimmed_base, page_host.as_deref()) {
         return;
     }
-    if let Some(storage) = local_storage() {
+    if let Some(storage) = bearer_storage() {
         let cfg = ApiConfig {
             base: trimmed_base.to_string(),
             token: trimmed_token.to_string(),
@@ -256,7 +269,8 @@ fn save_bearer(base: &str, token: &str) {
 }
 
 fn clear_saved_bearer() {
-    if let Some(storage) = local_storage() {
+    scrub_legacy_bearer();
+    if let Some(storage) = bearer_storage() {
         let _ = storage.remove_item(SAVED_BEARER_KEY);
     }
 }
