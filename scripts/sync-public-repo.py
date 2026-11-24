@@ -96,6 +96,7 @@ def main():
     parser.add_argument('--no-push', action='store_true')
     args = parser.parse_args()
     clone = args.clone.resolve()
+    args.privacy_policy = args.privacy_policy.resolve()
 
     state = json.loads(args.state.read_text(encoding='utf-8')) if args.state.exists() else None
     if not state or not state.get('published'):
@@ -123,9 +124,12 @@ def main():
             worktree, export = work / f'wt-{sha[:12]}', work / f'export-{sha[:12]}'
             git(ROOT, 'worktree', 'add', '-q', '--detach', str(worktree), sha)
             try:
-                subprocess.run([sys.executable, '-I', str(worktree / 'scripts/prepare-public-release.py'),
-                                '--output', str(export), '--privacy-policy', str(args.privacy_policy)],
-                               check=True, capture_output=True)
+                exported = subprocess.run(
+                    [sys.executable, '-I', str(worktree / 'scripts/prepare-public-release.py'),
+                     '--output', str(export), '--privacy-policy', str(args.privacy_policy)],
+                    capture_output=True, text=True)
+                if exported.returncode != 0:
+                    raise RuntimeError(f'export of {sha[:7]} failed: {exported.stderr.strip()}')
             finally:
                 git(ROOT, 'worktree', 'remove', '--force', str(worktree))
             replace_tree(clone, export)
