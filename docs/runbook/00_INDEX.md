@@ -1,6 +1,7 @@
 # Runbook
 
 - [Architecture](../ARCHITECTURE.md)
+- [Components and persisted state](components.md)
 - [Development and fixtures](development.md)
 - [Local-model workflows](workflows.md)
 - [Specialist agentlets](agentlets.md)
