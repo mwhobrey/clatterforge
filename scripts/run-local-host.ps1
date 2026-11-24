@@ -69,7 +69,20 @@ try {
         }
         $receipt = @{ supervisor_pid = $PID; binary = $Binary; assets = $Assets; state = $StateRoot; bind = $Bind; port = $Port; ui_port = $UiPort; updated_at = [DateTime]::UtcNow.ToString('o'); roles = $records }
         $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$receiptPath.part" -Encoding UTF8
-        Move-Item -LiteralPath "$receiptPath.part" -Destination $receiptPath -Force
+        # Move-Item -Force deletes the destination before moving, so readers could find no
+        # receipt at all for a moment. Replace swaps it in one step once it exists. A reader
+        # holding the file open can make the swap fail; keep the old receipt and retry on the
+        # next pass rather than letting the supervisor loop die.
+        try {
+            if (Test-Path -LiteralPath $receiptPath) {
+                # [NullString]: PowerShell 5.1 turns $null into "" for a string parameter.
+                [IO.File]::Replace("$receiptPath.part", $receiptPath, [NullString]::Value)
+            } else {
+                [IO.File]::Move("$receiptPath.part", $receiptPath)
+            }
+        } catch {
+            Write-Warning "host receipt update deferred: $($_.Exception.Message)"
+        }
         Start-Sleep -Milliseconds 500
     }
 } finally {
