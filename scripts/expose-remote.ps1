@@ -5,7 +5,10 @@ param(
     [int]$TailscalePort = 8788,
     [string]$LanIp,
     [switch]$SkipTailscale,
-    [switch]$SkipFirewallCheck
+    [switch]$SkipFirewallCheck,
+    # Direct LAN / tailnet-IP access needs a non-loopback, plain-HTTP bind. Off by default:
+    # Tailscale Serve reaches the loopback host over an encrypted transport.
+    [switch]$AllowInsecureLan
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,8 +22,8 @@ if (-not $StateRoot) {
 $StateRoot = [IO.Path]::GetFullPath($StateRoot)
 New-Item -ItemType Directory -Path $StateRoot -Force | Out-Null
 
-# 1. Discover LAN IPv4 address if not explicitly supplied
-if (-not $LanIp) {
+# 1. Discover LAN IPv4 address if not explicitly supplied (only used with -AllowInsecureLan)
+if ($AllowInsecureLan -and -not $LanIp) {
     $lanCandidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
         Where-Object {
             $_.IPAddress -notlike '127.*' -and
@@ -68,11 +71,13 @@ if (Test-Path -LiteralPath $accessPath) {
     }
 }
 
-if ($LanIp) { [void]$trustedHosts.Add("${LanIp}:${Port}") }
-if ($tsIp) { [void]$trustedHosts.Add("${tsIp}:${Port}") }
-if ($tsShort) {
-    [void]$trustedHosts.Add("${tsShort}:${Port}")
-    [void]$trustedHosts.Add("${tsShort}:${TailscalePort}")
+# Tailscale Serve forwards its own Host header, so these work with the loopback default.
+if ($tsShort) { [void]$trustedHosts.Add("${tsShort}:${TailscalePort}") }
+if ($AllowInsecureLan) {
+    # Direct binds: only reachable when the host listens beyond loopback over plain HTTP.
+    if ($LanIp) { [void]$trustedHosts.Add("${LanIp}:${Port}") }
+    if ($tsIp) { [void]$trustedHosts.Add("${tsIp}:${Port}") }
+    if ($tsShort) { [void]$trustedHosts.Add("${tsShort}:${Port}") }
 }
 if ($tsDns) {
     [void]$trustedHosts.Add("${tsDns}:${TailscalePort}")
@@ -96,7 +101,7 @@ if (-not $SkipTailscale -and $tsCmd -and $tsDns) {
 }
 
 # 5. Check Windows Firewall rule for inbound LAN TCP on $Port
-if (-not $SkipFirewallCheck) {
+if ($AllowInsecureLan -and -not $SkipFirewallCheck) {
     $ruleName = "Clatterforge Local Network UI ($Port)"
     $existingRule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
     if (-not $existingRule) {
@@ -123,12 +128,16 @@ Write-Host "==========================================================" -Foregro
 if ($tsDns) {
     Write-Host "  Tailscale URL:     http://${tsDns}:${TailscalePort}/" -ForegroundColor Green
 }
-if ($LanIp) {
-    Write-Host "  Local Network URL: http://${LanIp}:${Port}/" -ForegroundColor Green
+if ($AllowInsecureLan -and $LanIp) {
+    Write-Host "  Local Network URL: http://${LanIp}:${Port}/  (plain HTTP: cleartext on this network)" -ForegroundColor Yellow
 }
 Write-Host "  Localhost URL:     http://127.0.0.1:${Port}/" -ForegroundColor Gray
 Write-Host "  Access Policy:     $accessPath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  Restart the managed host with -Bind 0.0.0.0 so LAN & Tailscale pick up the policy:" -ForegroundColor Yellow
-Write-Host "  scripts/manage-local-host.ps1 -Action Start -Bind 0.0.0.0 -Binary .conductor/runtime/dev-conductor.exe -Assets .conductor/runtime/ui" -ForegroundColor White
+Write-Host "  Restart the managed host so it picks up the policy. Keep the loopback default;" -ForegroundColor Yellow
+Write-Host "  Tailscale Serve already reaches it over an encrypted transport:" -ForegroundColor Yellow
+Write-Host "  scripts/manage-local-host.ps1 -Action Start -Binary .conductor/runtime/dev-conductor.exe -Assets .conductor/runtime/ui" -ForegroundColor White
+if ($AllowInsecureLan) {
+    Write-Host "  Direct LAN access also needs: -Bind 0.0.0.0 -AllowInsecureLan (cleartext)." -ForegroundColor Yellow
+}
 Write-Host "==========================================================" -ForegroundColor White

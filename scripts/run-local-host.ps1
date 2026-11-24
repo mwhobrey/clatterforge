@@ -5,7 +5,10 @@ param(
     [Parameter(Mandatory)][string]$Assets,
     [string]$Bind = '127.0.0.1',
     [int]$Port = 8787,
-    [int]$UiPort = 8080
+    [int]$UiPort = 8080,
+    # The services are plain HTTP; a non-loopback bind is refused without this opt-in.
+    # Prefer the loopback default plus Tailscale Serve (scripts/expose-remote.ps1).
+    [switch]$AllowInsecureLan
 )
 $ErrorActionPreference = 'Stop'
 $Binary = (Resolve-Path -LiteralPath $Binary).Path
@@ -24,9 +27,10 @@ $stopPath = Join-Path $StateRoot 'host.stop'
 $receiptPath = Join-Path $StateRoot 'host-runtime.json'
 $logRoot = Join-Path $StateRoot 'host-logs'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+$lanArgs = @(if ($AllowInsecureLan) { '--allow-insecure-lan' })
 $roles = @{
-    backend = @{ Arguments = @('--state', $StateRoot, 'serve', '--bind', $Bind, '--port', "$Port", '--ui-assets', $Assets); Process = $null; Restarts = 0; RetryAt = [DateTime]::MinValue }
-    ui = @{ Arguments = @('--state', $StateRoot, 'ui-serve', '--assets', $Assets, '--bind', $Bind, '--port', "$UiPort"); Process = $null; Restarts = 0; RetryAt = [DateTime]::MinValue }
+    backend = @{ Arguments = @('--state', $StateRoot, 'serve', '--bind', $Bind, '--port', "$Port", '--ui-assets', $Assets) + $lanArgs; Process = $null; Restarts = 0; RetryAt = [DateTime]::MinValue }
+    ui = @{ Arguments = @('--state', $StateRoot, 'ui-serve', '--assets', $Assets, '--bind', $Bind, '--port', "$UiPort") + $lanArgs; Process = $null; Restarts = 0; RetryAt = [DateTime]::MinValue }
 }
 function Quote-Argument([string]$Value) {
     if ($Value.Contains('"') -or $Value.EndsWith('\')) { throw 'Managed host arguments must not contain quotes or trailing backslashes' }

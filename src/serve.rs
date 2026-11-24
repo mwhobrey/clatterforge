@@ -94,10 +94,11 @@ fn random_token() -> String {
 }
 
 /// A short code a person can type into a phone, not a secret meant to resist
-/// SHA-256-grade brute force on its own - its actual security comes from being
-/// single-use, five-minute-lived, and never reachable beyond loopback/Tailscale-private
-/// network (see docs/REMOTE_ACCESS.md). No rate limiting on `/api/pair` yet; revisit if
-/// that network-exposure assumption ever changes.
+/// SHA-256-grade brute force on its own - its security comes from being single-use,
+/// five-minute-lived, burned after five wrong attempts, and served only on loopback
+/// (reached remotely through Tailscale Serve). A LAN bind needs an explicit
+/// `--allow-insecure-lan`, which also exposes this code in cleartext; see
+/// `http_access::ensure_bind_allowed` and docs/REMOTE_ACCESS.md.
 fn short_code() -> String {
     let hex = uuid::Uuid::new_v4()
         .simple()

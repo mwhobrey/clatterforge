@@ -474,8 +474,12 @@ enum Commands {
         bind: std::net::IpAddr,
         #[arg(long, default_value_t = 8080)]
         port: u16,
+        /// Accept a non-loopback bind over plain HTTP. Prefer loopback plus Tailscale Serve.
+        #[arg(long, default_value_t = false)]
+        allow_insecure_lan: bool,
     },
-    /// Run the HTTP service a GUI talks to: loopback by default (or explicit --bind for LAN),
+    /// Run the HTTP service a GUI talks to: loopback by default (a non-loopback --bind also
+    /// needs --allow-insecure-lan, since the service is plain HTTP),
     /// bearer-token (desktop) or paired-session (phone/browser) auth, full read+write task API,
     /// and optional same-origin compiled UI serving via --ui-assets.
     Serve {
@@ -488,6 +492,9 @@ enum Commands {
         /// Generate and write a fresh bearer token to `<state>/serve-token` instead of reusing the persisted one.
         #[arg(long, default_value_t = false)]
         rotate_token: bool,
+        /// Accept a non-loopback bind over plain HTTP. Prefer loopback plus Tailscale Serve.
+        #[arg(long, default_value_t = false)]
+        allow_insecure_lan: bool,
     },
     /// Read recent structured JSONL log entries from `<state>/logs/clatterforge.jsonl`.
     Logs {
@@ -1200,7 +1207,17 @@ fn run() -> Result<()> {
                 .build()?;
             return runtime.block_on(dev_conductor::mcp::run(cli.state.clone()));
         }
-        Commands::UiServe { assets, bind, port } => {
+        Commands::UiServe {
+            assets,
+            bind,
+            port,
+            allow_insecure_lan,
+        } => {
+            if let Some(warning) =
+                dev_conductor::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
+            {
+                eprintln!("{warning}");
+            }
             let access = dev_conductor::http_access::AccessPolicy::load(&cli.state)?;
             let runtime = tokio::runtime::Runtime::new()?;
             return runtime.block_on(dev_conductor::ui_server::run_with_options(
@@ -1215,7 +1232,13 @@ fn run() -> Result<()> {
             port,
             ui_assets,
             rotate_token,
+            allow_insecure_lan,
         } => {
+            if let Some(warning) =
+                dev_conductor::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
+            {
+                eprintln!("{warning}");
+            }
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;

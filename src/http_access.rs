@@ -150,6 +150,29 @@ impl AccessPolicy {
     }
 }
 
+/// Refuses a non-loopback listener unless the operator explicitly accepts cleartext.
+///
+/// These servers speak plain HTTP. Bound to a LAN address, the bearer token, pairing codes
+/// and session/CSRF cookies cross the network unencrypted (cookies cannot be `Secure`
+/// without HTTPS), and the static UI can be tampered with in transit. Remote access belongs
+/// on loopback behind Tailscale Serve, whose transport is encrypted. `allow_insecure_lan`
+/// is the deliberate opt-out; it returns a warning for the caller to surface.
+pub fn ensure_bind_allowed(
+    bind: std::net::IpAddr,
+    allow_insecure_lan: bool,
+) -> Result<Option<String>> {
+    if bind.is_loopback() {
+        return Ok(None);
+    }
+    ensure!(
+        allow_insecure_lan,
+        "refusing to listen on {bind}: this server speaks plain HTTP, so a LAN bind would send the bearer token, pairing codes and session cookies unencrypted. Keep the default loopback bind and reach it remotely through Tailscale Serve (scripts/expose-remote.ps1), or pass --allow-insecure-lan to accept cleartext on this network."
+    );
+    Ok(Some(format!(
+        "WARNING: listening on {bind} over plain HTTP (--allow-insecure-lan). The bearer token, pairing codes and session cookies are readable by anyone on this network."
+    )))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,5 +232,29 @@ mod tests {
         )
         .unwrap();
         assert!(AccessPolicy::load(dir.path()).is_err());
+    }
+
+    #[test]
+    fn lan_binds_need_an_explicit_cleartext_opt_in() {
+        use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+        // Issue #9: loopback is always fine; anything else is refused unless acknowledged.
+        assert_eq!(
+            ensure_bind_allowed(IpAddr::V4(Ipv4Addr::LOCALHOST), false).unwrap(),
+            None
+        );
+        assert_eq!(
+            ensure_bind_allowed(IpAddr::V6(Ipv6Addr::LOCALHOST), false).unwrap(),
+            None
+        );
+        for bind in [
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 50)),
+            IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+        ] {
+            let refused = ensure_bind_allowed(bind, false).unwrap_err().to_string();
+            assert!(refused.contains("--allow-insecure-lan"), "{refused}");
+            let warning = ensure_bind_allowed(bind, true).unwrap().expect("warning");
+            assert!(warning.contains("plain HTTP"), "{warning}");
+        }
     }
 }

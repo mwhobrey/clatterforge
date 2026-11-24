@@ -6,7 +6,9 @@ param(
     [string]$Assets,
     [string]$Bind = '127.0.0.1',
     [int]$Port = 8787,
-    [int]$UiPort = 8080
+    [int]$UiPort = 8080,
+    # Plain-HTTP LAN binds are refused without this; prefer loopback plus Tailscale Serve.
+    [switch]$AllowInsecureLan
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Binary) { $Binary = Join-Path $PSScriptRoot '../target/debug/dev-conductor.exe' }
@@ -27,6 +29,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $Assets 'index.html'))) { throw 'Bui
 $runner = Join-Path $PSScriptRoot 'run-local-host.ps1'
 $pwsh = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
 $arguments = "-NoLogo -NoProfile -WindowStyle Hidden -File `"$runner`" -Binary `"$Binary`" -StateRoot `"$StateRoot`" -Assets `"$Assets`" -Bind `"$Bind`" -Port $Port -UiPort $UiPort"
+if ($AllowInsecureLan) { $arguments += ' -AllowInsecureLan' }
 if ($Action -eq 'InstallStartup') {
     # Per-user logon preserves the real coding provider's user profile and credentials.
     # No LocalSystem account, admin rights, password storage or network widening.
