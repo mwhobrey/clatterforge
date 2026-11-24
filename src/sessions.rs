@@ -13,6 +13,9 @@ use std::path::Path;
 use uuid::Uuid;
 
 pub const SESSION_TTL_MS: u64 = 30 * 24 * 60 * 60 * 1000;
+/// Absolute cap from pairing time. Sliding renewal never extends a session past this, so a
+/// device in regular use must still re-pair periodically.
+pub const SESSION_MAX_LIFETIME_MS: u64 = 90 * 24 * 60 * 60 * 1000;
 const SLIDING_TOUCH_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,7 +78,7 @@ impl Sessions {
         let token_hash = digest(raw_session_token.as_bytes());
         let csrf_hash = digest(raw_csrf_token.as_bytes());
         let created_at = now();
-        let expires_at = created_at.saturating_add(ttl_ms);
+        let expires_at = created_at.saturating_add(ttl_ms.min(SESSION_MAX_LIFETIME_MS));
 
         self.conn
             .execute(
@@ -107,10 +110,11 @@ impl Sessions {
     pub fn verify(&self, raw_session_token: &str) -> Result<Option<VerifiedSession>> {
         let token_hash = digest(raw_session_token.as_bytes());
         let current_now = now();
-        let row: Option<(String, String, String, i64, i64, Option<i64>)> = self
+        #[allow(clippy::type_complexity)]
+        let row: Option<(String, String, String, i64, i64, Option<i64>, i64)> = self
             .conn
             .query_row(
-                "SELECT id, principal, csrf_hash, last_seen_at, expires_at, revoked_at
+                "SELECT id, principal, csrf_hash, last_seen_at, expires_at, revoked_at, created_at
                  FROM paired_sessions
                  WHERE token_hash = ?1",
                 params![&token_hash],
@@ -122,22 +126,28 @@ impl Sessions {
                         r.get(3)?,
                         r.get(4)?,
                         r.get(5)?,
+                        r.get(6)?,
                     ))
                 },
             )
             .optional()
             .context("query paired session")?;
 
-        let Some((id, principal, csrf_hash, last_seen_at, expires_at, revoked_at)) = row else {
+        let Some((id, principal, csrf_hash, last_seen_at, expires_at, revoked_at, created_at)) =
+            row
+        else {
             return Ok(None);
         };
-        if revoked_at.is_some() || (expires_at as u64) <= current_now {
+        let hard_limit = (created_at as u64).saturating_add(SESSION_MAX_LIFETIME_MS);
+        // `hard_limit` also covers rows written before the cap existed, whose stored
+        // `expires_at` may already have slid past it.
+        if revoked_at.is_some() || (expires_at as u64).min(hard_limit) <= current_now {
             return Ok(None);
         }
 
-        let mut effective_expires = expires_at as u64;
+        let mut effective_expires = (expires_at as u64).min(hard_limit);
         if current_now.saturating_sub(last_seen_at as u64) >= SLIDING_TOUCH_INTERVAL_MS {
-            let renewed = current_now.saturating_add(SESSION_TTL_MS);
+            let renewed = current_now.saturating_add(SESSION_TTL_MS).min(hard_limit);
             let _ = self.conn.execute(
                 "UPDATE paired_sessions
                  SET last_seen_at = ?1, expires_at = ?2
@@ -202,12 +212,12 @@ impl Sessions {
             .prepare(
                 "SELECT id, principal, created_at, last_seen_at, expires_at
                  FROM paired_sessions
-                 WHERE revoked_at IS NULL AND expires_at > ?1
+                 WHERE revoked_at IS NULL AND expires_at > ?1 AND created_at + ?2 > ?1
                  ORDER BY last_seen_at DESC, created_at DESC",
             )
             .context("prepare list active paired sessions")?;
         let rows = stmt
-            .query_map(params![current_now], |r| {
+            .query_map(params![current_now, SESSION_MAX_LIFETIME_MS as i64], |r| {
                 Ok(SessionSummary {
                     id: r.get(0)?,
                     principal: r.get(1)?,
@@ -276,6 +286,43 @@ mod tests {
         assert!(reopened.revoke_by_id(&summary.id).unwrap());
         assert!(reopened.verify("raw-session-secret").unwrap().is_none());
         assert!(reopened.list_active().unwrap().is_empty());
+    }
+
+    #[test]
+    fn sliding_renewal_never_extends_past_the_absolute_lifetime() {
+        // Issue #12: a device used at least hourly used to stay signed in forever.
+        let dir = tempfile::tempdir().unwrap();
+        let store = Sessions::open(dir.path()).unwrap();
+        store
+            .create("tok", "csrf", "Phone", SESSION_TTL_MS)
+            .unwrap();
+        let day: i64 = 24 * 60 * 60 * 1000;
+
+        // Paired 85 days ago, last seen 2 hours ago: renewal is capped at day 90.
+        let created = now() as i64 - 85 * day;
+        store
+            .conn
+            .execute(
+                "UPDATE paired_sessions SET created_at=?1, last_seen_at=?2",
+                params![created, now() as i64 - 2 * 60 * 60 * 1000],
+            )
+            .unwrap();
+        let verified = store.verify("tok").unwrap().expect("still inside the cap");
+        assert_eq!(
+            verified.expires_at,
+            created as u64 + SESSION_MAX_LIFETIME_MS
+        );
+
+        // Paired 91 days ago: rejected even though a legacy row still claims a later expiry.
+        store
+            .conn
+            .execute(
+                "UPDATE paired_sessions SET created_at=?1, expires_at=?2",
+                params![now() as i64 - 91 * day, now() as i64 + 10 * day],
+            )
+            .unwrap();
+        assert!(store.verify("tok").unwrap().is_none());
+        assert!(store.list_active().unwrap().is_empty());
     }
 
     #[test]
