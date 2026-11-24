@@ -358,7 +358,7 @@ fn hold_my_beer_is_blocked_by_global_stop_not_merely_inheriting_it_by_assumption
             &registration_id,
             "fixture",
             5,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             vec![ExperimentSpec {
                 objective: "objective".into(),
                 acceptance: "acceptance".into(),

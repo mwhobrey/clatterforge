@@ -288,7 +288,7 @@ async fn a_deterministic_cursor_agent_fixture_runs_to_awaiting_review_through_th
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 

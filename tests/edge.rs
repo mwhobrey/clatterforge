@@ -188,7 +188,7 @@ async fn edge_dispatch_overrides_caller_supplied_principal_with_the_verified_enr
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
@@ -271,7 +271,7 @@ async fn evidence_retrieval_and_follow_up_linkage_both_work_through_the_real_edg
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 

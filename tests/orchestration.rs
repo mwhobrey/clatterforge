@@ -1364,7 +1364,7 @@ fn hold_my_beer_dispatches_a_real_task_to_awaiting_review_and_never_auto_accepts
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
@@ -1459,7 +1459,7 @@ fn hold_my_beer_ignores_prompt_injection_in_the_objective_and_still_awaits_revie
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
@@ -1518,7 +1518,7 @@ fn create_real_refuses_a_path_traversal_scope_before_the_policy_ever_exists() {
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             dev_conductor::autonomy::RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
@@ -1572,7 +1572,7 @@ fn hold_my_beer_still_refuses_a_case_collision_only_the_real_tree_can_reveal() {
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
@@ -1626,7 +1626,7 @@ fn two_concurrent_hold_my_beer_processes_racing_one_slot_dispatch_exactly_one_ta
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
@@ -1717,7 +1717,7 @@ fn revoked_real_task_policy_dispatches_nothing_and_creates_no_orchestration_task
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 60_000,
+            dev_conductor::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
                 launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),

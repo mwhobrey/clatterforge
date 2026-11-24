@@ -157,7 +157,7 @@ async fn real_stdio_submit_task_with_a_full_grant_auto_chains_straight_to_accept
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
@@ -206,7 +206,7 @@ async fn submit_task_with_a_partial_grant_stops_where_coverage_ends() {
             ExecutionMode::Delegated,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
     drop(grants);
@@ -237,7 +237,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
     drop(grants);
@@ -521,7 +521,7 @@ async fn requested_execution_mode_interactive_overrides_a_covering_grant() {
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
@@ -560,7 +560,7 @@ async fn local_stdio_cannot_match_a_grant_scoped_to_an_enrolled_client_namespace
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
@@ -1183,7 +1183,7 @@ async fn hold_my_beer_grants_are_still_bounded_by_repository_and_backend_scope()
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
@@ -1247,7 +1247,7 @@ async fn deterministic_fake_orchestrator_end_to_end_workflow() {
             ExecutionMode::Delegated,
             "mike",
             10,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 

@@ -195,7 +195,7 @@ async fn client_a_cannot_discover_or_use_client_bs_grant() {
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 

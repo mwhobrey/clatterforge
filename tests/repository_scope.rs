@@ -182,7 +182,7 @@ async fn client_scoped_to_repo_a_cannot_submit_to_repo_b() {
             ExecutionMode::HoldMyBeer,
             "mike",
             5,
-            now() + 60_000,
+            now() + 30 * 60_000,
         )
         .unwrap();
 
