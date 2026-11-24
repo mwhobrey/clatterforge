@@ -40,6 +40,7 @@ class PublicReleaseTests(unittest.TestCase):
         self.commit('Reviewed source')
         self.write('untracked-secret.txt', 'private-host-fixture')
         self.write('.conductor/state.sqlite', 'private-host-fixture')
+        self.write('.clatterforge/state.sqlite', 'private-host-fixture')
         self.policy = self.base / 'private-policy.json'
         self.policy.write_text(json.dumps({'literal_terms': ['private-host-fixture'],
                                           'private_email': 'private-account@example.invalid'}))
@@ -81,6 +82,7 @@ class PublicReleaseTests(unittest.TestCase):
         self.assertFalse((self.output / 'private-notes.md').exists())
         self.assertFalse((self.output / 'untracked-secret.txt').exists())
         self.assertFalse((self.output / '.conductor').exists())
+        self.assertFalse((self.output / '.clatterforge').exists())
         self.assertEqual((self.output / 'AGENTS.md').read_text(), 'Public documentation\n')
         second = self.export()
         self.assertNotEqual(second.returncode, 0)

@@ -277,13 +277,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
-name = "colorchoice"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
+name = "clatterforge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "clatterforge-protocol",
+ "futures-util",
+ "libc",
+ "reqwest",
+ "rmcp",
+ "rusqlite",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tiny_http",
+ "tokio",
+ "tower-http 0.7.1",
+ "uuid",
+ "windows-sys 0.61.2",
+]
 
 [[package]]
-name = "conductor-protocol"
+name = "clatterforge-edge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "clatterforge-protocol",
+ "reqwest",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "clatterforge-protocol"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -291,6 +324,12 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "colorchoice"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "const-oid"
@@ -373,45 +412,6 @@ dependencies = [
  "darling_core",
  "quote",
  "syn 3.0.8",
-]
-
-[[package]]
-name = "dev-conductor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "conductor-protocol",
- "futures-util",
- "libc",
- "reqwest",
- "rmcp",
- "rusqlite",
- "schemars",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "tiny_http",
- "tokio",
- "tower-http 0.7.1",
- "uuid",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "dev-conductor-edge"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "conductor-protocol",
- "reqwest",
- "rmcp",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

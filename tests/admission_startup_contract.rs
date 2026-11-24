@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     inference::state::{Coordinator, JobStore},
     process::current_identity,
 };

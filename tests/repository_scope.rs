@@ -7,7 +7,7 @@
 //! and is expected to fail against the pre-fix code, then pass once Phase 1 lands the
 //! enforcement. Later tests in this file cover the rest of Phase 1's required matrix.
 
-use dev_conductor::{
+use clatterforge::{
     authorization::{ExecutionMode, Grants, Operation},
     enrollment::{self, EnrollmentOperation, Enrollments},
     now,
@@ -76,16 +76,22 @@ fn free_port() -> u16 {
 /// drop a wire field nothing else would catch. See `tests/edge.rs`'s identical helper.
 fn edge_binary() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Build into the same target dir as this test binary so a CARGO_TARGET_DIR
+    // override never falls back to a stale edge binary elsewhere.
+    let target_dir = Path::new(env!("CARGO_BIN_EXE_clatterforge"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("cargo target dir");
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "dev-conductor-edge"])
+        .args(["build", "-p", "clatterforge-edge", "--target-dir"])
+        .arg(target_dir)
         .current_dir(manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    manifest_dir.join("target").join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 fn wait_for_main_ready(state: &Path, port: u16) {
@@ -97,12 +103,12 @@ fn wait_for_main_ready(state: &Path, port: u16) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("dev-conductor serve never became ready on port {port}");
+    panic!("clatterforge serve never became ready on port {port}");
 }
 
 fn start_main(state: &Path) -> (std::process::Child, u16) {
     let port = free_port();
-    let process = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let process = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("serve")
@@ -111,7 +117,7 @@ fn start_main(state: &Path) -> (std::process::Child, u16) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn dev-conductor serve");
+        .expect("spawn clatterforge serve");
     wait_for_main_ready(state, port);
     (process, port)
 }
@@ -132,7 +138,7 @@ async fn spawn_edge(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let stdin = process.stdin.take().expect("edge stdin");
     let stdout = process.stdout.take().expect("edge stdout");
     let client = DummyClient
@@ -293,7 +299,7 @@ fn set_up_two_repo_two_clients() -> TwoRepoTwoClients {
     // Client B's own task, created directly against the engine (standing in for a real
     // submission - setup, not something Client A's connection ever touches).
     let mut store = Store::open(&state).unwrap();
-    let executable = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor"))).unwrap();
+    let executable = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge"))).unwrap();
     let repo_b_task = store
         .create(
             &repo_b_id,

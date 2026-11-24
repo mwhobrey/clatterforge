@@ -1,4 +1,4 @@
-//! Structured JSON Lines (JSONL) logging for Clatterforge (`dev-conductor`).
+//! Structured JSON Lines (JSONL) logging for Clatterforge (`clatterforge`).
 //!
 //! Writes single-line JSON objects to `stderr` (never `stdout`, preserving JSON CLI output
 //! and stdio MCP transport) and appends to a size-rotated `.jsonl` file under

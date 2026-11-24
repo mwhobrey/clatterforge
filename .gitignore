@@ -4,6 +4,8 @@
 /dist/
 /.conductor/
 **/.conductor/
+/.clatterforge/
+**/.clatterforge/
 **/target/
 .env
 .env.*

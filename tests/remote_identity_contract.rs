@@ -1,4 +1,4 @@
-use dev_conductor::repository::remote_identity;
+use clatterforge::repository::remote_identity;
 
 #[test]
 fn scp_remotes_remove_query_and_fragment_credentials() {

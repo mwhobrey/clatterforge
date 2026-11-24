@@ -16,7 +16,7 @@
 //! `tests/orchestration.rs` instead, since it needs that file's own
 //! real-HTTP-mock generation harness.
 
-use dev_conductor::{
+use clatterforge::{
     coordination::Coordination,
     process::ExecutionPolicy,
     repository::git,
@@ -59,14 +59,14 @@ fn fixture_repo(parent: &Path) -> PathBuf {
 }
 
 fn execution_policy() -> ExecutionPolicy {
-    let mut policy = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor"))).unwrap();
+    let mut policy = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge"))).unwrap();
     policy.timeout_ms = 5000;
     policy.verification_timeout_ms = 5000;
     policy
 }
 
 fn cli(state: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .args(args)
@@ -113,7 +113,7 @@ fn await_running(state: &Path, id: &str) {
     let until = Instant::now() + Duration::from_secs(8);
     loop {
         let current = Store::open(state).unwrap().task(id).unwrap();
-        if current.status == dev_conductor::store::Status::Running {
+        if current.status == clatterforge::store::Status::Running {
             return;
         }
         assert!(
@@ -139,7 +139,7 @@ fn two_legacy_run_processes_racing_the_same_repository_admit_exactly_one() {
         create_and_approve(&mut store, &repository_id, FakeOutcome::Success);
     drop(store);
 
-    let mut first = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut first = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args(["run", &hang_id, "--revision", &hang_rev.to_string()])
@@ -267,7 +267,7 @@ fn an_interrupted_legacy_run_owner_lease_recovers_through_the_existing_acknowled
         create_and_approve(&mut store, &repository_id, FakeOutcome::Success);
     drop(store);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args(["run", &hang_id, "--revision", &hang_rev.to_string()])
@@ -342,5 +342,5 @@ fn an_interrupted_legacy_run_owner_lease_recovers_through_the_existing_acknowled
     // it still sits exactly where the crash left it until a human
     // explicitly reconciles it.
     let crashed = Store::open(&state).unwrap().task(&hang_id).unwrap();
-    assert_eq!(crashed.status, dev_conductor::store::Status::Running);
+    assert_eq!(crashed.status, clatterforge::store::Status::Running);
 }

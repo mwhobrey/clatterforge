@@ -30,7 +30,7 @@ impl Server {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         drop(listener);
-        let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(dir.path())
             .args(["serve", "--port", &port.to_string()])
@@ -205,7 +205,7 @@ fn invalid_access_configuration_preserves_existing_token_and_does_not_start() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let result = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let result = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(dir.path())
         .args(["serve", "--port", &port.to_string()])

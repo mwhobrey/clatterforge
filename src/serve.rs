@@ -23,7 +23,7 @@ use axum::{
     response::{AppendHeaders, IntoResponse, Response},
     routing::{delete, get, post, put},
 };
-use conductor_protocol::{
+use clatterforge_protocol::{
     BackendError, CancelTaskRequest, ConductorBackend, DecisionRequest, ErrorKind,
     EvidenceSummaryRequest, GetArtifactRequest, GetTaskRequest, ProposeTaskRequest, RequestIdOnly,
     ResumeRequest, SetPrincipal, SubmitTaskRequest, TaskIdRequest,
@@ -107,8 +107,16 @@ fn short_code() -> String {
     format!("{}-{}", &hex[..4], &hex[4..8])
 }
 
-const SESSION_COOKIE: &str = "conductor_session";
-const CSRF_COOKIE: &str = "conductor_csrf";
+const SESSION_COOKIE: &str = "clatterforge_session";
+const CSRF_COOKIE: &str = "clatterforge_csrf";
+/// Cookie names issued before the rename. Still accepted so paired devices stay signed in;
+/// logout clears them, and new pairings only ever set the current names.
+const LEGACY_SESSION_COOKIE: &str = "conductor_session";
+const LEGACY_CSRF_COOKIE: &str = "conductor_csrf";
+
+fn session_cookie(headers: &HeaderMap) -> Option<&str> {
+    cookie_value(headers, SESSION_COOKIE).or_else(|| cookie_value(headers, LEGACY_SESSION_COOKIE))
+}
 const CSRF_HEADER: &str = "x-csrf-token";
 const REQUEST_ID_HEADER: &str = "x-request-id";
 const PAIR_CODE_TTL_MS: u64 = 5 * 60 * 1000;
@@ -221,7 +229,7 @@ async fn authenticate(
     if has_valid_bearer(headers, state) {
         return Ok(Actor::Bearer);
     }
-    let session_token = cookie_value(headers, SESSION_COOKIE)
+    let session_token = session_cookie(headers)
         .ok_or((StatusCode::UNAUTHORIZED, "missing bearer token or session"))?
         .to_string();
     let csrf_header = mutating.then(|| {
@@ -1986,7 +1994,7 @@ async fn post_logout(State(state): State<Arc<ServeState>>, headers: HeaderMap) -
     if let Err(err) = check_origin(&headers, &state) {
         return err.into_response();
     }
-    if let Some(session_id) = cookie_value(&headers, SESSION_COOKIE) {
+    if let Some(session_id) = session_cookie(&headers) {
         let session_id = session_id.to_string();
         let _ = with_session_db(&state, move |s| s.revoke_by_token(&session_id)).await;
     }
@@ -1999,6 +2007,14 @@ async fn post_logout(State(state): State<Arc<ServeState>>, headers: HeaderMap) -
                 clear_cookie(SESSION_COOKIE, true, secure),
             ),
             (header::SET_COOKIE, clear_cookie(CSRF_COOKIE, false, secure)),
+            (
+                header::SET_COOKIE,
+                clear_cookie(LEGACY_SESSION_COOKIE, true, secure),
+            ),
+            (
+                header::SET_COOKIE,
+                clear_cookie(LEGACY_CSRF_COOKIE, false, secure),
+            ),
         ]),
     )
         .into_response()
@@ -2066,7 +2082,7 @@ async fn post_sessions_revoke_all(
 /// 15 `conductor_*` tools, mirroring MCP's own `tools/call` envelope. This is `dev-
 /// conductor-edge`'s `RemoteBackend` on the wire: the edge speaks MCP to its own stdio
 /// caller and this one HTTP shape to the main Conductor, both carrying the identical
-/// `conductor-protocol` DTOs. See `docs/m12/M12_0_ARCHITECTURE.md` section 3.
+/// `clatterforge-protocol` DTOs. See `docs/m12/M12_0_ARCHITECTURE.md` section 3.
 #[derive(Deserialize)]
 struct EdgeToolCall {
     tool: String,
@@ -2686,7 +2702,7 @@ pub async fn run_with_rotation(
 
     if !bind.is_loopback() && access.external_hosts().is_empty() {
         eprintln!(
-            "dev-conductor serve warning: bound to non-loopback {addr} with no external hosts in {}/http-access.json; remote Host headers will be rejected (403) until configured.",
+            "clatterforge serve warning: bound to non-loopback {addr} with no external hosts in {}/http-access.json; remote Host headers will be rejected (403) until configured.",
             root.display()
         );
     }
@@ -2725,7 +2741,7 @@ pub async fn run_with_rotation(
         }),
     );
     eprintln!(
-        "dev-conductor serve: http://{addr}  (token: {}, logs: {}{})",
+        "clatterforge serve: http://{addr}  (token: {}, logs: {}{})",
         token_path.display(),
         logger.path().display(),
         if has_ui {
@@ -2742,7 +2758,7 @@ pub async fn run_with_rotation(
             .map(String::as_str)
             .collect();
         eprintln!(
-            "dev-conductor serve allowed remote hosts: {}",
+            "clatterforge serve allowed remote hosts: {}",
             hosts.join(", ")
         );
     }
@@ -2777,6 +2793,103 @@ mod tests {
             let _ = axum::serve(listener, app).await;
         });
         (port, handle)
+    }
+
+    #[tokio::test]
+    async fn pairing_issues_renamed_cookies_and_legacy_cookie_names_still_authenticate() {
+        let dir = tempfile::tempdir().unwrap();
+        let (port, handle) = spawn_test_server(
+            dir.path().to_path_buf(),
+            AccessPolicy::default_local(),
+            None,
+        )
+        .await;
+        let base = format!("http://127.0.0.1:{port}");
+        let client = reqwest::Client::new();
+        let code = client
+            .post(format!("{base}/api/pair/start"))
+            .header("Authorization", "Bearer test-bearer-token")
+            .send()
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap()["code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let paired = client
+            .post(format!("{base}/api/pair"))
+            .json(&serde_json::json!({"code": code, "principal": "Phone"}))
+            .send()
+            .await
+            .unwrap();
+        let cookies: Vec<String> = paired
+            .headers()
+            .get_all(reqwest::header::SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok().map(str::to_string))
+            .collect();
+        assert!(
+            cookies
+                .iter()
+                .any(|c| c.starts_with("clatterforge_session="))
+        );
+        assert!(cookies.iter().any(|c| c.starts_with("clatterforge_csrf=")));
+        assert!(!cookies.iter().any(|c| c.starts_with("conductor_")));
+        let token = cookies
+            .iter()
+            .find(|c| c.starts_with("clatterforge_session="))
+            .and_then(|c| c.split(';').next())
+            .and_then(|kv| kv.split_once('='))
+            .unwrap()
+            .1
+            .to_string();
+
+        // A device paired before the rename presents the old cookie name.
+        let me = client
+            .get(format!("{base}/api/me"))
+            .header(
+                reqwest::header::COOKIE,
+                format!("{LEGACY_SESSION_COOKIE}={token}"),
+            )
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(me.status(), reqwest::StatusCode::OK);
+        assert_eq!(
+            me.json::<serde_json::Value>().await.unwrap()["auth"],
+            "session"
+        );
+
+        // Logout clears both generations of cookie names.
+        let logout = client
+            .post(format!("{base}/api/logout"))
+            .header(
+                reqwest::header::COOKIE,
+                format!("{LEGACY_SESSION_COOKIE}={token}"),
+            )
+            .send()
+            .await
+            .unwrap();
+        let cleared: Vec<String> = logout
+            .headers()
+            .get_all(reqwest::header::SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok().map(str::to_string))
+            .collect();
+        for name in [
+            SESSION_COOKIE,
+            CSRF_COOKIE,
+            LEGACY_SESSION_COOKIE,
+            LEGACY_CSRF_COOKIE,
+        ] {
+            assert!(
+                cleared.iter().any(|c| c.starts_with(&format!("{name}="))),
+                "{name}"
+            );
+        }
+        handle.abort();
     }
 
     #[tokio::test]

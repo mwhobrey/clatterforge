@@ -10,7 +10,7 @@
 //! finding zero prior references to `GlobalStop`/`global-stop` anywhere
 //! in `tests/`.
 
-use dev_conductor::{
+use clatterforge::{
     autonomy::{self, ExperimentSpec, Policies},
     process::ExecutionPolicy,
     repository::git,
@@ -54,14 +54,14 @@ fn fixture_repo(parent: &Path) -> PathBuf {
 }
 
 fn execution_policy() -> ExecutionPolicy {
-    let mut policy = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor"))).unwrap();
+    let mut policy = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge"))).unwrap();
     policy.timeout_ms = 5000;
     policy.verification_timeout_ms = 5000;
     policy
 }
 
 fn cli(state: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .args(args)
@@ -358,7 +358,7 @@ fn hold_my_beer_is_blocked_by_global_stop_not_merely_inheriting_it_by_assumption
             &registration_id,
             "fixture",
             5,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             vec![ExperimentSpec {
                 objective: "objective".into(),
                 acceptance: "acceptance".into(),

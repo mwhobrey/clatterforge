@@ -11,7 +11,7 @@ identity, and verified before anything is pushed:
   when it is installed.
 
 Commits that change nothing public are recorded and skipped. The development-to-public
-mapping lives in a private JSON file (default `.conductor/oss-sync/published.json`), so the
+mapping lives in a private JSON file (default `<state>/oss-sync/published.json`), so the
 next run starts after the last published commit.
 
 Usage:
@@ -30,8 +30,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY = {f'GIT_{role}_{field}': value
             for role in ('AUTHOR', 'COMMITTER')
-            for field, value in (('NAME', 'Dev Conductor contributors'),
+            for field, value in (('NAME', 'Clatterforge contributors'),
                                  ('EMAIL', 'contributors@example.invalid'))}
+
+
+def state_dir():
+    """Same rule as the binary: `.clatterforge`, unless only a pre-rename `.conductor` exists."""
+    current, legacy = ROOT / '.clatterforge', ROOT / '.conductor'
+    return legacy if not current.exists() and legacy.is_dir() else current
 
 
 def git(cwd, *args, env=None, text=True):
@@ -95,7 +101,7 @@ def main():
     parser.add_argument('--clone', type=Path, required=True, help='clone of the public repo')
     parser.add_argument('--privacy-policy', type=Path, required=True,
                         help='private deny-term policy; never copied anywhere')
-    parser.add_argument('--state', type=Path, default=ROOT / '.conductor/oss-sync/published.json')
+    parser.add_argument('--state', type=Path, default=state_dir() / 'oss-sync/published.json')
     parser.add_argument('--message', action='append', default=[], metavar='SHA=FILE',
                         help='public commit message for one development commit, for messages '
                              'that describe private-only files')

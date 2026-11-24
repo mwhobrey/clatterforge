@@ -1,12 +1,12 @@
 //! M12.0.1 Phase 3: acceptance evidence for the actual Linux release binary of
-//! `dev-conductor-edge`, run as a real process inside a Linux container (not just
-//! cross-compiled) against the real native Windows `dev-conductor serve` over a real
+//! `clatterforge-edge`, run as a real process inside a Linux container (not just
+//! cross-compiled) against the real native Windows `clatterforge serve` over a real
 //! TCP connection via Docker Desktop's `host.docker.internal`.
 //!
 //! These tests are `#[ignore]`d on purpose: they require Docker Desktop running
-//! locally, a prior `target-linux/release/dev-conductor-edge` build (see
+//! locally, a prior `target-linux/release/clatterforge-edge` build (see
 //! `docs/m12/M12_0_1_LINUX_RELEASE.md` for the exact build command), and a native
-//! `dev-conductor serve` already running and reachable at `SMOKE_MAIN_URL`. They are
+//! `clatterforge serve` already running and reachable at `SMOKE_MAIN_URL`. They are
 //! one-time acceptance evidence for a release, not a regression suite, and are never
 //! run by plain `cargo test --workspace`.
 //!
@@ -38,7 +38,7 @@ fn linux_bin_dir() -> String {
 }
 
 fn main_url() -> String {
-    std::env::var("SMOKE_MAIN_URL").expect("set SMOKE_MAIN_URL to the running dev-conductor serve")
+    std::env::var("SMOKE_MAIN_URL").expect("set SMOKE_MAIN_URL to the running clatterforge serve")
 }
 
 fn token() -> String {
@@ -62,7 +62,7 @@ async fn spawn_edge_container() -> (
         .args(["-e", &format!("CONDUCTOR_EDGE_TOKEN={}", token())])
         .args([
             "alpine:3.21",
-            "/opt/bin/dev-conductor-edge",
+            "/opt/bin/clatterforge-edge",
             "--main-url",
             &main_url(),
         ])
@@ -85,7 +85,7 @@ async fn spawn_edge_container() -> (
 /// discovers the expected tool set, reaches the real (disposable, nonbillable)
 /// Conductor over host.docker.internal, and a fake-process-v1 task runs to completion.
 #[tokio::test]
-#[ignore = "requires Docker Desktop and a running dev-conductor serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
+#[ignore = "requires Docker Desktop and a running clatterforge serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
 async fn the_real_linux_binary_completes_a_nonbillable_task_through_the_real_conductor() {
     let (mut process, client) = spawn_edge_container().await;
 
@@ -161,7 +161,7 @@ async fn the_real_linux_binary_completes_a_nonbillable_task_through_the_real_con
 /// container) does not lose or duplicate state - because the edge is stateless by
 /// design, state lives entirely on the real Conductor side.
 #[tokio::test]
-#[ignore = "requires Docker Desktop and a running dev-conductor serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
+#[ignore = "requires Docker Desktop and a running clatterforge serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
 async fn restarting_the_edge_container_does_not_lose_or_duplicate_the_submitted_task() {
     let (mut process_a, client_a) = spawn_edge_container().await;
     let submit_args = serde_json::json!({
@@ -228,7 +228,7 @@ async fn restarting_the_edge_container_does_not_lose_or_duplicate_the_submitted_
 /// Item 9: the raw credential must never appear in the edge binary's own stdout or
 /// stderr, under either a successful run or a refusal.
 #[tokio::test]
-#[ignore = "requires Docker Desktop and a running dev-conductor serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
+#[ignore = "requires Docker Desktop and a running clatterforge serve; see docs/m12/M12_0_1_LINUX_RELEASE.md"]
 async fn the_raw_credential_never_appears_in_the_edge_binarys_own_output() {
     let (process, client) = spawn_edge_container().await;
     let _ = client

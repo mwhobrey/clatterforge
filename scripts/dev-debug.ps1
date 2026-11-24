@@ -10,18 +10,28 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $GuiDir = Join-Path $RepoRoot 'gui'
-$DebugUiDir = Join-Path $GuiDir 'target\dx\conductor-gui\debug\web\public'
+$DebugUiDir = Join-Path $GuiDir 'target\dx\clatterforge-gui\debug\web\public'
 
 if ($State) {
     $StateDir = $State
 } elseif ($UseDistState) {
-    $StateDir = Join-Path $RepoRoot 'dist\clatterforge-windows-x86_64\.conductor'
+    $StateDir = Resolve-StateDir (Join-Path $RepoRoot 'dist\clatterforge-windows-x86_64')
+} elseif ($env:CLATTERFORGE_STATE) {
+    $StateDir = $env:CLATTERFORGE_STATE
 } elseif ($env:CONDUCTOR_STATE) {
     $StateDir = $env:CONDUCTOR_STATE
 } else {
-    $StateDir = Join-Path $RepoRoot '.conductor'
+    $StateDir = Resolve-StateDir $RepoRoot
 }
 $StateDir = [IO.Path]::GetFullPath($StateDir)
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
@@ -34,7 +44,7 @@ $EffectiveTarget = if ($TargetDir) {
     Join-Path $RepoRoot 'target'
 }
 $EffectiveTarget = [IO.Path]::GetFullPath($EffectiveTarget)
-$BackendBin = Join-Path $EffectiveTarget 'debug\dev-conductor.exe'
+$BackendBin = Join-Path $EffectiveTarget 'debug\clatterforge.exe'
 
 if (-not $Desktop -and -not $SkipUiBuild) {
     if (-not (Get-Command dx -ErrorAction SilentlyContinue)) {
@@ -59,7 +69,7 @@ if (-not $Desktop -and -not (Test-Path (Join-Path $DebugUiDir 'index.html'))) {
 Write-Host "[CF // DEBUG] Building debug backend ($BackendBin)..." -ForegroundColor Cyan
 Push-Location $RepoRoot
 try {
-    & cargo build --locked --target-dir $EffectiveTarget --bin dev-conductor
+    & cargo build --locked --target-dir $EffectiveTarget --bin clatterforge
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } finally {
     Pop-Location

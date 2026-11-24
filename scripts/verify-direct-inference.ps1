@@ -1,12 +1,20 @@
 param([string]$Target = 'ollama-local', [switch]$OllamaCompatibility)
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$pilotRoot = Join-Path $projectRoot ('.conductor/inference-live/' + [guid]::NewGuid().ToString())
+$pilotRoot = Join-Path (Resolve-StateDir $projectRoot) ('inference-live/' + [guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $pilotRoot -Force | Out-Null
 $statePath = Join-Path $pilotRoot 'state'
-$binaryPath = Join-Path $projectRoot 'target/debug/dev-conductor.exe'
+$binaryPath = Join-Path $projectRoot 'target/debug/clatterforge.exe'
 $config = Get-Content -LiteralPath (Join-Path $projectRoot 'examples/inference-config.json') -Raw | ConvertFrom-Json
-$config.admission_db = Join-Path $projectRoot '.conductor/inference-admission.sqlite'
+$config.admission_db = Join-Path (Resolve-StateDir $projectRoot) 'inference-admission.sqlite'
 if ($OllamaCompatibility) {
     $compatible = $config.targets | Where-Object id -eq 'ollama-compatible'
     if ($Target -ne 'ollama-compatible' -or $null -eq $compatible) { throw 'Ollama compatibility option requires the exact ollama-compatible target' }

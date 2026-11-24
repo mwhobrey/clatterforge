@@ -1,18 +1,18 @@
-//! `dev-conductor-edge`: the M12.0 Phase 1 lightweight Linux edge adapter. Launched over
-//! MCP stdio exactly like `dev-conductor mcp-serve`, presenting the identical
-//! `conductor_*` tool contract (`conductor-protocol`) — but every call is forwarded over an
-//! authenticated HTTP request to the main Windows Dev Conductor's `/api/edge/tools/call`
+//! `clatterforge-edge`: the M12.0 Phase 1 lightweight Linux edge adapter. Launched over
+//! MCP stdio exactly like `clatterforge mcp-serve`, presenting the identical
+//! `conductor_*` tool contract (`clatterforge-protocol`) — but every call is forwarded over an
+//! authenticated HTTP request to the main Windows Clatterforge's `/api/edge/tools/call`
 //! route (`src/serve.rs`) instead of touching a local task database. This binary owns no
 //! task state, execution state, repository lease, approval grant, or coding-agent process
 //! — see `docs/m12/M12_0_ARCHITECTURE.md` for the full "edge must not own" list.
 //!
-//! Depends on nothing but `conductor-protocol`, `reqwest`, `rmcp` (stdio server only) and a
+//! Depends on nothing but `clatterforge-protocol`, `reqwest`, `rmcp` (stdio server only) and a
 //! narrow `tokio` feature set — no `rusqlite`, no `axum`, no Windows FFI, no execution
 //! engine reaches this binary's dependency graph at all.
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use conductor_protocol::{
+use clatterforge_protocol::{
     ApprovalRequirementsResponse, BackendError, CancelTaskRequest, CapabilitiesResponse,
     ConductorBackend, DecisionRequest, DecisionResponse, ErrorKind, EvidenceSummaryRequest,
     EvidenceSummaryResponse, GetArtifactRequest, GetArtifactResponse, GetTaskRequest,
@@ -32,11 +32,11 @@ use std::{path::PathBuf, time::Duration};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "dev-conductor-edge",
-    about = "Lightweight MCP edge adapter forwarding conductor_* tool calls to a remote Dev Conductor"
+    name = "clatterforge-edge",
+    about = "Lightweight MCP edge adapter forwarding conductor_* tool calls to a remote Clatterforge"
 )]
 struct Cli {
-    /// Base URL of the main Dev Conductor's HTTP service, e.g.
+    /// Base URL of the main Clatterforge's HTTP service, e.g.
     /// https://conductor.example.invalid (configure your deployment's actual endpoint).
     #[arg(long)]
     main_url: String,
@@ -379,7 +379,7 @@ fn to_mcp_error(err: BackendError) -> McpError {
 }
 
 /// The `rmcp` stdio adapter: a thin wrapper over one `RemoteBackend`, structurally
-/// identical to `dev-conductor`'s `McpServer` over `LocalBackend` - same tool names, same
+/// identical to `clatterforge`'s `McpServer` over `LocalBackend` - same tool names, same
 /// schemas, same descriptions, different backend underneath. See this module's doc
 /// comment and `docs/m12/M12_0_ARCHITECTURE.md` section 2 for why this duplication is
 /// schema plumbing, not logic.
@@ -612,12 +612,12 @@ impl ServerHandler for EdgeMcpServer {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new(
-                "dev-conductor-edge",
+                "clatterforge-edge",
                 env!("CARGO_PKG_VERSION"),
             ))
             .with_instructions(
-                "Dev Conductor edge adapter. Forwards every conductor_* call, authenticated, to a \
-                remote main Dev Conductor - the edge owns no task state of its own. Same lifecycle \
+                "Clatterforge edge adapter. Forwards every conductor_* call, authenticated, to a \
+                remote main Clatterforge - the edge owns no task state of its own. Same lifecycle \
                 as the local adapter: conductor_submit_task -> conductor_get_approval_requirements/ \
                 conductor_approve -> conductor_resume -> conductor_get_task/conductor_get_evidence -> \
                 conductor_approve/conductor_reject. Call conductor_capabilities first.",
@@ -638,7 +638,7 @@ async fn main() -> Result<()> {
         cf_access,
     )?);
     eprintln!(
-        "dev-conductor-edge: forwarding to {} (timeout {}ms, Cloudflare Access headers {})",
+        "clatterforge-edge: forwarding to {} (timeout {}ms, Cloudflare Access headers {})",
         cli.main_url,
         cli.timeout_ms,
         if cf_access_active {

@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     agent_preset::AgentPresets,
     onboard::{
         DiscoveryEnv, OnboardRequest, detect_suggested_files_with_count, detect_verifier,
@@ -296,15 +296,15 @@ fn test_execute_onboard_end_to_end() {
         let preset = presets.get(&worker.preset.name).unwrap();
         assert!(preset.agentlet.is_some());
         match &preset.backend {
-            dev_conductor::agents::AgentBackend::Local(p) => {
+            clatterforge::agents::AgentBackend::Local(p) => {
                 assert_eq!(p.model, "test-model:latest");
                 assert_eq!(
                     preset.effective_tier(),
-                    dev_conductor::agents::ModelTier::Local
+                    clatterforge::agents::ModelTier::Local
                 );
                 assert_eq!(preset.allowed_models, vec!["test-model:latest"]);
             }
-            dev_conductor::agents::AgentBackend::CursorAgent(p) => {
+            clatterforge::agents::AgentBackend::CursorAgent(p) => {
                 assert_ne!(
                     p.model, "test-model:latest",
                     "Cursor CLI must not be configured with an Ollama model tag"
@@ -315,7 +315,7 @@ fn test_execute_onboard_end_to_end() {
                     "CLI presets must not snapshot the live catalog into allowed_models at onboard time (O14)"
                 );
             }
-            dev_conductor::agents::AgentBackend::Codex(p) => {
+            clatterforge::agents::AgentBackend::Codex(p) => {
                 assert_ne!(
                     p.model, "test-model:latest",
                     "Codex CLI must not be configured with an Ollama model tag"
@@ -323,7 +323,7 @@ fn test_execute_onboard_end_to_end() {
                 assert!(!p.model.trim().is_empty());
                 assert!(preset.allowed_models.is_empty());
             }
-            dev_conductor::agents::AgentBackend::Agy(p) => {
+            clatterforge::agents::AgentBackend::Agy(p) => {
                 assert_ne!(
                     p.model, "test-model:latest",
                     "AGY CLI must not be configured with an Ollama model tag"
@@ -337,14 +337,14 @@ fn test_execute_onboard_end_to_end() {
         profile
             .workers
             .iter()
-            .any(|w| w.preset.effective_tier() == dev_conductor::agents::ModelTier::Fast),
+            .any(|w| w.preset.effective_tier() == clatterforge::agents::ModelTier::Fast),
         "onboard profile should include a fast tier worker"
     );
     assert!(
         profile
             .workers
             .iter()
-            .any(|w| w.preset.effective_tier() == dev_conductor::agents::ModelTier::Frontier),
+            .any(|w| w.preset.effective_tier() == clatterforge::agents::ModelTier::Frontier),
         "onboard profile should include a frontier tier worker for complex/escalated tasks"
     );
 }
@@ -374,7 +374,7 @@ fn test_execute_onboard_builtin_router_and_cursor_only_tiers() {
 
     let profile = execute_onboard_in(&state, req, env)
         .expect("builtin:router-v1 + cursor-only onboard should succeed without Ollama");
-    assert!(dev_conductor::workflow::is_builtin_router(
+    assert!(clatterforge::workflow::is_builtin_router(
         &profile.inference
     ));
     // Verify all 3 implementation tiers (Fast, Standard, Frontier) + Reviewer are provisioned on Cursor
@@ -382,19 +382,19 @@ fn test_execute_onboard_builtin_router_and_cursor_only_tiers() {
         profile
             .workers
             .iter()
-            .any(|w| w.preset.effective_tier() == dev_conductor::agents::ModelTier::Fast)
+            .any(|w| w.preset.effective_tier() == clatterforge::agents::ModelTier::Fast)
     );
     assert!(
         profile
             .workers
             .iter()
-            .any(|w| w.preset.effective_tier() == dev_conductor::agents::ModelTier::Standard)
+            .any(|w| w.preset.effective_tier() == clatterforge::agents::ModelTier::Standard)
     );
     assert!(
         profile
             .workers
             .iter()
-            .any(|w| w.preset.effective_tier() == dev_conductor::agents::ModelTier::Frontier)
+            .any(|w| w.preset.effective_tier() == clatterforge::agents::ModelTier::Frontier)
     );
     for w in &profile.workers {
         assert_eq!(w.preset.backend.target(), "cursor-agent");
@@ -533,7 +533,7 @@ fn test_preset_routing_policy_trims_deduplicates_and_enforces_strict_allowlist()
     let updated = presets
         .set_routing_policy(
             "strict-profile-implementer",
-            Some(dev_conductor::agents::ModelTier::Standard),
+            Some(clatterforge::agents::ModelTier::Standard),
             vec![
                 "  composer-2.5  ".into(),
                 "composer-2.5".into(),
@@ -553,7 +553,7 @@ fn test_preset_routing_policy_trims_deduplicates_and_enforces_strict_allowlist()
 #[test]
 fn test_provider_status_probe_report() {
     let dir = tempfile::tempdir().unwrap();
-    let report = dev_conductor::provider_status::probe_all_providers_with_options(
+    let report = clatterforge::provider_status::probe_all_providers_with_options(
         dir.path(),
         Some("http://127.0.0.1:1"),
         true,
@@ -601,11 +601,11 @@ fn test_detect_suggested_files_ranks_crate_sources_ahead_of_tsx_tests_and_return
     .unwrap();
 
     assert!(
-        dev_conductor::repository::git(&repo, &["init", "-b", "main"]).is_ok(),
+        clatterforge::repository::git(&repo, &["init", "-b", "main"]).is_ok(),
         "git init"
     );
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -674,7 +674,7 @@ fn test_execute_onboard_accepts_over_sixteen_allowed_files() {
 
 #[test]
 fn test_reonboard_profile_refreshes_commit_timeouts_and_preserves_scope() {
-    use dev_conductor::onboard::reonboard_profile_in;
+    use clatterforge::onboard::reonboard_profile_in;
 
     let (_, env, verifier_exe) = hermetic_cursor_env();
     let dir = tempfile::tempdir().unwrap();
@@ -707,8 +707,8 @@ fn test_reonboard_profile_refreshes_commit_timeouts_and_preserves_scope() {
 
     // Advance HEAD in the repo so re-onboarding picks up the new commit while preserving scope.
     fs::write(repo.join("src/new.rs"), "pub fn refreshed() {}\n").unwrap();
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -753,14 +753,14 @@ fn test_reonboard_profile_refreshes_commit_timeouts_and_preserves_scope() {
         rescoped.scope()
     );
     let editable =
-        dev_conductor::onboard::list_editable_repo_files(&repo, &["Cargo.toml".into()]).unwrap();
+        clatterforge::onboard::list_editable_repo_files(&repo, &["Cargo.toml".into()]).unwrap();
     assert!(editable.iter().any(|f| f == "src/new.rs"));
     assert!(!editable.iter().any(|f| f == "Cargo.toml"));
 }
 
 #[test]
 fn test_repo_index_built_on_onboard_and_resolves_natural_language_and_symbols() {
-    use dev_conductor::repo_index::{profile_indexed_file_count, suggest_files_for_objective};
+    use clatterforge::repo_index::{profile_indexed_file_count, suggest_files_for_objective};
 
     let (_, env, verifier_exe) = hermetic_cursor_env();
     let dir = tempfile::tempdir().unwrap();
@@ -797,8 +797,8 @@ pub fn query_session_flight_log(content: &str) {
     )
     .unwrap();
 
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -877,8 +877,8 @@ pub fn query_session_flight_log(content: &str) {
         "pub fn persist_checkpoint_record() {}\n",
     )
     .unwrap();
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -911,7 +911,7 @@ pub fn query_session_flight_log(content: &str) {
 
 #[test]
 fn test_reonboard_with_progress_emits_monotonic_stages_and_file_counts() {
-    use dev_conductor::onboard::reonboard_profile_with_progress;
+    use clatterforge::onboard::reonboard_profile_with_progress;
 
     let (_, env, verifier_exe) = hermetic_cursor_env();
     let dir = tempfile::tempdir().unwrap();
@@ -923,8 +923,8 @@ fn test_reonboard_with_progress_emits_monotonic_stages_and_file_counts() {
     for i in 0..30 {
         fs::write(repo.join(format!("src/mod_{i:02}.rs")), "pub fn f() {}\n").unwrap();
     }
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -984,7 +984,7 @@ fn test_reonboard_with_progress_emits_monotonic_stages_and_file_counts() {
 
 #[test]
 fn test_detect_verifiers_excludes_tauri_bundle_when_dist_untracked() {
-    use dev_conductor::onboard::{DiscoveryEnv, detect_verifiers_in};
+    use clatterforge::onboard::{DiscoveryEnv, detect_verifiers_in};
 
     let tmp = tempfile::tempdir().unwrap();
     let repo = tmp.path().join("sample-like");

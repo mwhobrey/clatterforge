@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
-use dev_conductor::{
+use clatterforge::{
     codex::{CodexPolicy, Executable, PinnedCommand},
     context::prepare,
     execution::{CodexEngine, ExecutionEngine},
@@ -524,7 +524,7 @@ enum Commands {
     /// Run the dedicated loopback gateway: a narrow allow-list reverse proxy that is
     /// the only thing a public-facing tunnel (Cloudflare or otherwise) should ever be
     /// pointed at. Forwards exactly `POST /api/edge/tools/call` to `--upstream`
-    /// (the real `dev-conductor serve` instance); every other path or method gets a
+    /// (the real `clatterforge serve` instance); every other path or method gets a
     /// plain 404 before anything resembling the rest of the Conductor's HTTP API is
     /// ever reached. Performs no authentication of its own - `authenticate_edge` on
     /// the real Conductor still has to pass. Always binds loopback only, by design -
@@ -533,7 +533,7 @@ enum Commands {
     EdgeGateway {
         #[arg(long, default_value_t = 8789)]
         port: u16,
-        /// Base URL of the real dev-conductor serve instance this gateway forwards
+        /// Base URL of the real clatterforge serve instance this gateway forwards
         /// to, e.g. http://127.0.0.1:8787.
         #[arg(long)]
         upstream: String,
@@ -677,7 +677,7 @@ enum Commands {
     #[command(name = "board-clear")]
     BoardClear {
         #[arg(long, value_enum, default_value = "failed")]
-        scope: dev_conductor::service::ClearScope,
+        scope: clatterforge::service::ClearScope,
         #[arg(long)]
         json: bool,
     },
@@ -1128,11 +1128,11 @@ fn main() -> Result<()> {
         .join()
         .unwrap_or_else(|_| Err(anyhow::anyhow!("worker thread panicked")));
     if let Err(ref err) = result {
-        dev_conductor::logging::emit(
-            dev_conductor::logging::LogLevel::Error,
+        clatterforge::logging::emit(
+            clatterforge::logging::LogLevel::Error,
             "cli",
             "command failed",
-            Some(dev_conductor::logging::error_fields(err)),
+            Some(clatterforge::logging::error_fields(err)),
         );
     }
     result
@@ -1150,13 +1150,13 @@ fn is_server_command(command: &Commands) -> bool {
 
 fn configure_logging(cli: &Cli) -> Result<()> {
     let default_level = if is_server_command(&cli.command) {
-        dev_conductor::logging::LogLevel::Info
+        clatterforge::logging::LogLevel::Info
     } else {
-        dev_conductor::logging::LogLevel::Warn
+        clatterforge::logging::LogLevel::Warn
     };
     let level = match cli.log_level.as_deref() {
-        Some(raw) => dev_conductor::logging::LogLevel::parse(raw)?,
-        None => dev_conductor::logging::LogLevel::from_env(default_level),
+        Some(raw) => clatterforge::logging::LogLevel::parse(raw)?,
+        None => clatterforge::logging::LogLevel::from_env(default_level),
     };
     let file = cli
         .log_file
@@ -1166,7 +1166,7 @@ fn configure_logging(cli: &Cli) -> Result<()> {
             is_server_command(&cli.command)
                 .then(|| cli.state.join("logs").join("clatterforge.jsonl"))
         });
-    dev_conductor::logging::init(dev_conductor::logging::LogConfig {
+    clatterforge::logging::init(clatterforge::logging::LogConfig {
         level,
         file,
         ..Default::default()
@@ -1180,7 +1180,7 @@ fn run() -> Result<()> {
         .iter()
         .position(|a| a == "__local-agent-worker" || a == "--local-worker")
     {
-        std::process::exit(dev_conductor::agents::run_local_agent_worker(
+        std::process::exit(clatterforge::agents::run_local_agent_worker(
             &raw_args[pos + 1..],
         )?);
     }
@@ -1188,24 +1188,24 @@ fn run() -> Result<()> {
     configure_logging(&cli)?;
     match &cli.command {
         Commands::LocalAgentWorker { args } => {
-            std::process::exit(dev_conductor::agents::run_local_agent_worker(args)?)
+            std::process::exit(clatterforge::agents::run_local_agent_worker(args)?)
         }
         Commands::FixtureWorker {
             spec,
             token,
             verify,
-        } => std::process::exit(dev_conductor::fixture::run(spec, token, *verify)?),
+        } => std::process::exit(clatterforge::fixture::run(spec, token, *verify)?),
         Commands::FixtureDescendant { spec, token } => {
-            return dev_conductor::fixture::descendant(spec, token);
+            return clatterforge::fixture::descendant(spec, token);
         }
         Commands::ProviderLauncher { spec, token } => {
-            std::process::exit(dev_conductor::launcher::run(spec, token)?)
+            std::process::exit(clatterforge::launcher::run(spec, token)?)
         }
         Commands::McpServe => {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;
-            return runtime.block_on(dev_conductor::mcp::run(cli.state.clone()));
+            return runtime.block_on(clatterforge::mcp::run(cli.state.clone()));
         }
         Commands::UiServe {
             assets,
@@ -1214,13 +1214,13 @@ fn run() -> Result<()> {
             allow_insecure_lan,
         } => {
             if let Some(warning) =
-                dev_conductor::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
+                clatterforge::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
             {
                 eprintln!("{warning}");
             }
-            let access = dev_conductor::http_access::AccessPolicy::load(&cli.state)?;
+            let access = clatterforge::http_access::AccessPolicy::load(&cli.state)?;
             let runtime = tokio::runtime::Runtime::new()?;
-            return runtime.block_on(dev_conductor::ui_server::run_with_options(
+            return runtime.block_on(clatterforge::ui_server::run_with_options(
                 assets.clone(),
                 *bind,
                 *port,
@@ -1235,14 +1235,14 @@ fn run() -> Result<()> {
             allow_insecure_lan,
         } => {
             if let Some(warning) =
-                dev_conductor::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
+                clatterforge::http_access::ensure_bind_allowed(*bind, *allow_insecure_lan)?
             {
                 eprintln!("{warning}");
             }
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;
-            return runtime.block_on(dev_conductor::serve::run_with_rotation(
+            return runtime.block_on(clatterforge::serve::run_with_rotation(
                 cli.state.clone(),
                 *bind,
                 *port,
@@ -1256,8 +1256,8 @@ fn run() -> Result<()> {
             event,
             pretty,
         } => {
-            let path = dev_conductor::logging::log_file_path(&cli.state);
-            let entries = dev_conductor::logging::read_recent_from_path(
+            let path = clatterforge::logging::log_file_path(&cli.state);
+            let entries = clatterforge::logging::read_recent_from_path(
                 &path,
                 *tail,
                 level.as_deref(),
@@ -1273,7 +1273,7 @@ fn run() -> Result<()> {
             return Ok(());
         }
         Commands::SessionsList { json } => {
-            let list = dev_conductor::sessions::Sessions::open(&cli.state)?.list_active()?;
+            let list = clatterforge::sessions::Sessions::open(&cli.state)?.list_active()?;
             if *json {
                 println!("{}", serde_json::to_string_pretty(&list)?);
             } else if list.is_empty() {
@@ -1289,12 +1289,12 @@ fn run() -> Result<()> {
             return Ok(());
         }
         Commands::SessionsRevoke { id } => {
-            let revoked = dev_conductor::sessions::Sessions::open(&cli.state)?.revoke_by_id(id)?;
+            let revoked = clatterforge::sessions::Sessions::open(&cli.state)?.revoke_by_id(id)?;
             println!("{}", serde_json::json!({"id": id, "revoked": revoked}));
             return Ok(());
         }
         Commands::SessionsRevokeAll => {
-            let revoked = dev_conductor::sessions::Sessions::open(&cli.state)?.revoke_all()?;
+            let revoked = clatterforge::sessions::Sessions::open(&cli.state)?.revoke_all()?;
             println!("{}", serde_json::json!({"revoked": revoked}));
             return Ok(());
         }
@@ -1306,7 +1306,7 @@ fn run() -> Result<()> {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;
-            return runtime.block_on(dev_conductor::gateway::run(
+            return runtime.block_on(clatterforge::gateway::run(
                 *port,
                 upstream.clone(),
                 *timeout_ms,
@@ -1404,7 +1404,7 @@ fn run() -> Result<()> {
         Commands::Show { task, summary } => {
             let task = store.task(&task)?;
             if summary {
-                return print(&dev_conductor::telemetry::engine_summary(&task));
+                return print(&clatterforge::telemetry::engine_summary(&task));
             }
             task
         }
@@ -1422,7 +1422,7 @@ fn run() -> Result<()> {
             by,
         } => store.approve(&task, revision, &digest, &by)?,
         Commands::Run { task, revision } => {
-            dev_conductor::stop::GlobalStop::open(&cli.state)?
+            clatterforge::stop::GlobalStop::open(&cli.state)?
                 .state()?
                 .ensure_admission_allowed()?;
             // M10.4 Phase 1: the same `Coordination` repository lease
@@ -1432,7 +1432,7 @@ fn run() -> Result<()> {
             // `with_repository_lease` helper `TaskService::run` itself now
             // calls - not a second, look-alike mechanism.
             let resource = store.task(&task)?.assignment.repository.identity.clone();
-            dev_conductor::service::with_repository_lease(
+            clatterforge::service::with_repository_lease(
                 &cli.state,
                 resource,
                 task.clone(),
@@ -1472,7 +1472,7 @@ fn run() -> Result<()> {
 }
 
 fn board_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{board, service::TaskService};
+    use clatterforge::{board, service::TaskService};
     match &cli.command {
         Commands::Board { json } => {
             let rows = TaskService::open(&cli.state)?.board()?;
@@ -1511,7 +1511,7 @@ fn board_command(cli: &Cli) -> Result<bool> {
 /// refactor. Nothing outside this session's own testing has consumed the old shape yet,
 /// so standardizing now is a deliberate simplification, not a compatibility break.
 fn board_write_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{board, service::TaskService};
+    use clatterforge::{board, service::TaskService};
     let mut service = match &cli.command {
         Commands::BoardApprove { .. }
         | Commands::BoardRun { .. }
@@ -1610,7 +1610,7 @@ fn board_write_command(cli: &Cli) -> Result<bool> {
 /// these return a `board::Detail` for a single task the way every other board-* write
 /// command does.
 fn board_coordination_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::service::TaskService;
+    use clatterforge::service::TaskService;
     match &cli.command {
         Commands::BoardDepend { task, on } => {
             TaskService::open(&cli.state)?.add_dependency(task, on)?;
@@ -1670,8 +1670,8 @@ fn board_coordination_command(cli: &Cli) -> Result<bool> {
     Ok(true)
 }
 
-fn render_policy(policy: &dev_conductor::autonomy::Policy) -> String {
-    let state = policy.state(dev_conductor::now());
+fn render_policy(policy: &clatterforge::autonomy::Policy) -> String {
+    let state = policy.state(clatterforge::now());
     let mut out = format!("policy {}  [{:?}]\n", policy.id, state);
     out.push_str(&format!("version:    {}\n", policy.version));
     out.push_str(&format!("repository: {}\n", policy.repository_id));
@@ -1710,7 +1710,7 @@ fn render_policy(policy: &dev_conductor::autonomy::Policy) -> String {
 }
 
 fn agent_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{
+    use clatterforge::{
         agents::{AgentBackend, AgentSpec, Agents, AgyAgentPolicy, CursorAgentPolicy},
         codex::{CodexPolicy, Executable, PinnedCommand},
         inference::config::read_json,
@@ -1875,7 +1875,7 @@ fn agent_command(cli: &Cli) -> Result<bool> {
     Ok(true)
 }
 
-fn render_agent_preset(preset: &dev_conductor::agent_preset::AgentPreset) -> String {
+fn render_agent_preset(preset: &clatterforge::agent_preset::AgentPreset) -> String {
     let mut out = format!("agent preset '{}'\n", preset.name);
     if let Some(agentlet) = &preset.agentlet {
         out.push_str(&format!("agentlet:     {} v{} ({:?}, required review: {})\npurpose:      {}\ninstructions:  {}\n",
@@ -1886,10 +1886,10 @@ fn render_agent_preset(preset: &dev_conductor::agent_preset::AgentPreset) -> Str
     out.push_str(&format!(
         "backend:      {} (model: {}, tier: {})\n",
         match &preset.backend {
-            dev_conductor::agents::AgentBackend::CursorAgent(_) => "cursor-agent",
-            dev_conductor::agents::AgentBackend::Codex(_) => "codex",
-            dev_conductor::agents::AgentBackend::Agy(_) => "agy",
-            dev_conductor::agents::AgentBackend::Local(_) => "local-model",
+            clatterforge::agents::AgentBackend::CursorAgent(_) => "cursor-agent",
+            clatterforge::agents::AgentBackend::Codex(_) => "codex",
+            clatterforge::agents::AgentBackend::Agy(_) => "agy",
+            clatterforge::agents::AgentBackend::Local(_) => "local-model",
         },
         preset.backend.model(),
         preset.effective_tier().as_str()
@@ -1932,7 +1932,7 @@ fn render_agent_preset(preset: &dev_conductor::agent_preset::AgentPreset) -> Str
 }
 
 fn agent_preset_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{
+    use clatterforge::{
         agent_preset::AgentPresets,
         agents::{AgentBackend, AgyAgentPolicy, CursorAgentPolicy},
         codex::{CodexPolicy, Executable, PinnedCommand},
@@ -1940,15 +1940,15 @@ fn agent_preset_command(cli: &Cli) -> Result<bool> {
     match &cli.command {
         Commands::AgentletImport { definition, by } => {
             print(
-                &dev_conductor::agentlet::Agentlets::open(&cli.state)?
-                    .import(dev_conductor::agentlet::Definition::load(definition)?, by)?,
+                &clatterforge::agentlet::Agentlets::open(&cli.state)?
+                    .import(clatterforge::agentlet::Definition::load(definition)?, by)?,
             )?;
         }
         Commands::AgentletList => {
-            print(&dev_conductor::agentlet::Agentlets::open(&cli.state)?.list()?)?
+            print(&clatterforge::agentlet::Agentlets::open(&cli.state)?.list()?)?
         }
         Commands::AgentletShow { id, version } => {
-            print(&dev_conductor::agentlet::Agentlets::open(&cli.state)?.get(id, *version)?)?;
+            print(&clatterforge::agentlet::Agentlets::open(&cli.state)?.get(id, *version)?)?;
         }
         Commands::AgentletBind {
             id,
@@ -1957,7 +1957,7 @@ fn agent_preset_command(cli: &Cli) -> Result<bool> {
             name,
             by,
         } => {
-            let record = dev_conductor::agentlet::Agentlets::open(&cli.state)?.get(id, *version)?;
+            let record = clatterforge::agentlet::Agentlets::open(&cli.state)?.get(id, *version)?;
             print(&AgentPresets::open(&cli.state)?.bind_agentlet(
                 preset,
                 name,
@@ -2064,10 +2064,10 @@ fn agent_preset_command(cli: &Cli) -> Result<bool> {
         } => {
             let parsed_tier = match tier.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
                 None | Some("auto") | Some("none") => None,
-                Some("local") => Some(dev_conductor::agents::ModelTier::Local),
-                Some("fast") => Some(dev_conductor::agents::ModelTier::Fast),
-                Some("standard") => Some(dev_conductor::agents::ModelTier::Standard),
-                Some("frontier") => Some(dev_conductor::agents::ModelTier::Frontier),
+                Some("local") => Some(clatterforge::agents::ModelTier::Local),
+                Some("fast") => Some(clatterforge::agents::ModelTier::Fast),
+                Some("standard") => Some(clatterforge::agents::ModelTier::Standard),
+                Some("frontier") => Some(clatterforge::agents::ModelTier::Frontier),
                 Some(other) => bail!(
                     "unknown model tier '{other}'; expected one of: local, fast, standard, frontier"
                 ),
@@ -2091,7 +2091,7 @@ fn agent_preset_command(cli: &Cli) -> Result<bool> {
 }
 
 fn policy_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{
+    use clatterforge::{
         autonomy::{Policies, run as hold_my_beer_run},
         inference::config::read_json,
         process::ExecutionPolicy,
@@ -2111,14 +2111,14 @@ fn policy_command(cli: &Cli) -> Result<bool> {
                 "exactly one of --experiments or --real-tasks is required"
             );
             let policy = if let Some(real_tasks) = real_tasks {
-                let authorization: dev_conductor::autonomy::RealPolicyAuthorization =
+                let authorization: clatterforge::autonomy::RealPolicyAuthorization =
                     read_json(real_tasks)?;
                 Policies::open(&cli.state)?.create_real(
                     repository,
                     by,
                     *max_tasks,
-                    dev_conductor::now() + expires_in_ms,
-                    dev_conductor::autonomy::RealPolicyAuthorizationShared {
+                    clatterforge::now() + expires_in_ms,
+                    clatterforge::autonomy::RealPolicyAuthorizationShared {
                         config: authorization.config,
                         launcher: std::env::current_exe()?,
                     },
@@ -2130,7 +2130,7 @@ fn policy_command(cli: &Cli) -> Result<bool> {
                     repository,
                     by,
                     *max_tasks,
-                    dev_conductor::now() + expires_in_ms,
+                    clatterforge::now() + expires_in_ms,
                     experiments,
                 )?
             };
@@ -2190,8 +2190,8 @@ fn policy_command(cli: &Cli) -> Result<bool> {
     Ok(true)
 }
 
-fn parse_operations(values: &[String]) -> Result<Vec<dev_conductor::authorization::Operation>> {
-    use dev_conductor::authorization::Operation;
+fn parse_operations(values: &[String]) -> Result<Vec<clatterforge::authorization::Operation>> {
+    use clatterforge::authorization::Operation;
     values
         .iter()
         .map(|v| match v.trim() {
@@ -2207,8 +2207,8 @@ fn parse_operations(values: &[String]) -> Result<Vec<dev_conductor::authorizatio
         .collect()
 }
 
-fn render_grant(grant: &dev_conductor::authorization::Grant) -> String {
-    let state = grant.state(dev_conductor::now());
+fn render_grant(grant: &clatterforge::authorization::Grant) -> String {
+    let state = grant.state(clatterforge::now());
     let mut out = format!("grant {}  [{:?}]\n", grant.id, state);
     out.push_str(&format!("version:     {}\n", grant.version));
     out.push_str(&format!("principal:   {}\n", grant.principal));
@@ -2243,7 +2243,7 @@ fn render_grant(grant: &dev_conductor::authorization::Grant) -> String {
 }
 
 fn grant_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{authorization::Grants, repository::Repository};
+    use clatterforge::{authorization::Grants, repository::Repository};
     match &cli.command {
         Commands::GrantCreate {
             principal,
@@ -2256,7 +2256,7 @@ fn grant_command(cli: &Cli) -> Result<bool> {
             expires_in_ms,
             json,
         } => {
-            use dev_conductor::authorization::ExecutionMode;
+            use clatterforge::authorization::ExecutionMode;
             ensure!(
                 !backends.is_empty(),
                 "--backends requires at least one value"
@@ -2276,7 +2276,7 @@ fn grant_command(cli: &Cli) -> Result<bool> {
                 mode,
                 by,
                 *max_tasks,
-                dev_conductor::now() + expires_in_ms,
+                clatterforge::now() + expires_in_ms,
             )?;
             if *json {
                 print(&grant)?;
@@ -2324,8 +2324,8 @@ fn grant_command(cli: &Cli) -> Result<bool> {
 
 fn parse_enrollment_operations(
     values: &[String],
-) -> Result<Vec<dev_conductor::enrollment::EnrollmentOperation>> {
-    use dev_conductor::enrollment::EnrollmentOperation;
+) -> Result<Vec<clatterforge::enrollment::EnrollmentOperation>> {
+    use clatterforge::enrollment::EnrollmentOperation;
     values
         .iter()
         .map(|v| match v.trim() {
@@ -2342,7 +2342,7 @@ fn parse_enrollment_operations(
         .collect()
 }
 
-fn render_enrollment(enrollment: &dev_conductor::enrollment::Enrollment) -> String {
+fn render_enrollment(enrollment: &clatterforge::enrollment::Enrollment) -> String {
     let mut out = format!(
         "enrollment {}  [{}]\n",
         enrollment.client_id,
@@ -2417,7 +2417,7 @@ fn emit_credential(token: &str, token_file: &Option<PathBuf>) -> Result<()> {
 }
 
 fn enrollment_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{
+    use clatterforge::{
         authorization::Grants,
         enrollment::{self, Enrollments},
         repository::Repository,
@@ -2523,7 +2523,7 @@ fn enrollment_command(cli: &Cli) -> Result<bool> {
     Ok(true)
 }
 
-fn render_stop_state(state: &dev_conductor::stop::StopState) -> String {
+fn render_stop_state(state: &clatterforge::stop::StopState) -> String {
     if state.stopped {
         format!(
             "global stop: ENGAGED\n  by:     {}\n  reason: {}\n  at:     {} (ms epoch)\n",
@@ -2540,7 +2540,7 @@ fn render_stop_state(state: &dev_conductor::stop::StopState) -> String {
 }
 
 fn stop_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::service::TaskService;
+    use clatterforge::service::TaskService;
     match &cli.command {
         Commands::GlobalStop { by, reason, json } => {
             let outcome = TaskService::open(&cli.state)?.stop_all(by, reason)?;
@@ -2582,7 +2582,7 @@ fn stop_command(cli: &Cli) -> Result<bool> {
 }
 
 fn orchestration_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{
+    use clatterforge::{
         inference::config::{Config, read_json},
         orchestration::{Orchestrator, Status},
     };
@@ -2631,7 +2631,7 @@ fn orchestration_command(cli: &Cli) -> Result<bool> {
             by,
         } => orchestrator.approve(task, *revision, digest, by)?,
         Commands::OrchestrateRun { task, revision } => {
-            dev_conductor::stop::GlobalStop::open(&cli.state)?
+            clatterforge::stop::GlobalStop::open(&cli.state)?
                 .state()?
                 .ensure_admission_allowed()?;
             // M10.4 Phase 1: same lease, same shared helper, same rationale
@@ -2642,7 +2642,7 @@ fn orchestration_command(cli: &Cli) -> Result<bool> {
                 .repository
                 .identity
                 .clone();
-            dev_conductor::service::with_repository_lease(
+            clatterforge::service::with_repository_lease(
                 &cli.state,
                 resource,
                 task.clone(),
@@ -2675,7 +2675,7 @@ fn orchestration_command(cli: &Cli) -> Result<bool> {
 }
 
 fn inference_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::inference::{
+    use clatterforge::inference::{
         config::{Config, Registry, read_json},
         jobs,
         state::{Coordinator, JobStatus, JobStore},
@@ -2714,7 +2714,7 @@ fn inference_command(cli: &Cli) -> Result<bool> {
             target,
             one_turn,
         } => {
-            dev_conductor::stop::GlobalStop::open(&cli.state)?
+            clatterforge::stop::GlobalStop::open(&cli.state)?
                 .state()?
                 .ensure_admission_allowed()?;
             let runtime = tokio::runtime::Builder::new_current_thread()
@@ -2736,7 +2736,7 @@ fn inference_command(cli: &Cli) -> Result<bool> {
         Commands::InferenceShow { job, summary } => {
             let job = JobStore::open(&cli.state)?.job(job)?;
             if *summary {
-                print(&dev_conductor::telemetry::job_summary(&job))?;
+                print(&clatterforge::telemetry::job_summary(&job))?;
             } else {
                 print(&job)?;
             }
@@ -2781,22 +2781,22 @@ fn inference_command(cli: &Cli) -> Result<bool> {
 }
 
 fn workflow_command(cli: &Cli) -> Result<bool> {
-    use dev_conductor::{inference::config::Config, workflow::Workflows};
+    use clatterforge::{inference::config::Config, workflow::Workflows};
     match &cli.command {
         Commands::IntegrationPrepare { task, by, worktree } => print(
-            &dev_conductor::service::TaskService::open(&cli.state)?
+            &clatterforge::service::TaskService::open(&cli.state)?
                 .prepare_integration_with_target(
                     task,
                     by,
                     if *worktree {
-                        dev_conductor::integration::IntegrationTarget::Worktree
+                        clatterforge::integration::IntegrationTarget::Worktree
                     } else {
-                        dev_conductor::integration::IntegrationTarget::Checkout
+                        clatterforge::integration::IntegrationTarget::Checkout
                     },
                 )?,
         )?,
         Commands::IntegrationShow { task } => {
-            let service = dev_conductor::service::TaskService::open(&cli.state)?;
+            let service = clatterforge::service::TaskService::open(&cli.state)?;
             print(&service.detail(task, None)?.integration)?;
         }
         Commands::IntegrationApply {
@@ -2812,7 +2812,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             by,
         } => {
             let rollback = matches!(&cli.command, Commands::IntegrationRollback { .. });
-            let d = dev_conductor::service::TaskService::open(&cli.state)?
+            let d = clatterforge::service::TaskService::open(&cli.state)?
                 .integrate(task, *revision, digest, by, rollback)?;
             print(&d)?;
             ensure!(
@@ -2882,7 +2882,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
         } => {
             print(&Workflows::open(&cli.state)?.update_profile_timeouts(
                 name,
-                dev_conductor::workflow::TimeoutOverrides {
+                clatterforge::workflow::TimeoutOverrides {
                     generation_timeout_ms: *generation_timeout_ms,
                     generation_idle_timeout_ms: *generation_idle_timeout_ms,
                     verification_timeout_ms: *verification_timeout_ms,
@@ -2911,7 +2911,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                 Some(allowed_files.clone())
             } else if *auto_scope {
                 let prof = workflows.profile(profile)?;
-                let suggestion = dev_conductor::repo_index::suggest_files_for_objective(
+                let suggestion = clatterforge::repo_index::suggest_files_for_objective(
                     &cli.state, &prof, objective, acceptance, 16,
                 )?;
                 if suggestion.matched.is_empty() || suggestion.merged_scope.is_empty() {
@@ -2927,7 +2927,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                 objective.clone(),
                 acceptance.clone(),
                 scope,
-                dev_conductor::workflow::TimeoutOverrides {
+                clatterforge::workflow::TimeoutOverrides {
                     generation_timeout_ms: *generation_timeout_ms,
                     generation_idle_timeout_ms: *generation_idle_timeout_ms,
                     verification_timeout_ms: *verification_timeout_ms,
@@ -2945,14 +2945,14 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             by,
         } => {
             let mut cb = |_: &str, _: &str, _: u8, _: usize, _: usize| {};
-            let profile = dev_conductor::onboard::reonboard_profile_with_options(
+            let profile = clatterforge::onboard::reonboard_profile_with_options(
                 &cli.state,
                 name,
                 *low_spec,
                 *refresh_scope,
                 *refresh_verifier,
                 by,
-                &dev_conductor::onboard::DiscoveryEnv::from_process(),
+                &clatterforge::onboard::DiscoveryEnv::from_process(),
                 &mut cb,
             )?;
             print(&profile)?;
@@ -2973,7 +2973,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             by,
             json,
         } => {
-            use dev_conductor::onboard::{OnboardRequest, execute_onboard, probe_environment};
+            use clatterforge::onboard::{OnboardRequest, execute_onboard, probe_environment};
             let report = probe_environment(repo, endpoint.as_deref())?;
             if *probe_only {
                 print(&report)?;
@@ -3142,7 +3142,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             );
             println!("\nReady to prepare workflow with:");
             println!(
-                "  dev-conductor workflow-create --profile {} --objective \"<objective>\" --acceptance \"<criteria>\"",
+                "  clatterforge workflow-create --profile {} --objective \"<objective>\" --acceptance \"<criteria>\"",
                 profile.name
             );
             if *json {
@@ -3150,7 +3150,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             }
         }
         Commands::Analytics { json } => {
-            let mut store = dev_conductor::routing_metrics::RoutingMetricsStore::open(&cli.state)?;
+            let mut store = clatterforge::routing_metrics::RoutingMetricsStore::open(&cli.state)?;
             let board = store.scoreboard()?;
             let report = board.analytics_report();
             if *json {

@@ -54,7 +54,7 @@ pub async fn run(port: u16, upstream: String, timeout_ms: u64) -> Result<()> {
         .await
         .with_context(|| format!("bind loopback {addr}"))?;
     eprintln!(
-        "dev-conductor edge-gateway: listening on {addr}, forwarding only POST /api/edge/tools/call to {upstream_log}"
+        "clatterforge edge-gateway: listening on {addr}, forwarding only POST /api/edge/tools/call to {upstream_log}"
     );
     axum::serve(listener, app)
         .await

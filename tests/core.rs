@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     context::{ContextItem, prepare},
     repository::{Repository, git, remote_identity},
     store::{FakeOutcome, Status, Store, Task},
@@ -71,8 +71,8 @@ fn create(store: &mut Store, repo: &str) -> Task {
             "Review a new file and its host receipt".into(),
             "hello from fake\n".into(),
             16384,
-            dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-                "CARGO_BIN_EXE_dev-conductor"
+            clatterforge::process::ExecutionPolicy::new(Path::new(env!(
+                "CARGO_BIN_EXE_clatterforge"
             )))
             .unwrap(),
         )
@@ -612,7 +612,7 @@ fn changed_artifacts_workspace_and_evidence_cannot_be_accepted() {
 
 #[test]
 fn cli_help_exposes_the_workflow() {
-    let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--help")
         .output()
         .unwrap();
@@ -693,7 +693,7 @@ fn ignored_new_output_is_still_part_of_review_patch() {
 }
 
 fn cli(state: &Path, args: &[&str]) -> serde_json::Value {
-    let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .args(args)
@@ -805,7 +805,7 @@ fn cli_failed_attempt_has_nonzero_exit_and_persisted_failure() {
         )
         .unwrap();
     let approved = approve(&mut store, &revised);
-    let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(dir.path().join("state"))
         .args([
@@ -827,10 +827,9 @@ fn cli_failed_attempt_has_nonzero_exit_and_persisted_failure() {
 }
 
 fn process_task(store: &mut Store, repo: &str, outcome: FakeOutcome, timeout: u64) -> Task {
-    let mut policy = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let mut policy =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     policy.timeout_ms = timeout;
     policy.verification_timeout_ms = timeout;
     policy.log_bytes = 512;
@@ -870,7 +869,7 @@ fn poll_task(store: &Store, id: &str, ready: impl Fn(&Task) -> bool) -> Task {
     }
 }
 
-fn descendant_identity(root: &Path, task: &Task) -> dev_conductor::process::ProcessIdentity {
+fn descendant_identity(root: &Path, task: &Task) -> clatterforge::process::ProcessIdentity {
     let path = root
         .join("artifacts")
         .join(&task.attempts.last().unwrap().id)
@@ -890,8 +889,8 @@ fn descendant_identity(root: &Path, task: &Task) -> dev_conductor::process::Proc
     }
 }
 
-fn assert_stopped(identity: &dev_conductor::process::ProcessIdentity) {
-    use dev_conductor::process::{Presence, presence};
+fn assert_stopped(identity: &clatterforge::process::ProcessIdentity) {
+    use clatterforge::process::{Presence, presence};
     let started = std::time::Instant::now();
     loop {
         if matches!(presence(identity), Presence::Exited | Presence::Missing) {
@@ -982,8 +981,8 @@ fn revision_checked_cancellation_uses_live_owner_and_stops_descendants() {
     assert!(active.revision > approved_revision);
     let descendant = descendant_identity(&root, &active);
     assert_eq!(
-        dev_conductor::process::presence(&descendant),
-        dev_conductor::process::Presence::Alive
+        clatterforge::process::presence(&descendant),
+        clatterforge::process::Presence::Alive
     );
     assert!(
         observer
@@ -1124,7 +1123,7 @@ fn supervisor_crash_kills_job_tree_and_restart_never_replays() {
     let (_dir, _repo, mut store, id) = setup();
     let task = process_task(&mut store, &id, FakeOutcome::SpawnDescendant, 30000);
     let mut cli = OwnedCli(
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&store.root)
             .args(["run", &task.id, "--revision", &task.revision.to_string()])
@@ -1175,7 +1174,7 @@ fn crash_during_verification_preserves_proven_execution_but_never_claims_a_pass(
     let (_dir, _repo, mut store, id) = setup();
     let task = process_task(&mut store, &id, FakeOutcome::VerificationHang, 30000);
     let mut cli = OwnedCli(
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&store.root)
             .args(["run", &task.id, "--revision", &task.revision.to_string()])
@@ -1234,7 +1233,7 @@ fn failed_log_finalization_keeps_outcome_unknown_and_owned_process_stopped() {
 
 #[test]
 fn gated_worker_cannot_change_workspace_before_launch_receipt() {
-    use dev_conductor::{
+    use clatterforge::{
         fixture::Spec,
         process::{OwnedProcess, current_identity},
     };
@@ -1251,7 +1250,7 @@ fn gated_worker_cannot_change_workspace_before_launch_receipt() {
         };
         let path = dir.path().join("spec.json");
         fs::write(&path, serde_json::to_vec(&spec).unwrap()).unwrap();
-        let mut command = Command::new(env!("CARGO_BIN_EXE_dev-conductor"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_clatterforge"));
         command
             .args(["__fixture-worker", path.to_str().unwrap(), &spec.token])
             .current_dir(dir.path());
@@ -1285,8 +1284,8 @@ fn process_limits_and_executable_are_approval_bound_and_revalidated() {
     assignment.execution_policy.as_mut().unwrap().log_bytes = 0;
     assert!(assignment.validate().is_err());
     let exe = dir.path().join("owned-fixture.exe");
-    fs::copy(env!("CARGO_BIN_EXE_dev-conductor"), &exe).unwrap();
-    let policy = dev_conductor::process::ExecutionPolicy::new(&exe).unwrap();
+    fs::copy(env!("CARGO_BIN_EXE_clatterforge"), &exe).unwrap();
+    let policy = clatterforge::process::ExecutionPolicy::new(&exe).unwrap();
     let task = store
         .create(
             &id,
@@ -1331,7 +1330,7 @@ fn replace_fixture_record(root: &Path, task: &Task) {
 
 #[test]
 fn stale_creation_identity_declines_cancellation_and_never_targets_unrelated_process() {
-    use dev_conductor::process::{Presence, current_identity, presence};
+    use clatterforge::process::{Presence, current_identity, presence};
     let (_dir, _repo, mut store, id) = setup();
     let task = create(&mut store, &id);
     let approved = approve(&mut store, &task);
@@ -1444,7 +1443,7 @@ fn version_zero_migration_preserves_legacy_approval_receipts_and_evidence() {
 
 #[test]
 fn bounded_commands_reject_truncation_and_timeouts_instead_of_using_partial_output() {
-    use dev_conductor::{
+    use clatterforge::{
         fixture::Spec,
         process::{bounded_output, current_identity},
     };
@@ -1466,7 +1465,7 @@ fn bounded_commands_reject_truncation_and_timeouts_instead_of_using_partial_outp
         let path = dir.path().join("spec.json");
         fs::write(&path, serde_json::to_vec(&spec).unwrap()).unwrap();
         fs::write(&spec.gate, &spec.token).unwrap();
-        let mut command = Command::new(env!("CARGO_BIN_EXE_dev-conductor"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_clatterforge"));
         command
             .args(["__fixture-worker", path.to_str().unwrap(), &spec.token])
             .current_dir(dir.path());
@@ -1503,7 +1502,7 @@ fn codex_stub() -> PathBuf {
 }
 
 fn codex_task(store: &mut Store, id: &str, model: &str, verifier_mode: &str, timeout: u64) -> Task {
-    use dev_conductor::{
+    use clatterforge::{
         codex::{CodexPolicy, Executable, PinnedCommand},
         process::ExecutionPolicy,
         store::CodexRequest,
@@ -1512,7 +1511,7 @@ fn codex_task(store: &mut Store, id: &str, model: &str, verifier_mode: &str, tim
     fs::create_dir_all(&home).unwrap();
     let binary = Executable::new(&codex_stub()).unwrap();
     let mut execution =
-        ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor"))).unwrap();
+        ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge"))).unwrap();
     execution.timeout_ms = timeout;
     execution.verification_timeout_ms = timeout;
     execution.log_bytes = 512;
@@ -1545,7 +1544,7 @@ fn delegated_identity(
     store: &Store,
     task: &Task,
     phase: &str,
-) -> dev_conductor::process::ProcessIdentity {
+) -> clatterforge::process::ProcessIdentity {
     let path = store
         .root
         .join("artifacts")
@@ -1553,7 +1552,7 @@ fn delegated_identity(
         .join(format!("{phase}.delegated.json"));
     let started = std::time::Instant::now();
     loop {
-        if let Ok(receipt) = dev_conductor::launcher::read_receipt(&path) {
+        if let Ok(receipt) = clatterforge::launcher::read_receipt(&path) {
             return receipt.identity;
         }
         assert!(
@@ -1730,7 +1729,7 @@ fn codex_launcher_stop_timeout_and_crash_preserve_no_replay_contract() {
             if mode == "timeout" { 1500 } else { 30000 },
         );
         let mut cli = OwnedCli(
-            Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+            Command::new(env!("CARGO_BIN_EXE_clatterforge"))
                 .arg("--state")
                 .arg(&store.root)
                 .args(["run", &task.id, "--revision", &task.revision.to_string()])
@@ -1806,7 +1805,7 @@ fn invalid_codex_scope_does_not_create_a_task_and_policy_changes_change_approval
         task.assignment.digest().unwrap()
     );
     let count = store.tasks().unwrap().len();
-    let invalid = dev_conductor::store::CodexRequest {
+    let invalid = clatterforge::store::CodexRequest {
         repository_id: id,
         objective: "fixture".into(),
         acceptance: "fixture".into(),
@@ -1873,7 +1872,7 @@ fn codex_cli_preparation_requires_approval_and_scrubs_ambient_key_variables() {
             "Fixture Human",
         ],
     );
-    let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1898,7 +1897,7 @@ fn codex_cli_preparation_requires_approval_and_scrubs_ambient_key_variables() {
 
 #[test]
 fn delegated_command_cannot_launch_before_owned_parent_gate_is_released() {
-    use dev_conductor::{
+    use clatterforge::{
         codex::{Executable, PinnedCommand},
         launcher::LaunchSpec,
         process::{OwnedProcess, current_identity},
@@ -1920,7 +1919,7 @@ fn delegated_command_cannot_launch_before_owned_parent_gate_is_released() {
     };
     let path = dir.path().join("launch.json");
     fs::write(&path, serde_json::to_vec(&spec).unwrap()).unwrap();
-    let mut command = Command::new(env!("CARGO_BIN_EXE_dev-conductor"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_clatterforge"));
     command
         .args(["__provider-launcher", path.to_str().unwrap(), &spec.token])
         .current_dir(dir.path());
@@ -1934,7 +1933,7 @@ fn delegated_command_cannot_launch_before_owned_parent_gate_is_released() {
 }
 
 #[cfg(windows)]
-fn read_fixture_process_identity(pid: u32) -> dev_conductor::process::ProcessIdentity {
+fn read_fixture_process_identity(pid: u32) -> clatterforge::process::ProcessIdentity {
     use windows_sys::Win32::{
         Foundation::{CloseHandle, FILETIME},
         System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
@@ -1951,7 +1950,7 @@ fn read_fixture_process_identity(pid: u32) -> dev_conductor::process::ProcessIde
         CloseHandle(handle);
     }
     assert_ne!(result, 0);
-    dev_conductor::process::ProcessIdentity {
+    clatterforge::process::ProcessIdentity {
         pid,
         created: ((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64,
     }
@@ -1963,7 +1962,7 @@ fn delegated_provider_descendants_inherit_owned_job_and_stop_on_cancellation() {
     let (_dir, _repo, mut store, id) = setup();
     let task = codex_task(&mut store, &id, "descendant", "pass", 30000);
     let mut cli = OwnedCli(
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&store.root)
             .args(["run", &task.id, "--revision", &task.revision.to_string()])

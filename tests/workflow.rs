@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     agent_preset::AgentPresets,
     agents::{AgentBackend, AgentStatus, Agents, CursorAgentPolicy},
     inference::{
@@ -28,7 +28,7 @@ use tempfile::TempDir;
 /// form or repository/workspace identity checks reject them.
 fn canonical_tempdir() -> (TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
-    let root = dev_conductor::repository::canonical(dir.path()).unwrap();
+    let root = clatterforge::repository::canonical(dir.path()).unwrap();
     (dir, root)
 }
 
@@ -277,7 +277,7 @@ fn run(f: &Fixture) -> Workflow {
 }
 
 fn agentlet_fixture(model: &Model, steps: usize) -> Fixture {
-    use dev_conductor::agentlet::{Capability, Definition};
+    use clatterforge::agentlet::{Capability, Definition};
     let mut f = fixture(model, steps);
     let definitions = [Definition { schema_version:1, id:"implementer".into(), version:1,
         purpose:"Implement only the assigned component".into(),
@@ -289,7 +289,7 @@ fn agentlet_fixture(model: &Model, steps: usize) -> Fixture {
     for definition in definitions {
         let path = f.state.join(format!("{}.json", definition.id));
         fs::write(&path, serde_json::to_vec(&definition).unwrap()).unwrap();
-        let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&f.state)
             .args(["agentlet-import", "--definition"])
@@ -308,7 +308,7 @@ fn agentlet_fixture(model: &Model, steps: usize) -> Fixture {
         ("implementer", "worker-b", "implement-b"),
         ("reviewer", "worker-a", "review-final"),
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&f.state)
             .args([
@@ -369,11 +369,11 @@ fn agentlet_fixture(model: &Model, steps: usize) -> Fixture {
 
 #[tokio::test]
 async fn agentlets_end_to_end_mcp_routing_review_integration_restore_and_replay() {
-    use conductor_protocol::ConductorBackend;
-    use dev_conductor::{
+    use clatterforge::{
         authorization::{ExecutionMode, Grants, Operation},
         repository::Repository,
     };
+    use clatterforge_protocol::ConductorBackend;
     let model = Model::new(vec![
         dispatch("implement-a", "WORK_A"),
         dispatch("implement-b", "WORK_B"),
@@ -391,10 +391,10 @@ async fn agentlets_end_to_end_mcp_routing_review_integration_restore_and_replay(
             ExecutionMode::Delegated,
             "fixture operator",
             1,
-            dev_conductor::now() + 120000,
+            clatterforge::now() + 120000,
         )
         .unwrap();
-    let backend = dev_conductor::mcp::LocalBackend::open(f.state.clone()).unwrap();
+    let backend = clatterforge::mcp::LocalBackend::open(f.state.clone()).unwrap();
     let args = json!({"backend":"workflow-v1","workflow_profile":"agentlets","objective":"Fix both fixture files and obtain final specialist review","acceptance":"Protected verifier passes; source stays unchanged until human integration","principal":"agentlet-bot","workflow_id":"agentlet-e2e","idempotency_key":"one"});
     let submitted = backend
         .conductor_submit_task(serde_json::from_value(args.clone()).unwrap())
@@ -526,7 +526,7 @@ fn agentlets_cli_execution_does_not_inherit_ambient_credential_variables() {
         json!({"action":"finish","summary":"Done"}),
     ]);
     let f = agentlet_fixture(&model, 4);
-    let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&f.state)
         .args([
@@ -581,13 +581,13 @@ fn agentlets_changed_cursor_entry_point_stops_before_planning() {
         .bind_agentlet(
             "pinned-base",
             "pinned-editor",
-            dev_conductor::agentlet::Definition {
+            clatterforge::agentlet::Definition {
                 schema_version: 1,
                 id: "pinned".into(),
                 version: 1,
                 purpose: "Scoped editor".into(),
                 instructions: "Edit only the approved file".into(),
-                capability: dev_conductor::agentlet::Capability::EditApprovedFiles,
+                capability: clatterforge::agentlet::Capability::EditApprovedFiles,
                 completion_gate: false,
             },
             "fixture",
@@ -744,7 +744,7 @@ fn agentlets_blocking_findings_cannot_be_overridden_by_a_passing_verifier() {
     assert_eq!(child.verification.unwrap().outcome, "succeeded");
     assert_eq!(
         child.agentlet_result.unwrap().outcome,
-        dev_conductor::agentlet::Outcome::Blocked
+        clatterforge::agentlet::Outcome::Blocked
     );
 }
 
@@ -787,7 +787,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
     let port = listener.local_addr().unwrap().port();
     drop(listener);
     let _server = HttpFixture(
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&f.state)
             .args(["serve", "--port", &port.to_string()])
@@ -841,7 +841,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
             .unwrap();
         assert_eq!(response.status(), 200);
         let body: Value = response.json().await.unwrap();
-        serde_json::from_value::<dev_conductor::integration::Record>(body["integration"].clone())
+        serde_json::from_value::<clatterforge::integration::Record>(body["integration"].clone())
             .unwrap()
     });
     assert_eq!(prepared.status, "prepared");
@@ -894,7 +894,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
             .is_err()
     );
     fs::write(workspace.join("b.txt"), "fixed-b").unwrap();
-    let mut stop = dev_conductor::stop::GlobalStop::open(&f.state).unwrap();
+    let mut stop = clatterforge::stop::GlobalStop::open(&f.state).unwrap();
     stop.engage("human", "test source stop").unwrap();
     assert!(
         service
@@ -954,7 +954,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
         let cookie = cookies.join("; ");
         let csrf = cookies
             .iter()
-            .find_map(|c| c.strip_prefix("conductor_csrf="))
+            .find_map(|c| c.strip_prefix("clatterforge_csrf="))
             .unwrap();
         let body =
             json!({"revision":blocked.revision,"digest":prepared.plan_digest,"by":"spoofed actor"});
@@ -990,7 +990,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
             .unwrap();
         assert_eq!(response.status(), 200);
         let body: Value = response.json().await.unwrap();
-        let record = serde_json::from_value::<dev_conductor::integration::Record>(
+        let record = serde_json::from_value::<clatterforge::integration::Record>(
             body["integration"].clone(),
         )
         .unwrap();
@@ -1002,7 +1002,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
     assert_eq!(fs::read_to_string(f.repo.join("b.txt")).unwrap(), "fixed-b");
     assert_eq!(fs::read(&index).unwrap(), original_index);
     assert_eq!(
-        dev_conductor::repository::Repository::inspect(&f.repo)
+        clatterforge::repository::Repository::inspect(&f.repo)
             .unwrap()
             .base,
         f.workflow.assignment.profile.repository.base
@@ -1029,7 +1029,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
     );
     assert_eq!(model.requests.lock().unwrap().len(), 3);
     assert!(
-        dev_conductor::coordination::Coordination::open(&f.state)
+        clatterforge::coordination::Coordination::open(&f.state)
             .unwrap()
             .reservations()
             .unwrap()
@@ -1054,7 +1054,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
     );
     assert_eq!(fs::read_to_string(f.repo.join("b.txt")).unwrap(), "fixed-b");
     assert_eq!(
-        dev_conductor::coordination::Coordination::open(&f.state)
+        clatterforge::coordination::Coordination::open(&f.state)
             .unwrap()
             .reservations()
             .unwrap()
@@ -1079,7 +1079,7 @@ fn accepted_workflow_integrates_once_with_conflict_checks_and_explicit_safe_rest
     assert_eq!(fs::read(&index).unwrap(), original_index);
     assert_eq!(service.detail(&done.id, None).unwrap().status, "accepted");
     assert!(
-        dev_conductor::coordination::Coordination::open(&f.state)
+        clatterforge::coordination::Coordination::open(&f.state)
             .unwrap()
             .reservations()
             .unwrap()
@@ -1464,7 +1464,7 @@ fn owner_crash_marks_workflow_unknown_and_never_replays_the_model_or_worker() {
     let model = Model::new(vec![dispatch("worker-a", "WORK_A")]);
     model.hold.store(true, Ordering::SeqCst);
     let f = fixture(&model, 3);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&f.state)
         .args([
@@ -1507,7 +1507,7 @@ fn dependency_and_global_stop_block_planning_before_model_consumption() {
         .unwrap();
     assert!(service.run(&f.workflow.id, f.workflow.revision).is_err());
     assert!(model.requests.lock().unwrap().is_empty());
-    dev_conductor::stop::GlobalStop::open(&f.state)
+    clatterforge::stop::GlobalStop::open(&f.state)
         .unwrap()
         .engage("fixture", "test")
         .unwrap();
@@ -1592,11 +1592,11 @@ fn cancellation_during_worker_execution_stops_the_owned_process_and_never_advanc
 #[tokio::test]
 async fn mcp_objective_entry_runs_one_slot_workflow_asynchronously_and_replays_without_extra_work()
 {
-    use conductor_protocol::ConductorBackend;
-    use dev_conductor::{
+    use clatterforge::{
         authorization::{ExecutionMode, Grants, Operation},
         repository::Repository,
     };
+    use clatterforge_protocol::ConductorBackend;
     let model = Model::new(vec![
         dispatch("worker-a", "WORK_A"),
         dispatch("worker-b", "WORK_B"),
@@ -1613,10 +1613,10 @@ async fn mcp_objective_entry_runs_one_slot_workflow_asynchronously_and_replays_w
             ExecutionMode::Delegated,
             "human",
             1,
-            dev_conductor::now() + 60000,
+            clatterforge::now() + 60000,
         )
         .unwrap();
-    let backend = dev_conductor::mcp::LocalBackend::open(f.state.clone()).unwrap();
+    let backend = clatterforge::mcp::LocalBackend::open(f.state.clone()).unwrap();
     let args = json!({"backend":"workflow-v1","workflow_profile":"fixture","objective":"Fix both files","acceptance":"The protected verifier passes","principal":"workflow-bot","workflow_id":"workflow-test","idempotency_key":"one"});
     let submitted = backend
         .conductor_submit_task(serde_json::from_value(args.clone()).unwrap())
@@ -1718,7 +1718,7 @@ fn new_objective_captures_the_current_commit_but_an_existing_approval_cannot_dri
         next.assignment.context["sources"]["a.txt"]["git_object"]
             .as_str()
             .unwrap(),
-        dev_conductor::repository::git_text(&f.repo, &["rev-parse", "HEAD:a.txt"]).unwrap()
+        clatterforge::repository::git_text(&f.repo, &["rev-parse", "HEAD:a.txt"]).unwrap()
     );
     assert!(model.requests.lock().unwrap().is_empty());
 }
@@ -1780,7 +1780,7 @@ fn each_decision_has_one_schema_correction_with_all_attempts_counted() {
 }
 
 fn setup_tiered_profile(f: &Fixture, include_local: bool, max_steps: usize) {
-    use dev_conductor::{
+    use clatterforge::{
         agents::{LocalAgentPolicy, ModelTier},
         codex::{CodexPolicy, Executable, PinnedCommand},
     };
@@ -1791,7 +1791,7 @@ fn setup_tiered_profile(f: &Fixture, include_local: bool, max_steps: usize) {
     let mut worker_pairs = Vec::new();
     if include_local {
         let local_policy = LocalAgentPolicy::inspect(
-            Path::new(env!("CARGO_BIN_EXE_dev-conductor")),
+            Path::new(env!("CARGO_BIN_EXE_clatterforge")),
             f.workflow.assignment.profile.inference.targets[0]
                 .endpoint
                 .clone(),
@@ -2136,7 +2136,7 @@ fn complex_tasks_route_to_frontier_cli_and_failed_stages_switch_cli_and_escalate
 
 #[test]
 fn builtin_router_executes_workflows_deterministically_with_zero_local_llm_footprint() {
-    use dev_conductor::{agents::ModelTier, workflow::builtin_router_config};
+    use clatterforge::{agents::ModelTier, workflow::builtin_router_config};
 
     // Create fixture with NO responses queued on the fake local HTTP model — proving zero local LLM calls occur.
     let unused_model = Model::new(vec![]);
@@ -2245,7 +2245,7 @@ fn builtin_router_executes_workflows_deterministically_with_zero_local_llm_footp
 
 #[test]
 fn single_cli_cursor_only_escalates_across_tiers_and_refreshes_live_models_mid_run() {
-    use dev_conductor::{agents::ModelTier, workflow::builtin_router_config};
+    use clatterforge::{agents::ModelTier, workflow::builtin_router_config};
 
     let unused_model = Model::new(vec![]);
     let f = fixture(&unused_model, 3);
@@ -2390,7 +2390,7 @@ fn approved_model_missing_from_live_catalog_fails_closed_at_execution() {
         "Available models\n\ncomposer-2.5-fast - Composer 2.5 Fast\n",
     )
     .unwrap();
-    dev_conductor::agents::clear_cursor_model_cache();
+    clatterforge::agents::clear_cursor_model_cache();
 
     let policy =
         CursorAgentPolicy::inspect(worker(), &index_js, "deprecated-model".into()).unwrap();
@@ -2429,7 +2429,7 @@ fn approved_model_missing_from_live_catalog_fails_closed_at_execution() {
 #[test]
 fn reviewer_needs_work_attributes_failure_to_implementer_and_multi_scope_router_scopes_objectives()
 {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::ModelTier,
         workflow::{Decision, Step, builtin_router_config, plan_next_decision, recommend_route},
@@ -2474,20 +2474,20 @@ fn reviewer_needs_work_attributes_failure_to_implementer_and_multi_scope_router_
 
     let codex_home = f._dir.path().join("codex-o7");
     fs::create_dir_all(&codex_home).unwrap();
-    let verifier_cmd = dev_conductor::codex::PinnedCommand {
-        executable: dev_conductor::codex::Executable::new(&old.verify_executable).unwrap(),
+    let verifier_cmd = clatterforge::codex::PinnedCommand {
+        executable: clatterforge::codex::Executable::new(&old.verify_executable).unwrap(),
         args: old.verify_args.clone(),
     };
 
     let cursor_fast = CursorAgentPolicy::inspect(worker(), &index_js, "auto".into()).unwrap();
-    let codex_frontier = dev_conductor::codex::CodexPolicy::inspect(
+    let codex_frontier = clatterforge::codex::CodexPolicy::inspect(
         worker(),
         &codex_home,
         "o3".into(),
         verifier_cmd.clone(),
     )
     .unwrap();
-    let codex_rev = dev_conductor::codex::CodexPolicy::inspect(
+    let codex_rev = clatterforge::codex::CodexPolicy::inspect(
         worker(),
         &codex_home,
         "o4-mini".into(),
@@ -2674,7 +2674,7 @@ fn local_agent_worker_enforces_expected_artifact_digest_and_explicit_allowed_fil
         "--allowed-file".to_string(),
         "a.txt".to_string(),
     ];
-    let err = dev_conductor::agents::run_local_agent_worker(&bad_args).unwrap_err();
+    let err = clatterforge::agents::run_local_agent_worker(&bad_args).unwrap_err();
     assert!(
         err.to_string().contains("artifact digest mismatch"),
         "expected digest mismatch error, got: {err:#}"
@@ -2696,7 +2696,7 @@ fn local_agent_worker_enforces_expected_artifact_digest_and_explicit_allowed_fil
         "--allowed-file".to_string(),
         "a.txt".to_string(),
     ];
-    let code = dev_conductor::agents::run_local_agent_worker(&ok_args).unwrap();
+    let code = clatterforge::agents::run_local_agent_worker(&ok_args).unwrap();
     assert_eq!(code, 0);
     assert_eq!(
         fs::read_to_string(ws.join("a.txt")).unwrap(),
@@ -2706,7 +2706,7 @@ fn local_agent_worker_enforces_expected_artifact_digest_and_explicit_allowed_fil
 
 #[test]
 fn quota_429_swaps_cli_to_equivalent_tier_and_board_sorts_most_recent_first() {
-    use dev_conductor::{
+    use clatterforge::{
         agents::{AgyAgentPolicy, ModelTier},
         service::TaskService,
         workflow::builtin_router_config,
@@ -2865,7 +2865,7 @@ fn quota_429_swaps_cli_to_equivalent_tier_and_board_sorts_most_recent_first() {
 
 #[test]
 fn standard_task_quota_fallback_swaps_across_all_clis_and_review_gate() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, ModelTier},
         codex::CodexPolicy,
@@ -2903,8 +2903,8 @@ fn standard_task_quota_fallback_swaps_across_all_clis_and_review_gate() {
         .to_string(),
     )
     .unwrap();
-    let verifier_cmd = dev_conductor::codex::PinnedCommand {
-        executable: dev_conductor::codex::Executable::new(&old.verify_executable).unwrap(),
+    let verifier_cmd = clatterforge::codex::PinnedCommand {
+        executable: clatterforge::codex::Executable::new(&old.verify_executable).unwrap(),
         args: old.verify_args.clone(),
     };
 
@@ -3189,7 +3189,7 @@ fn standard_task_quota_fallback_swaps_across_all_clis_and_review_gate() {
 
 #[test]
 fn quota_fallback_handles_stage2_shared_worktree_and_long_jsonl_stream() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, ModelTier},
         codex::CodexPolicy,
@@ -3203,8 +3203,8 @@ fn quota_fallback_handles_stage2_shared_worktree_and_long_jsonl_stream() {
 
     let codex_home = f._dir.path().join("stage2-codex");
     fs::create_dir_all(&codex_home).unwrap();
-    let verifier_cmd = dev_conductor::codex::PinnedCommand {
-        executable: dev_conductor::codex::Executable::new(&old.verify_executable).unwrap(),
+    let verifier_cmd = clatterforge::codex::PinnedCommand {
+        executable: clatterforge::codex::Executable::new(&old.verify_executable).unwrap(),
         args: old.verify_args.clone(),
     };
     let impl_def = Definition {
@@ -3372,7 +3372,7 @@ fn quota_fallback_handles_stage2_shared_worktree_and_long_jsonl_stream() {
 
 #[test]
 fn quota_fallback_falls_back_to_local_when_cloud_clis_exhausted() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, LocalAgentPolicy, ModelTier},
         workflow::builtin_router_config,
@@ -3499,7 +3499,7 @@ fn quota_fallback_falls_back_to_local_when_cloud_clis_exhausted() {
 
 #[test]
 fn verifier_timeout_records_step_result_and_escalates_blocked_agentlet_cleanly() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, ModelTier},
         workflow::builtin_router_config,
@@ -3600,7 +3600,7 @@ fn verifier_timeout_records_step_result_and_escalates_blocked_agentlet_cleanly()
 
 #[test]
 fn clear_tasks_removes_failed_workflow_and_children_while_preserving_pending_and_dependents() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, ModelTier},
         service::{ClearScope, TaskService},
@@ -3768,8 +3768,8 @@ fn clear_tasks_removes_failed_workflow_and_children_while_preserving_pending_and
 
 #[test]
 fn workflow_create_with_scope_overrides_edit_workers_and_keeps_reviewer_readonly() {
-    use dev_conductor::agentlet::{Capability, Definition};
-    use dev_conductor::workflow::builtin_router_config;
+    use clatterforge::agentlet::{Capability, Definition};
+    use clatterforge::workflow::builtin_router_config;
 
     let unused_model = Model::new(vec![]);
     let f = fixture(&unused_model, 4);
@@ -3860,7 +3860,7 @@ fn workflow_create_with_scope_overrides_edit_workers_and_keeps_reviewer_readonly
 
 #[test]
 fn execution_timeout_records_step_result_resets_workspace_and_fails_over_cleanly() {
-    use dev_conductor::{
+    use clatterforge::{
         agentlet::{Capability, Definition},
         agents::{AgyAgentPolicy, ModelTier},
         codex::{CodexPolicy, Executable, PinnedCommand},
@@ -3997,7 +3997,7 @@ fn execution_timeout_records_step_result_resets_workspace_and_fails_over_cleanly
 
 #[test]
 fn update_profile_timeouts_and_dispatch_timeout_overrides_work_live() {
-    use dev_conductor::workflow::TimeoutOverrides;
+    use clatterforge::workflow::TimeoutOverrides;
 
     let model = Model::new(vec![]);
     let f = fixture(&model, 4);
@@ -4091,7 +4091,7 @@ fn update_profile_timeouts_and_dispatch_timeout_overrides_work_live() {
 
 #[test]
 fn board_nests_workflow_step_tasks_under_single_parent_row() {
-    use dev_conductor::service::TaskService;
+    use clatterforge::service::TaskService;
 
     let model = Model::new(vec![
         dispatch("worker-a", "WORK_A Implement step one"),
@@ -4182,7 +4182,7 @@ fn board_nests_workflow_step_tasks_under_single_parent_row() {
 
 #[test]
 fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files() {
-    use dev_conductor::agentlet::{Capability, Definition};
+    use clatterforge::agentlet::{Capability, Definition};
     let model = Model::new(vec![
         dispatch("implement-a", "WORK_A"),
         dispatch("implement-b", "WORK_B"),
@@ -4317,7 +4317,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
     ] {
         let path = state.join(format!("{}.json", definition.id));
         fs::write(&path, serde_json::to_vec(&definition).unwrap()).unwrap();
-        let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args(["agentlet-import", "--definition"])
@@ -4336,7 +4336,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
         ("implementer", "worker-b", "implement-b"),
         ("reviewer", "worker-a", "review-final"),
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
@@ -4442,7 +4442,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
 
 #[test]
 fn require_clean_checkout_blocks_create_approve_and_run_while_dirty() {
-    use dev_conductor::workflow::TimeoutOverrides;
+    use clatterforge::workflow::TimeoutOverrides;
 
     let model = Model::new(vec![
         dispatch("worker-a", "WORK_A"),
@@ -4503,7 +4503,7 @@ fn require_clean_checkout_blocks_create_approve_and_run_while_dirty() {
 
 #[test]
 fn dirty_checkout_integrates_into_isolated_worktree_and_rolls_back() {
-    use dev_conductor::integration::IntegrationTarget;
+    use clatterforge::integration::IntegrationTarget;
 
     let model = Model::new(vec![
         dispatch("worker-a", "WORK_A"),

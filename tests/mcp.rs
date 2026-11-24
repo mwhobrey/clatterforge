@@ -4,13 +4,13 @@
 //! - Direct method calls on `McpServer` exercise this adapter's own business logic (dispatch,
 //!   idempotency, error classification, grant-based auto-authorization) without the MCP wire
 //!   protocol in the way.
-//! - `real_stdio_*` tests spawn the actual built `dev-conductor` binary as `mcp-serve` and talk
+//! - `real_stdio_*` tests spawn the actual built `clatterforge` binary as `mcp-serve` and talk
 //!   to it over real OS pipes with the real `rmcp` client, proving the thing the milestone
 //!   actually asked for: "launchable by [an external orchestrator] as a local process" is real,
 //!   not an in-process illusion. Mirrors `rmcp`'s own `test_stdio_response_concurrency.rs`
 //!   pattern of spawning the test binary itself, except here it's the product binary.
 
-use dev_conductor::{
+use clatterforge::{
     authorization::{ExecutionMode, Grants, Operation},
     mcp::{
         CancelTaskRequest, DecisionRequest, GetTaskRequest, McpServer, ProposeTaskRequest,
@@ -105,12 +105,12 @@ fn submit_fake(repository_id: &str) -> SubmitTaskRequest {
 }
 
 fn repo_identity(repo: &Path) -> String {
-    dev_conductor::repository::Repository::inspect(repo)
+    clatterforge::repository::Repository::inspect(repo)
         .unwrap()
         .identity
 }
 
-/// Spawns a real `dev-conductor mcp-serve` child process against `state` and connects a
+/// Spawns a real `clatterforge mcp-serve` child process against `state` and connects a
 /// fresh client to it over its real stdin/stdout pipes - the one building block every
 /// `real_stdio_*` test shares.
 async fn spawn_and_connect(
@@ -119,7 +119,7 @@ async fn spawn_and_connect(
     tokio::process::Child,
     rmcp::service::RunningService<rmcp::RoleClient, DummyClient>,
 ) {
-    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("mcp-serve")
@@ -128,7 +128,7 @@ async fn spawn_and_connect(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor mcp-serve");
+        .expect("spawn clatterforge mcp-serve");
     let stdin = child.stdin.take().expect("child stdin");
     let stdout = child.stdout.take().expect("child stdout");
     let client = DummyClient
@@ -141,7 +141,7 @@ async fn spawn_and_connect(
 #[tokio::test]
 async fn real_stdio_submit_task_with_a_full_grant_auto_chains_straight_to_acceptance() {
     // Like `real_stdio_fake_task_lifecycle_runs_to_acceptance`, this has to run against the
-    // actual spawned `dev-conductor.exe`, not an in-process `McpServer`: the fake engine's
+    // actual spawned `clatterforge.exe`, not an in-process `McpServer`: the fake engine's
     // `run` step re-execs `current_exe()` as a fixture worker, which only resolves to the
     // real binary inside a real spawned process - inside this test binary it would resolve
     // to the test executable itself and fail before ever reaching verification.
@@ -245,7 +245,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
     // Set up a fake task doomed to fail verification, bypassing MCP entirely for this
     // setup step - conductor_submit_task has no MCP-reachable way to request a non-
     // Success fake outcome (a deliberate Phase 1 scope decision).
-    let executable = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor"))).unwrap();
+    let executable = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge"))).unwrap();
     let mut store = Store::open(&state).unwrap();
     let created = store
         .create(
@@ -267,7 +267,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
         .unwrap();
     drop(store);
 
-    let board_detail = dev_conductor::service::TaskService::open(&state)
+    let board_detail = clatterforge::service::TaskService::open(&state)
         .unwrap()
         .detail(&revised.id, None)
         .unwrap();
@@ -294,7 +294,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
     // invent a pass - and must name real artifact labels, since verification genuinely
     // ran (and failed), it didn't just never happen.
     let summary = server
-        .conductor_get_evidence_summary(Parameters(dev_conductor::mcp::EvidenceSummaryRequest {
+        .conductor_get_evidence_summary(Parameters(clatterforge::mcp::EvidenceSummaryRequest {
             task_id: final_detail.id.clone(),
             log_excerpt_bytes: None,
             request_id: None,
@@ -321,7 +321,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
     // confirm they concatenate to the identical text the summary's own excerpt showed.
     let label = summary.log_excerpt_label.clone().unwrap();
     let first = server
-        .conductor_get_artifact(Parameters(dev_conductor::mcp::GetArtifactRequest {
+        .conductor_get_artifact(Parameters(clatterforge::mcp::GetArtifactRequest {
             task_id: final_detail.id.clone(),
             artifact: label.clone(),
             offset: None,
@@ -334,7 +334,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
     assert_eq!(first.shown_bytes, 4.min(first.total_bytes as usize));
     if first.has_more {
         let second = server
-            .conductor_get_artifact(Parameters(dev_conductor::mcp::GetArtifactRequest {
+            .conductor_get_artifact(Parameters(clatterforge::mcp::GetArtifactRequest {
                 task_id: final_detail.id.clone(),
                 artifact: label,
                 offset: Some(first.offset + first.shown_bytes as u64),
@@ -352,7 +352,7 @@ async fn a_failed_run_is_never_auto_accepted_even_with_full_grant_coverage() {
     }
 
     let unknown = server
-        .conductor_get_artifact(Parameters(dev_conductor::mcp::GetArtifactRequest {
+        .conductor_get_artifact(Parameters(clatterforge::mcp::GetArtifactRequest {
             task_id: final_detail.id.clone(),
             artifact: "not-a-real-label".into(),
             offset: None,
@@ -379,7 +379,7 @@ async fn evidence_summary_before_any_attempt_explicitly_reports_no_verifier_outp
     let task_id = submitted.task["id"].as_str().unwrap().to_string();
 
     let summary = server
-        .conductor_get_evidence_summary(Parameters(dev_conductor::mcp::EvidenceSummaryRequest {
+        .conductor_get_evidence_summary(Parameters(clatterforge::mcp::EvidenceSummaryRequest {
             task_id,
             log_excerpt_bytes: None,
             request_id: None,
@@ -548,8 +548,7 @@ async fn requested_execution_mode_interactive_overrides_a_covering_grant() {
 async fn local_stdio_cannot_match_a_grant_scoped_to_an_enrolled_client_namespace() {
     let (_dir, repo, state, id) = setup();
     let identity = repo_identity(&repo);
-    let namespaced =
-        dev_conductor::enrollment::namespaced_principal("some-real-enrolled-client-id");
+    let namespaced = clatterforge::enrollment::namespaced_principal("some-real-enrolled-client-id");
     Grants::open(&state)
         .unwrap()
         .create(
@@ -717,7 +716,7 @@ async fn a_reconnecting_client_against_a_fresh_server_process_recovers_pending_t
 #[tokio::test]
 async fn propose_task_validates_without_creating_anything() {
     let (_dir, repo, state, _id) = setup();
-    let verifier = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_dev-conductor")))
+    let verifier = ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
         .unwrap()
         .executable;
     let valid_spec = json!({
@@ -957,9 +956,9 @@ async fn get_task_on_an_unknown_id_is_a_structured_not_found() {
 }
 
 /// The one test that proves real stdio, not an in-process illusion: spawns the actual built
-/// `dev-conductor mcp-serve` and drives the full fake-task lifecycle over real OS pipes with
+/// `clatterforge mcp-serve` and drives the full fake-task lifecycle over real OS pipes with
 /// the real `rmcp` client. `current_exe()` inside the spawned server process correctly
-/// resolves to `dev-conductor.exe` itself (unlike an in-process call from this test binary),
+/// resolves to `clatterforge.exe` itself (unlike an in-process call from this test binary),
 /// so `conductor_resume`'s `run` can genuinely re-spawn the fixture worker.
 #[tokio::test]
 async fn real_stdio_fake_task_lifecycle_runs_to_acceptance() {
@@ -1171,7 +1170,7 @@ async fn hold_my_beer_grants_are_still_bounded_by_repository_and_backend_scope()
     let identity = repo_identity(&repo);
     // Scoped to Submit only (not Resume) so the final in-process check below can prove
     // coverage without triggering an actual `run` - current_exe() inside this test binary
-    // doesn't resolve to the real dev-conductor.exe, the same reason every other test that
+    // doesn't resolve to the real clatterforge.exe, the same reason every other test that
     // needs a real run uses a spawned subprocess instead (see the real_stdio_* tests).
     let mut grants = Grants::open(&state).unwrap();
     grants

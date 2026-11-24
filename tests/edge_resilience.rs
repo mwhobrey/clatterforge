@@ -3,11 +3,11 @@
 //! is deliberately stateless (`docs/m12/M12_0_ARCHITECTURE.md` section 2 - "prefer
 //! stateless edge behavior"), so a crashed/restarted edge process loses nothing because it
 //! never held anything; all real state lives on the main Conductor's `state.sqlite`, which
-//! a restart of `dev-conductor serve` itself reopens unchanged. Both proven here against
+//! a restart of `clatterforge serve` itself reopens unchanged. Both proven here against
 //! real separate OS processes, loopback only - see `docs/m12/M12_0_IMPLEMENTATION.md`'s
 //! Phase 4 section for why real-network reachability is a separate, not-yet-taken step.
 
-use dev_conductor::{enrollment::EnrollmentOperation, enrollment::Enrollments, store::Store};
+use clatterforge::{enrollment::EnrollmentOperation, enrollment::Enrollments, store::Store};
 use rmcp::{
     ClientHandler, ServiceExt,
     model::{CallToolRequestParams, ClientConfig},
@@ -32,11 +32,11 @@ impl ClientHandler for DummyClient {
 fn fixture_repo(root: &Path) -> PathBuf {
     let repo = root.join("repo");
     fs::create_dir_all(&repo).unwrap();
-    dev_conductor::repository::git(&repo, &["init", "-b", "main"]).unwrap();
-    dev_conductor::repository::git(&repo, &["config", "core.autocrlf", "false"]).unwrap();
+    clatterforge::repository::git(&repo, &["init", "-b", "main"]).unwrap();
+    clatterforge::repository::git(&repo, &["config", "core.autocrlf", "false"]).unwrap();
     fs::write(repo.join("README.md"), "# Resilience fixture\n").unwrap();
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -69,16 +69,22 @@ fn free_port() -> u16 {
 /// drop a wire field nothing else would catch. See `tests/edge.rs`'s identical helper.
 fn edge_binary() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Build into the same target dir as this test binary so a CARGO_TARGET_DIR
+    // override never falls back to a stale edge binary elsewhere.
+    let target_dir = Path::new(env!("CARGO_BIN_EXE_clatterforge"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("cargo target dir");
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "dev-conductor-edge"])
+        .args(["build", "-p", "clatterforge-edge", "--target-dir"])
+        .arg(target_dir)
         .current_dir(manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    manifest_dir.join("target").join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 fn wait_for_main_ready(state: &Path, port: u16) {
@@ -90,7 +96,7 @@ fn wait_for_main_ready(state: &Path, port: u16) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("dev-conductor serve never became ready on port {port}");
+    panic!("clatterforge serve never became ready on port {port}");
 }
 
 fn wait_for_port_free(port: u16) {
@@ -104,7 +110,7 @@ fn wait_for_port_free(port: u16) {
 }
 
 fn start_main(state: &Path, port: u16) -> std::process::Child {
-    let process = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let process = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("serve")
@@ -113,7 +119,7 @@ fn start_main(state: &Path, port: u16) -> std::process::Child {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn dev-conductor serve");
+        .expect("spawn clatterforge serve");
     wait_for_main_ready(state, port);
     process
 }
@@ -134,7 +140,7 @@ async fn spawn_edge(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let stdin = process.stdin.take().expect("edge stdin");
     let stdout = process.stdout.take().expect("edge stdout");
     let client = DummyClient
@@ -233,7 +239,7 @@ async fn edge_process_restart_loses_nothing_and_does_not_duplicate_the_task() {
 }
 
 /// Restarting the main Conductor itself (the actual state owner) preserves every task - a
-/// fresh `dev-conductor serve` process reopening the same `state.sqlite` sees exactly what
+/// fresh `clatterforge serve` process reopening the same `state.sqlite` sees exactly what
 /// was there before, reachable through a (also fresh) edge process the same way.
 #[tokio::test]
 async fn main_conductor_restart_preserves_task_state_reachable_through_a_fresh_edge() {

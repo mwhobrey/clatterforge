@@ -42,7 +42,7 @@ jobs:
         run: python scripts/test-public-release.py
       - run: cargo +1.90.0 build --locked --workspace
       - name: Verify managed-host restart and isolation
-        run: python scripts/test-managed-host.py target/debug/dev-conductor.exe
+        run: python scripts/test-managed-host.py target/debug/clatterforge.exe
 
   linux-edge:
     runs-on: ubuntu-latest
@@ -55,8 +55,8 @@ jobs:
       - name: Verify POSIX launcher and setup script syntax
         run: bash -n scripts/*.sh
       - run: cargo +1.90.0 clippy --locked --workspace --all-targets -- -D warnings
-      - run: cargo +1.90.0 build --locked -p dev-conductor -p dev-conductor-edge
-      - run: cargo +1.90.0 test --locked --no-fail-fast -p conductor-protocol -p dev-conductor --lib
+      - run: cargo +1.90.0 build --locked -p clatterforge -p clatterforge-edge
+      - run: cargo +1.90.0 test --locked --no-fail-fast -p clatterforge-protocol -p clatterforge --lib
 
   web:
     runs-on: ubuntu-latest

@@ -7,17 +7,14 @@ echo "  CONTROL THE CHAOS.                                      "
 echo "=========================================================="
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN_PATH="${SCRIPT_DIR}/dev-conductor"
+BIN_PATH=""
+for candidate in "${SCRIPT_DIR}/clatterforge" "${SCRIPT_DIR}/dev-conductor"     "${SCRIPT_DIR}/dist/linux-x86_64/clatterforge" "${SCRIPT_DIR}/dist/linux-x86_64/dev-conductor"; do
+    if [[ -f "${candidate}" ]]; then BIN_PATH="${candidate}"; break; fi
+done
 
-if [[ ! -f "${BIN_PATH}" ]]; then
-    if [[ -f "${SCRIPT_DIR}/clatterforge" ]]; then
-        BIN_PATH="${SCRIPT_DIR}/clatterforge"
-    elif [[ -f "${SCRIPT_DIR}/dist/linux-x86_64/dev-conductor" ]]; then
-        BIN_PATH="${SCRIPT_DIR}/dist/linux-x86_64/dev-conductor"
-    else
-        echo "[ERROR] clatterforge / dev-conductor binary not found in ${SCRIPT_DIR}"
-        exit 1
-    fi
+if [[ -z "${BIN_PATH}" ]]; then
+    echo "[ERROR] clatterforge / dev-conductor binary not found in ${SCRIPT_DIR}"
+    exit 1
 fi
 
 chmod +x "${BIN_PATH}"

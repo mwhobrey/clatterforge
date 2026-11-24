@@ -21,6 +21,8 @@ $hasher = [Security.Cryptography.SHA256]::Create()
 $hash = [BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($StateRoot.ToLowerInvariant()))).Replace('-','')
 $hasher.Dispose()
 $created = $false
+# Pre-rename mutex name kept on purpose: an old and a new supervisor must still exclude each
+# other on the same state root.
 $mutex = [Threading.Mutex]::new($true, "Local\DevConductor-$hash", [ref]$created)
 if (-not $created) { $mutex.Dispose(); throw 'A managed host already owns this state root' }
 $stopPath = Join-Path $StateRoot 'host.stop'

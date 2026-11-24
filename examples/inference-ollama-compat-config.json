@@ -2,7 +2,7 @@
   "schema_version": 1,
   "default_target": "ollama-local",
   "hardware_id": "REPLACE-WITH-VERIFIED-HOST-HARDWARE-AND-DRIVER",
-  "admission_db": "../.conductor/inference-admission.sqlite",
+  "admission_db": "../.clatterforge/inference-admission.sqlite",
   "max_active_per_resource": 1,
   "registry_max_age_ms": 604800000,
   "fallback_before_dispatch": true,

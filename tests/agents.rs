@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     agents::{AgentBackend, AgentSpec, AgentStatus, Agents, CursorAgentPolicy},
     repository::git,
     service::TaskService,
@@ -112,7 +112,7 @@ fn activity_attempt(
     objective: &str,
     hard_ms: u64,
     idle_ms: Option<u64>,
-) -> (TempDir, PathBuf, Agents, dev_conductor::agents::AgentTask) {
+) -> (TempDir, PathBuf, Agents, clatterforge::agents::AgentTask) {
     let dir = tempfile::tempdir().unwrap();
     let repo = fixture_repo(dir.path());
     let state = dir.path().join("state");
@@ -136,7 +136,7 @@ fn phase_progress(
     state: &Path,
     id: &str,
     phase: &str,
-) -> dev_conductor::agent_progress::AgentProgress {
+) -> clatterforge::agent_progress::AgentProgress {
     serde_json::from_slice(
         &fs::read(
             state
@@ -472,12 +472,12 @@ fn codex_spec(repo: &Path, objective: &str) -> AgentSpec {
 }
 fn codex_policy() -> AgentBackend {
     AgentBackend::Codex(
-        dev_conductor::codex::CodexPolicy::inspect(
+        clatterforge::codex::CodexPolicy::inspect(
             fake_codex(),
             codex_home(),
             "fake-model".into(),
-            dev_conductor::codex::PinnedCommand {
-                executable: dev_conductor::codex::Executable::new(verifier()).unwrap(),
+            clatterforge::codex::PinnedCommand {
+                executable: clatterforge::codex::Executable::new(verifier()).unwrap(),
                 args: vec![],
             },
         )
@@ -733,7 +733,7 @@ fn setup_failure_is_durable_and_a_fresh_task_can_acquire_the_repository() {
 /// stopped by the *real* `global-stop` CLI entry point from a second,
 /// independent process - not `GlobalStop::engage` or `Agents::cancel`
 /// called directly. Exercises the actual sweep path a human running
-/// `dev-conductor global-stop` would get: `TaskService::stop_all` walks
+/// `clatterforge global-stop` would get: `TaskService::stop_all` walks
 /// the shared board (now including agent tasks) and cancels every active
 /// one through the same `cancel` a human uses for one task.
 #[test]
@@ -754,7 +754,7 @@ fn real_global_stop_cli_terminates_a_genuinely_running_agent_process() {
 
     // The real `agent-run` CLI entry point, as a genuinely separate OS
     // process - not an in-process `Agents::run` call.
-    let mut runner = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut runner = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -773,7 +773,7 @@ fn real_global_stop_cli_terminates_a_genuinely_running_agent_process() {
     // before the real global-stop entry point is invoked from a second,
     // independent process.
     std::thread::sleep(std::time::Duration::from_millis(300));
-    let stop = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let stop = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -823,7 +823,7 @@ fn real_global_stop_cli_terminates_a_genuinely_running_agent_process() {
     // No repository lease remains improperly held - `run`'s own release
     // happens after `execute` returns, which it does here because the
     // process was genuinely terminated, not left hanging.
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();
@@ -906,7 +906,7 @@ fn real_process_kill_leaves_a_dead_owner_and_reconcile_recovers_without_replay()
     let run_revision = approved.revision;
     drop(agents);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -935,7 +935,7 @@ fn real_process_kill_leaves_a_dead_owner_and_reconcile_recovers_without_replay()
         std::thread::sleep(std::time::Duration::from_millis(5));
     };
 
-    // Abrupt kill of the *owning dev-conductor process itself* - not the fake
+    // Abrupt kill of the *owning clatterforge process itself* - not the fake
     // agent child directly, and not a simulated identity. Windows' own
     // kill-on-job-close semantics (confirmed in `src/process.rs`) take the
     // fake-agent child down with it, so there is no orphaned process left
@@ -958,7 +958,7 @@ fn real_process_kill_leaves_a_dead_owner_and_reconcile_recovers_without_replay()
     // exactly like a panicking `LeaseReservation` already quarantines one -
     // requiring the same explicit human acknowledgement every other
     // engine's crashed lease already requires.
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();
@@ -1181,7 +1181,7 @@ fn real_global_stop_cli_terminates_a_genuinely_hanging_verifier() {
 
     // The real `agent-run` CLI entry point, as a genuinely separate OS
     // process - not an in-process `Agents::run` call.
-    let mut runner = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut runner = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1216,7 +1216,7 @@ fn real_global_stop_cli_terminates_a_genuinely_hanging_verifier() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
 
-    let stop = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let stop = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1271,7 +1271,7 @@ fn real_global_stop_cli_terminates_a_genuinely_hanging_verifier() {
     );
 
     // No repository lease remains improperly held.
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();
@@ -1305,7 +1305,7 @@ fn concurrent_agent_run_dispatch_admits_exactly_one_execution() {
     drop(agents);
 
     let spawn_competitor = || {
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
@@ -1367,7 +1367,7 @@ fn concurrent_agent_run_dispatch_admits_exactly_one_execution() {
 
     // Repository leases remain consistent: released cleanly after the one
     // real attempt finished, not left held or duplicated.
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();
@@ -1399,7 +1399,7 @@ fn acknowledging_a_quarantined_agent_lease_unblocks_a_fresh_dispatch_without_rep
     let run_revision = approved.revision;
     drop(agents);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1435,7 +1435,7 @@ fn acknowledging_a_quarantined_agent_lease_unblocks_a_fresh_dispatch_without_rep
     assert_eq!(recovered.status, AgentStatus::Unknown, "{recovered:?}");
 
     // 5: the repository lease is quarantined, not released.
-    let mut coordination = dev_conductor::coordination::Coordination::open(&state).unwrap();
+    let mut coordination = clatterforge::coordination::Coordination::open(&state).unwrap();
     let leases = coordination.reservations().unwrap();
     assert_eq!(leases.len(), 1, "{leases:?}");
     assert_eq!(leases[0]["task_id"], crashed_id);
@@ -1758,7 +1758,7 @@ fn real_global_stop_cli_terminates_a_genuinely_running_codex_coding_process() {
     let run_revision = approved.revision;
     drop(agents);
 
-    let mut runner = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut runner = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1774,7 +1774,7 @@ fn real_global_stop_cli_terminates_a_genuinely_running_codex_coding_process() {
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(300));
-    let stop = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let stop = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1832,7 +1832,7 @@ fn real_process_kill_leaves_a_dead_codex_owner_and_reconcile_recovers_without_re
     let run_revision = approved.revision;
     drop(agents);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -1867,7 +1867,7 @@ fn real_process_kill_leaves_a_dead_codex_owner_and_reconcile_recovers_without_re
     assert!(recovered.owner.is_none());
     assert!(recovered.error.as_deref().unwrap().contains("no replay"));
 
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();
@@ -1901,7 +1901,7 @@ fn concurrent_codex_coding_run_dispatch_admits_exactly_one_execution() {
     drop(agents);
 
     let spawn_competitor = || {
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
@@ -1938,7 +1938,7 @@ fn concurrent_codex_coding_run_dispatch_admits_exactly_one_execution() {
     assert_eq!(done.execution.as_ref().unwrap().outcome, "succeeded");
     assert_eq!(done.verification.as_ref().unwrap().outcome, "succeeded");
 
-    let leases = dev_conductor::coordination::Coordination::open(&state)
+    let leases = clatterforge::coordination::Coordination::open(&state)
         .unwrap()
         .reservations()
         .unwrap();

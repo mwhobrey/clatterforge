@@ -6,11 +6,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$pilotRoot = Join-Path $projectRoot ('.conductor/provider-pilots/' + [guid]::NewGuid().ToString())
+$pilotRoot = Join-Path (Resolve-StateDir $projectRoot) ('provider-pilots/' + [guid]::NewGuid().ToString())
 $fixtureRoot = Join-Path $pilotRoot 'fixture-repo'
 $statePath = Join-Path $pilotRoot 'state'
-$binaryPath = Join-Path $projectRoot 'target/debug/dev-conductor.exe'
+$binaryPath = Join-Path $projectRoot 'target/debug/clatterforge.exe'
 $expectedCode = "def add(a, b):`n    return a + b`n"
 $checkCode = "import runpy; m=runpy.run_path('result.py'); f=m['add']; assert f(2,3)==5; assert f(-4,1)==-3; assert f(0,0)==0; print('3 independent Python checks passed')"
 

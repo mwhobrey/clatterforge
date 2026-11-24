@@ -7,9 +7,9 @@ Use source integration after accepting a verified workflow or direct CLI-agent r
 In the desktop, select the accepted parent, enter the operator name, and choose **Prepare source integration**. Review the destination checkout, branch/base and every listed create/update/delete. **Apply to source** submits the exact plan digest and revision. The displayed integration status must reach `applied`; task status remains the historical `accepted` result.
 
 ```powershell
-dev-conductor integration-prepare TASK --by "Your name"
-dev-conductor integration-show TASK
-dev-conductor integration-apply TASK --revision INTEGRATION_REVISION --digest PLAN_DIGEST --by "Your name"
+clatterforge integration-prepare TASK --by "Your name"
+clatterforge integration-show TASK
+clatterforge integration-apply TASK --revision INTEGRATION_REVISION --digest PLAN_DIGEST --by "Your name"
 ```
 
 These commands print JSON. `integration-apply` exits nonzero if the recorded outcome needs attention. Repeating an already-applied plan returns its existing receipt without writing again. One immutable integration journal is retained per accepted task; rolled-back work does not automatically replay.
@@ -23,7 +23,7 @@ Preparation/application refuse changed repository identity, branch or base, dirt
 **Restore original source** reverses an applied integration only while affected source bytes and the Git index/base still match the journal. **Recover original source** handles `applying`, `rolling_back` or `unknown` records after the owner is confirmed dead. A live/unverifiable owner blocks recovery. No model or agent execution is retried.
 
 ```powershell
-dev-conductor integration-rollback TASK --revision INTEGRATION_REVISION --digest PLAN_DIGEST --by "Your name"
+clatterforge integration-rollback TASK --revision INTEGRATION_REVISION --digest PLAN_DIGEST --by "Your name"
 ```
 
 The same HTTP endpoint accepts `rollback:true`. Recovery explicitly releases only this integration's prior reservation and only its exact marked index lock. A lease belonging to another task or a foreign lock is preserved. Ordinary write failures attempt rollback automatically; unknown/conflicting bytes or index/base drift stop restoration and quarantine the source lease. Inspect the preserved source and `integration-show` error/events before resolving those conflicts and requesting recovery again. Never delete an index lock or acknowledge a lease merely to force application through.

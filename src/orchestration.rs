@@ -211,7 +211,8 @@ pub fn validate_path(path: &str) -> Result<()> {
                     .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
                 && !part.ends_with('.')
                 && !part.eq_ignore_ascii_case(".git")
-                && !part.eq_ignore_ascii_case(".conductor")
+                && !part.eq_ignore_ascii_case(crate::runner::LEGACY_STATE_DIR)
+                && !part.eq_ignore_ascii_case(crate::runner::STATE_DIR)
                 && !part.to_lowercase().starts_with(".env")
                 && ![
                     "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6",

@@ -23,15 +23,33 @@ struct ApiConfig {
     token_path: PathBuf,
 }
 
-/// Resolves the backend CLI executable and `.conductor` state directory.
+/// `CLATTERFORGE_STATE`, then legacy `CONDUCTOR_STATE`, then `<base>/.clatterforge` unless only
+/// a legacy `<base>/.conductor` exists (kept in place, never moved).
+fn state_dir_in(base: &std::path::Path) -> PathBuf {
+    if let Some(explicit) =
+        std::env::var_os("CLATTERFORGE_STATE").or_else(|| std::env::var_os("CONDUCTOR_STATE"))
+    {
+        return PathBuf::from(explicit);
+    }
+    let current = base.join(".clatterforge");
+    let legacy = base.join(".conductor");
+    if !current.exists() && legacy.is_dir() {
+        legacy
+    } else {
+        current
+    }
+}
+
+/// Resolves the backend CLI executable and state directory (`.clatterforge`, or a legacy `.conductor`).
 ///
 /// Supports two layouts:
 /// 1. **Standalone release bundle**: `clatterforge-desktop.exe` sits alongside `clatterforge.exe`
-///    (or `dev-conductor.exe`) in the same folder. Uses `CONDUCTOR_STATE` if set, otherwise
-///    `<exe_dir>/.conductor`.
-/// 2. **Development checkout**: `gui/src-tauri/target/{debug,release}/app.exe` five directories
-///    below the repo root, using `<repo_root>/target/{release,debug}/dev-conductor.exe` and
-///    `<repo_root>/.conductor`.
+///    (or the pre-rename `dev-conductor.exe`) in the same folder. Uses `CLATTERFORGE_STATE`
+///    (or legacy `CONDUCTOR_STATE`) if set, otherwise `<exe_dir>/.clatterforge`, falling back to
+///    an existing legacy `<exe_dir>/.conductor`.
+/// 2. **Development checkout**: `gui/src-tauri/target/{debug,release}/clatterforge-desktop.exe` five directories
+///    below the repo root, using `<repo_root>/target/{release,debug}/clatterforge.exe` (or a
+///    pre-rename `dev-conductor.exe`) and the same state-directory rule under the repo root.
 fn resolve_backend_and_state() -> Result<(PathBuf, PathBuf)> {
     let exe = std::env::current_exe().context("resolve current_exe")?;
     if let Some(exe_dir) = exe.parent() {
@@ -43,10 +61,7 @@ fn resolve_backend_and_state() -> Result<(PathBuf, PathBuf)> {
         ] {
             let bin = exe_dir.join(candidate);
             if bin.is_file() {
-                let state_dir = std::env::var_os("CONDUCTOR_STATE")
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| exe_dir.join(".conductor"));
-                return Ok((bin, state_dir));
+                return Ok((bin, state_dir_in(exe_dir)));
             }
         }
     }
@@ -54,13 +69,20 @@ fn resolve_backend_and_state() -> Result<(PathBuf, PathBuf)> {
     let root = exe.ancestors().nth(5).map(|p| p.to_path_buf()).context(
         "could not locate sibling clatterforge binary or repo root from running executable",
     )?;
-    let state_dir = std::env::var_os("CONDUCTOR_STATE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join(".conductor"));
+    let state_dir = state_dir_in(&root);
     // EXE_SUFFIX keeps the development layout working on Linux/macOS, where the core
     // binary has no ".exe". When both profiles exist, use whichever was built last so a
     // stale release build does not shadow the debug binary being worked on.
-    let core = format!("dev-conductor{}", std::env::consts::EXE_SUFFIX);
+    // Prefer the renamed binary; fall back to a pre-rename build if that is all there is.
+    let named = |stem: &str| format!("{stem}{}", std::env::consts::EXE_SUFFIX);
+    let core = ["clatterforge", "dev-conductor"]
+        .into_iter()
+        .map(named)
+        .find(|name| {
+            root.join("target/release").join(name).is_file()
+                || root.join("target/debug").join(name).is_file()
+        })
+        .unwrap_or_else(|| named("clatterforge"));
     let release_bin = root.join("target/release").join(&core);
     let debug_bin = root.join("target/debug").join(&core);
     let built = |path: &PathBuf| std::fs::metadata(path).and_then(|m| m.modified()).ok();
@@ -81,7 +103,7 @@ fn server_already_running(port: u16) -> bool {
 /// Verifies that `token` actually authenticates against the server on `127.0.0.1:<port>`
 /// before reusing it. Without this check, launching a standalone `dist/` bundle while
 /// another state root's managed host is already bound to `8787` would read a stale token
-/// from the bundle's own `.conductor/serve-token` and hit 401 on every request.
+/// from the bundle's own `<state>/serve-token` and hit 401 on every request.
 fn token_works_on_port(port: u16, token: &str) -> bool {
     let trimmed = token.trim();
     if trimmed.is_empty() {
@@ -113,7 +135,7 @@ fn pick_free_port() -> Result<u16> {
     Ok(listener.local_addr()?.port())
 }
 
-/// Spawns `dev-conductor serve` against the resolved `.conductor` state, waits for it to
+/// Spawns `clatterforge serve` against the resolved state directory, waits for it to
 /// write its fresh bearer token on disk, and hands back what the frontend needs to call it.
 ///
 /// If a server is already running on `API_PORT` AND accepts `state_dir/serve-token`, reuses
@@ -121,7 +143,13 @@ fn pick_free_port() -> Result<u16> {
 /// instance (whose token does not match `state_dir/serve-token`), automatically selects a
 /// free loopback port so this standalone desktop app starts cleanly with zero 401s or port
 /// collisions.
-fn desktop_log(state_dir: &std::path::Path, level: &str, event: &str, message: &str, fields: serde_json::Value) {
+fn desktop_log(
+    state_dir: &std::path::Path,
+    level: &str,
+    event: &str,
+    message: &str,
+    fields: serde_json::Value,
+) {
     let ts_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
@@ -156,7 +184,7 @@ fn spawn_api(app: &tauri::AppHandle) -> Result<ApiConfig> {
         if let Ok(token) = std::fs::read_to_string(&token_path)
             && token_works_on_port(API_PORT, &token)
         {
-            log::info!("dev-conductor serve already running on {API_PORT}; reusing it");
+            log::info!("clatterforge serve already running on {API_PORT}; reusing it");
             desktop_log(
                 &state_dir,
                 "info",
@@ -255,7 +283,7 @@ fn spawn_api(app: &tauri::AppHandle) -> Result<ApiConfig> {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    let mut child = cmd.spawn().context("failed to spawn dev-conductor serve")?;
+    let mut child = cmd.spawn().context("failed to spawn clatterforge serve")?;
 
     let deadline = Instant::now() + Duration::from_secs(10);
     let token = loop {
@@ -266,11 +294,11 @@ fn spawn_api(app: &tauri::AppHandle) -> Result<ApiConfig> {
             break token.trim().to_string();
         }
         if let Ok(Some(status)) = child.try_wait() {
-            bail!("dev-conductor serve on port {target_port} exited early with status {status}");
+            bail!("clatterforge serve on port {target_port} exited early with status {status}");
         }
         if Instant::now() > deadline {
             let _ = child.kill();
-            bail!("dev-conductor serve did not become ready on port {target_port} within 10s");
+            bail!("clatterforge serve did not become ready on port {target_port} within 10s");
         }
         std::thread::sleep(Duration::from_millis(100));
     };

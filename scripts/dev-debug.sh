@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+resolve_state_dir() {
+    if [[ ! -e "$1/.clatterforge" && -d "$1/.conductor" ]]; then echo "$1/.conductor"; else echo "$1/.clatterforge"; fi
+}
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 GUI_DIR="${REPO_ROOT}/gui"
-DEBUG_UI_DIR="${GUI_DIR}/target/dx/conductor-gui/debug/web/public"
+DEBUG_UI_DIR="${GUI_DIR}/target/dx/clatterforge-gui/debug/web/public"
 
 DESKTOP=0
 SKIP_UI_BUILD=0
@@ -24,8 +29,8 @@ Run Clatterforge in debug mode directly from source (Linux / macOS).
 Options:
   --desktop         Start debug backend and launch `cargo tauri dev` (live reload)
   --skip-ui-build   Skip `dx build --platform web` and reuse existing debug UI bundle
-  --dist-state      Use existing bundle state (`dist/linux-x86_64/.conductor` or macOS equiv)
-  --state DIR       Explicit `--state` directory (default: $CONDUCTOR_STATE or ./.conductor)
+  --dist-state      Use existing bundle state (`dist/linux-x86_64/.clatterforge` or macOS equiv)
+  --state DIR       Explicit `--state` directory (default: $CLATTERFORGE_STATE, $CONDUCTOR_STATE or ./.clatterforge)
   --target-dir DIR  Cargo target directory (default: $CARGO_TARGET_DIR or ./target)
   --bind ADDR       Bind address (default: 127.0.0.1)
   --port PORT       API/UI server port (default: 8787)
@@ -52,17 +57,19 @@ done
 if [[ -n "${STATE_ARG}" ]]; then
     STATE_DIR="${STATE_ARG}"
 elif [[ "${USE_DIST_STATE}" -eq 1 ]]; then
-    if [[ "$(uname -s)" == "Darwin" && -d "${REPO_ROOT}/dist/clatterforge-macos-arm64/.conductor" ]]; then
-        STATE_DIR="${REPO_ROOT}/dist/clatterforge-macos-arm64/.conductor"
-    elif [[ -d "${REPO_ROOT}/dist/clatterforge-linux-x86_64/.conductor" ]]; then
-        STATE_DIR="${REPO_ROOT}/dist/clatterforge-linux-x86_64/.conductor"
+    if [[ "$(uname -s)" == "Darwin" && -d "${REPO_ROOT}/dist/clatterforge-macos-arm64" ]]; then
+        STATE_DIR="$(resolve_state_dir "${REPO_ROOT}/dist/clatterforge-macos-arm64")"
+    elif [[ -d "${REPO_ROOT}/dist/clatterforge-linux-x86_64" ]]; then
+        STATE_DIR="$(resolve_state_dir "${REPO_ROOT}/dist/clatterforge-linux-x86_64")"
     else
-        STATE_DIR="${REPO_ROOT}/dist/linux-x86_64/.conductor"
+        STATE_DIR="$(resolve_state_dir "${REPO_ROOT}/dist/linux-x86_64")"
     fi
+elif [[ -n "${CLATTERFORGE_STATE:-}" ]]; then
+    STATE_DIR="${CLATTERFORGE_STATE}"
 elif [[ -n "${CONDUCTOR_STATE:-}" ]]; then
     STATE_DIR="${CONDUCTOR_STATE}"
 else
-    STATE_DIR="${REPO_ROOT}/.conductor"
+    STATE_DIR="$(resolve_state_dir "${REPO_ROOT}")"
 fi
 mkdir -p "${STATE_DIR}"
 STATE_DIR="$(cd "${STATE_DIR}" && pwd)"
@@ -81,9 +88,9 @@ if [[ "${DESKTOP}" -eq 0 && ! -f "${DEBUG_UI_DIR}/index.html" ]]; then
     exit 1
 fi
 
-BACKEND_BIN="${TARGET_DIR}/debug/dev-conductor"
+BACKEND_BIN="${TARGET_DIR}/debug/clatterforge"
 echo "[CF // DEBUG] Building debug backend (${BACKEND_BIN})..."
-(cd "${REPO_ROOT}" && cargo build --locked --target-dir "${TARGET_DIR}" --bin dev-conductor)
+(cd "${REPO_ROOT}" && cargo build --locked --target-dir "${TARGET_DIR}" --bin clatterforge)
 
 API_PID=""
 cleanup() {

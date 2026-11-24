@@ -861,6 +861,46 @@ impl Store {
     }
 }
 
+/// Default state directory name.
+pub const STATE_DIR: &str = ".clatterforge";
+/// Earlier default; still used when it exists and the new one does not.
+pub const LEGACY_STATE_DIR: &str = ".conductor";
+
+/// `--state` default, relative to the working directory: `.clatterforge`, unless only a
+/// legacy `.conductor` exists, which then keeps being used in place (never moved or copied).
 pub fn default_state() -> PathBuf {
-    PathBuf::from(".conductor")
+    default_state_in(Path::new(""))
+}
+
+pub fn default_state_in(base: &Path) -> PathBuf {
+    let current = base.join(STATE_DIR);
+    let legacy = base.join(LEGACY_STATE_DIR);
+    if !current.exists() && legacy.is_dir() {
+        legacy
+    } else {
+        current
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_state_prefers_the_new_dir_and_keeps_an_existing_legacy_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path();
+        // Fresh checkout: the new name.
+        assert_eq!(default_state_in(base), base.join(STATE_DIR));
+        // Only legacy state exists: keep using it in place.
+        fs::create_dir(base.join(LEGACY_STATE_DIR)).unwrap();
+        assert_eq!(default_state_in(base), base.join(LEGACY_STATE_DIR));
+        // Both exist: the new one wins.
+        fs::create_dir(base.join(STATE_DIR)).unwrap();
+        assert_eq!(default_state_in(base), base.join(STATE_DIR));
+        // A legacy *file* (not a state dir) never redirects.
+        let other = tempfile::tempdir().unwrap();
+        fs::write(other.path().join(LEGACY_STATE_DIR), "x").unwrap();
+        assert_eq!(default_state_in(other.path()), other.path().join(STATE_DIR));
+    }
 }

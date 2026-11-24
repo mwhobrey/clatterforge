@@ -10,14 +10,14 @@ Create normal agent presets first. Each worker has a purpose and an exact editab
 
 ```powershell
 # Worker presets are created with the existing agent-preset-create command.
-dev-conductor workflow-profile-create --name project-workflow `
+clatterforge workflow-profile-create --name project-workflow `
   --config examples/orchestration-gemma26b-config.json `
   --worker "project-cursor=Implement the batching component" `
   --worker "project-codex=Implement ordered deduplication" `
   --max-steps 4 --decision-timeout-ms 120000 --by "Your name"
 
-dev-conductor workflow-profile-list
-dev-conductor workflow-create --profile project-workflow `
+clatterforge workflow-profile-list
+clatterforge workflow-create --profile project-workflow `
   --objective "Harden the collection helpers" `
   --acceptance "The protected acceptance suite passes"
 ```

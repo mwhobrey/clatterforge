@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Dev Conductor inference registry v1",
+  "title": "Clatterforge inference registry v1",
   "description": "Structural schema. Rust import additionally validates target/config/hardware identity, future dates and capability bounds; routing checks freshness and resolved runtime/artifact.",
   "type": "object",
   "additionalProperties": false,

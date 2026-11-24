@@ -9,7 +9,7 @@
 //! `docs/m12/M12_0_1_SECURITY_VALIDATION.md` for the full accounting rather than
 //! duplicating those tests here.
 
-use dev_conductor::{enrollment::EnrollmentOperation, enrollment::Enrollments, store::Store};
+use clatterforge::{enrollment::EnrollmentOperation, enrollment::Enrollments, store::Store};
 use rmcp::{
     ClientHandler, ServiceExt,
     model::{CallToolRequestParams, ClientConfig},
@@ -34,11 +34,11 @@ impl ClientHandler for DummyClient {
 fn fixture_repo(root: &Path, name: &str) -> PathBuf {
     let repo = root.join(name);
     fs::create_dir_all(&repo).unwrap();
-    dev_conductor::repository::git(&repo, &["init", "-b", "main"]).unwrap();
-    dev_conductor::repository::git(&repo, &["config", "core.autocrlf", "false"]).unwrap();
+    clatterforge::repository::git(&repo, &["init", "-b", "main"]).unwrap();
+    clatterforge::repository::git(&repo, &["config", "core.autocrlf", "false"]).unwrap();
     fs::write(repo.join("README.md"), format!("# {name} fixture\n")).unwrap();
-    dev_conductor::repository::git(&repo, &["add", "."]).unwrap();
-    dev_conductor::repository::git(
+    clatterforge::repository::git(&repo, &["add", "."]).unwrap();
+    clatterforge::repository::git(
         &repo,
         &[
             "-c",
@@ -71,16 +71,22 @@ fn free_port() -> u16 {
 /// drop a wire field nothing else would catch. See `tests/edge.rs`'s identical helper.
 fn edge_binary() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Build into the same target dir as this test binary so a CARGO_TARGET_DIR
+    // override never falls back to a stale edge binary elsewhere.
+    let target_dir = Path::new(env!("CARGO_BIN_EXE_clatterforge"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("cargo target dir");
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "dev-conductor-edge"])
+        .args(["build", "-p", "clatterforge-edge", "--target-dir"])
+        .arg(target_dir)
         .current_dir(manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    manifest_dir.join("target").join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 fn wait_for_main_ready(state: &Path, port: u16) {
@@ -92,12 +98,12 @@ fn wait_for_main_ready(state: &Path, port: u16) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("dev-conductor serve never became ready on port {port}");
+    panic!("clatterforge serve never became ready on port {port}");
 }
 
 fn start_main(state: &Path) -> (std::process::Child, u16) {
     let port = free_port();
-    let process = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let process = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("serve")
@@ -106,7 +112,7 @@ fn start_main(state: &Path) -> (std::process::Child, u16) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn dev-conductor serve");
+        .expect("spawn clatterforge serve");
     wait_for_main_ready(state, port);
     (process, port)
 }
@@ -127,7 +133,7 @@ async fn spawn_edge(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let stdin = process.stdin.take().expect("edge stdin");
     let stdout = process.stdout.take().expect("edge stdout");
     let client = DummyClient
@@ -253,7 +259,7 @@ async fn follow_up_metadata_cannot_expand_authorization_to_a_different_repositor
     let state = dir.path().join("state");
     let (repo_a_id, _) = Store::open(&state).unwrap().register(&repo_a).unwrap();
     let (repo_b_id, _) = Store::open(&state).unwrap().register(&repo_b).unwrap();
-    let repo_a_identity = dev_conductor::repository::Repository::inspect(&repo_a)
+    let repo_a_identity = clatterforge::repository::Repository::inspect(&repo_a)
         .unwrap()
         .identity;
 

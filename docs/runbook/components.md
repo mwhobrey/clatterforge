@@ -1,7 +1,7 @@
 # Components
 
 Where behavior lives in `src/`, and what each module persists under the state root
-(`--state`, `.conductor` by default). Read this before changing a module; the
+(`--state`, `.clatterforge` by default). Read this before changing a module; the
 [architecture](../ARCHITECTURE.md) page covers the overall flow.
 
 ## Engines and orchestration

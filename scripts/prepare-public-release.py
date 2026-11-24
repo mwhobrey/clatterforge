@@ -37,7 +37,8 @@ def privacy_check(files, policy):
         terms.append(policy['private_email'].casefold())
     failures = []
     for name, data in files.items():
-        if any(part.casefold() in {'.git', '.conductor', 'target'} for part in Path(name).parts):
+        if any(part.casefold() in {'.git', '.conductor', '.clatterforge', 'target'}
+               for part in Path(name).parts):
             failures.append(name)
             continue
         if re.search(r'(^|/)\.env($|\.(?!example$))|\.(sqlite|db|pem|pfx|p12|key)$', name, re.I):
@@ -126,11 +127,11 @@ def main():
         git(output, 'add', '--all')
         environment = os.environ.copy()
         for role in ('AUTHOR', 'COMMITTER'):
-            environment[f'GIT_{role}_NAME'] = 'Dev Conductor contributors'
+            environment[f'GIT_{role}_NAME'] = 'Clatterforge contributors'
             environment[f'GIT_{role}_EMAIL'] = 'contributors@example.invalid'
         subprocess.run(['git', '-C', str(output), '-c', 'core.hooksPath=',
                         '-c', 'commit.gpgsign=false', 'commit', '-m',
-                        ':tada: feat: introduce Dev Conductor supervised source alpha'],
+                        ':tada: feat: introduce Clatterforge supervised source alpha'],
                        env=environment, check=True, stdout=subprocess.PIPE)
         if git(output, 'rev-list', '--all', '--count').strip() != b'1':
             raise RuntimeError('Public candidate must have one independent initial commit')

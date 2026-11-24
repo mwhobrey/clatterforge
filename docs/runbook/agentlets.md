@@ -7,12 +7,12 @@ Agentlets are reusable specialist instructions and a strict result contract, bou
 Create an ordinary execution preset for your exact repository, CLI executable/model, verifier, paths and budgets first. Use `agent-preset-create --help` for required arguments. Existing credentials and models are installed separately. The following commands import data and create local bindings; they launch no model or coding task:
 
 ```powershell
-dev-conductor agentlet-import --definition examples/agentlets/implementer.json --by "Your name"
-dev-conductor agentlet-import --definition examples/agentlets/reviewer.json --by "Your name"
-dev-conductor agentlet-list
-dev-conductor agentlet-show reviewer --version 1
-dev-conductor agentlet-bind implementer --version 1 --preset project-cli --name project-implement --by "Your name"
-dev-conductor agentlet-bind reviewer --version 1 --preset project-cli --name project-review --by "Your name"
+clatterforge agentlet-import --definition examples/agentlets/implementer.json --by "Your name"
+clatterforge agentlet-import --definition examples/agentlets/reviewer.json --by "Your name"
+clatterforge agentlet-list
+clatterforge agentlet-show reviewer --version 1
+clatterforge agentlet-bind implementer --version 1 --preset project-cli --name project-implement --by "Your name"
+clatterforge agentlet-bind reviewer --version 1 --preset project-cli --name project-review --by "Your name"
 ```
 
 Definitions have a schema version, ID, positive integer version, purpose, instructions, capability and completion gate. Imported versions are immutable. Review imported instructions before binding. A definition cannot declare arbitrary executables, tools, endpoints, credentials or editable paths. Changing a specialist requires a new version and a new binding/profile; existing approvals keep their snapshot.
@@ -22,8 +22,8 @@ An editor inherits the base preset's exact editable paths. A reviewer gets no ed
 ## Route and inspect
 
 ```powershell
-dev-conductor workflow-profile-create --name project-specialists --config examples/orchestration-gemma26b-config.json --worker "project-implement=Implement the scoped objective" --worker "project-review=Review the completed candidate" --max-steps 4 --by "Your name"
-dev-conductor workflow-create --profile project-specialists --objective "Your objective" --acceptance "Independent acceptance checks"
+clatterforge workflow-profile-create --name project-specialists --config examples/orchestration-gemma26b-config.json --worker "project-implement=Implement the scoped objective" --worker "project-review=Review the completed candidate" --max-steps 4 --by "Your name"
+clatterforge workflow-create --profile project-specialists --objective "Your objective" --acceptance "Independent acceptance checks"
 ```
 
 Edit the illustrative model/hardware configuration for your host before creating the profile. Approve the returned assignment digest/revision, then run it through the ordinary [workflow controls](workflows.md). HTTP/MCP clients still use `workflow-v1` and the named profile; they cannot import definitions or change the approved catalog. In the UI, inspect **Approved specialists**, pending reviews, individual findings and actual worker routing receipts.

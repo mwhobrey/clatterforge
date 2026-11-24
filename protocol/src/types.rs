@@ -1,5 +1,5 @@
 //! The MCP tool contract: every `conductor_*` request/response shape, moved verbatim
-//! (field-for-field, doc comment for doc comment) out of `dev-conductor`'s `src/mcp.rs` so
+//! (field-for-field, doc comment for doc comment) out of `clatterforge`'s `src/mcp.rs` so
 //! both the in-process `LocalBackend` and the edge's `RemoteBackend` implement identical
 //! types, not merely identically-shaped ones. See `M12_0_ARCHITECTURE.md` for why this
 //! crate exists. Nothing here changed behavior from the M11 Phase 1-3 contract this

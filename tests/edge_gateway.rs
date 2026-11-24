@@ -1,5 +1,5 @@
 //! M12.0.1 Cloudflare integration, Phase 3's narrowest-safe-gateway requirement:
-//! `dev-conductor edge-gateway` must forward exactly `POST /api/edge/tools/call` to
+//! `clatterforge edge-gateway` must forward exactly `POST /api/edge/tools/call` to
 //! its upstream and refuse everything else outright (fail closed - an allow-list of
 //! one route, not a deny-list), while still forwarding that one route's body and the
 //! relevant auth headers through correctly.
@@ -98,13 +98,13 @@ struct Gateway {
 impl Gateway {
     fn start(upstream_url: &str) -> Self {
         let port = free_port();
-        let mut process = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let mut process = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .args(["edge-gateway", "--port", &port.to_string(), "--upstream"])
             .arg(upstream_url)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .expect("spawn dev-conductor edge-gateway");
+            .expect("spawn clatterforge edge-gateway");
         for _ in 0..100 {
             if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
                 return Self { process, port };

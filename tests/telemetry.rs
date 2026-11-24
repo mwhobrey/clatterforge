@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     codex::{JsonlObserver, ProtocolReceipt},
     inference::{config::Target, types::Usage},
     telemetry::{ApiPricing, api_cost, duration, usage_summary},
@@ -111,11 +111,11 @@ fn local_inference_has_no_api_estimate_and_legacy_target_fingerprint_is_stable()
     let restored: Target = serde_json::from_value(old.clone()).unwrap();
     assert_eq!(
         restored.fingerprint(),
-        dev_conductor::digest(&serde_json::to_vec(&restored).unwrap())
+        clatterforge::digest(&serde_json::to_vec(&restored).unwrap())
     );
     assert_eq!(serde_json::to_value(&restored).unwrap(), old);
     assert!(api_cost(&[(&target, &usage(Some(2), Some(3), Some(0)))]).is_null());
-    target.provider = dev_conductor::inference::types::ProviderKind::Ollama;
+    target.provider = clatterforge::inference::types::ProviderKind::Ollama;
     target.api_pricing = Some(ApiPricing {
         currency: "USD".into(),
         input_micros_per_million: 0,

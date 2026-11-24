@@ -268,7 +268,7 @@ impl CursorAgentPolicy {
     /// M10.2 Phase 4 found live, against the real installed binary:
     /// `--sandbox enabled` refuses outright on Windows ("Sandbox requires
     /// macOS or Linux") - cursor-agent's own OS-level sandbox simply isn't
-    /// available there. `disabled` is not a weaker *dev-conductor* policy;
+    /// available there. `disabled` is not a weaker *clatterforge* policy;
     /// per cursor-agent's own error message it switches the CLI to its
     /// separate, Windows-compatible "allowlist mode" instead of leaving it
     /// with no internal guard at all. Either way, this module's own
@@ -818,7 +818,7 @@ impl LocalAgentPolicy {
     }
 }
 
-/// Runs the built-in local-model coding worker (`dev-conductor __local-agent-worker ...`).
+/// Runs the built-in local-model coding worker (`clatterforge __local-agent-worker ...`).
 pub fn run_local_agent_worker(args: &[String]) -> Result<i32> {
     let flag = |name: &str| -> Option<String> {
         args.iter()
@@ -879,7 +879,7 @@ pub fn run_local_agent_worker(args: &[String]) -> Result<i32> {
         }
     }
 
-    let system_prompt = "You are a local coding worker inside Dev Conductor. Return ONLY one JSON object with no markdown fences or extra commentary: {\"summary\":\"what you changed\",\"files\":[{\"path\":\"relative/path\",\"contents\":\"full new file contents\"}]}. Only edit files in the allowed_files list.";
+    let system_prompt = "You are a local coding worker inside Clatterforge. Return ONLY one JSON object with no markdown fences or extra commentary: {\"summary\":\"what you changed\",\"files\":[{\"path\":\"relative/path\",\"contents\":\"full new file contents\"}]}. Only edit files in the allowed_files list.";
     let user_payload = serde_json::json!({
         "task_prompt": prompt,
         "allowed_files": allowed_files,

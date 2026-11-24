@@ -1050,7 +1050,8 @@ fn apply_auth(
                 req = req.fetch_credentials_include();
             }
             if mutating {
-                if let Some(csrf) = read_cookie("conductor_csrf") {
+                // `conductor_csrf` is the pre-rename name; sessions paired before it still use it.
+                if let Some(csrf) = read_cookie("clatterforge_csrf").or_else(|| read_cookie("conductor_csrf")) {
                     req = req.header("X-CSRF-Token", csrf);
                 }
             }

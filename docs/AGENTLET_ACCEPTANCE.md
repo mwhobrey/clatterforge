@@ -37,4 +37,4 @@ The CLI's installed global instructions/hooks can influence behavior outside the
 
 This is one bounded real-provider task, not evidence of general planning reliability, a clean-machine installation, Grok desktop acceptance, broad adversarial isolation or a full independent security audit. Public hosting/CI/reporting, packaging/CSP, dependency notice gaps, upgrade/restore acceptance and broader real-project trials remain separate OSS release gates.
 
-Private model/process receipts, the failed/successful disposable projects, source-restore journal and test logs remain under `.conductor/agentlets-acceptance-20261031/`; they are not public export inputs. See [ADR 0016](adr/0016-reusable-agentlets.md) and [agentlet operations](runbook/agentlets.md).
+Private model/process receipts, the failed/successful disposable projects, source-restore journal and test logs remain under `.clatterforge/agentlets-acceptance-20261031/`; they are not public export inputs. See [ADR 0016](adr/0016-reusable-agentlets.md) and [agentlet operations](runbook/agentlets.md).

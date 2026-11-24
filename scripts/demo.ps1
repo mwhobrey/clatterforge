@@ -1,11 +1,19 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$demoRoot = Join-Path $projectRoot ('.conductor/demos/' + [guid]::NewGuid().ToString())
+$demoRoot = Join-Path (Resolve-StateDir $projectRoot) ('demos/' + [guid]::NewGuid().ToString())
 $fixtureRoot = Join-Path $demoRoot 'fixture-repo'
 $statePath = Join-Path $demoRoot 'state'
-$binaryPath = Join-Path $projectRoot 'target/debug/dev-conductor.exe'
+$binaryPath = Join-Path $projectRoot 'target/debug/clatterforge.exe'
 
 Push-Location -LiteralPath $projectRoot
 try {

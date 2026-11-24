@@ -11,17 +11,32 @@ param(
     [switch]$AllowInsecureLan
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Binary) { $Binary = Join-Path $PSScriptRoot '../target/debug/dev-conductor.exe' }
-if (-not $StateRoot) { $StateRoot = Join-Path $PSScriptRoot '../.conductor' }
-if (-not $Assets) { $Assets = Join-Path $PSScriptRoot '../.conductor/runtime/ui' }
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
+if (-not $Binary) {
+    $Binary = Join-Path $PSScriptRoot '../target/debug/clatterforge.exe'
+    $legacyBinary = Join-Path $PSScriptRoot '../target/debug/dev-conductor.exe'
+    if (-not (Test-Path -LiteralPath $Binary) -and (Test-Path -LiteralPath $legacyBinary)) { $Binary = $legacyBinary }
+}
+if (-not $StateRoot) { $StateRoot = Resolve-StateDir (Join-Path $PSScriptRoot '..') }
+if (-not $Assets) { $Assets = Join-Path $StateRoot 'runtime/ui' }
 $StateRoot = [IO.Path]::GetFullPath($StateRoot)
 $stopPath = Join-Path $StateRoot 'host.stop'
 $receiptPath = Join-Path $StateRoot 'host-runtime.json'
-$startup = Join-Path ([Environment]::GetFolderPath('Startup')) 'Dev Conductor.lnk'
+$startupDir = [Environment]::GetFolderPath('Startup')
+$startup = Join-Path $startupDir 'Clatterforge.lnk'
+# Shortcut name used before the rename; recognised so it is never duplicated or left behind.
+$legacyStartup = Join-Path $startupDir 'Dev Conductor.lnk'
 switch ($Action) {
     'Status' { if (Test-Path -LiteralPath $receiptPath) { Get-Content -LiteralPath $receiptPath -Raw }; return }
     'Stop' { New-Item -ItemType Directory -Path $StateRoot -Force | Out-Null; Set-Content -LiteralPath $stopPath -Value 'Explicit operator stop'; return }
-    'RemoveStartup' { if (Test-Path -LiteralPath $startup) { Remove-Item -LiteralPath $startup }; return }
+    'RemoveStartup' { foreach ($link in @($startup, $legacyStartup)) { if (Test-Path -LiteralPath $link) { Remove-Item -LiteralPath $link } }; return }
 }
 $Binary = (Resolve-Path -LiteralPath $Binary).Path
 $Assets = (Resolve-Path -LiteralPath $Assets).Path
@@ -33,13 +48,13 @@ if ($AllowInsecureLan) { $arguments += ' -AllowInsecureLan' }
 if ($Action -eq 'InstallStartup') {
     # Per-user logon preserves the real coding provider's user profile and credentials.
     # No LocalSystem account, admin rights, password storage or network widening.
-    if (Test-Path -LiteralPath $startup) { throw "Startup shortcut already exists: $startup" }
+    foreach ($link in @($startup, $legacyStartup)) { if (Test-Path -LiteralPath $link) { throw "Startup shortcut already exists: $link" } }
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($startup)
     $shortcut.TargetPath = $pwsh
     $shortcut.Arguments = $arguments
     $shortcut.WindowStyle = 7
-    $shortcut.Description = 'Dev Conductor managed local backend and compiled UI'
+    $shortcut.Description = 'Clatterforge managed local backend and compiled UI'
     $shortcut.Save()
     Write-Output "Installed current-user logon startup: $startup"
     return

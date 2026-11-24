@@ -12,11 +12,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 if (-not $StateRoot) {
     if ((Test-Path -LiteralPath (Join-Path $PSScriptRoot 'clatterforge.exe')) -or (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'dev-conductor.exe'))) {
-        $StateRoot = Join-Path $PSScriptRoot '.conductor'
+        $StateRoot = Resolve-StateDir $PSScriptRoot
     } else {
-        $StateRoot = Join-Path $PSScriptRoot '../.conductor'
+        $StateRoot = Resolve-StateDir (Join-Path $PSScriptRoot '..')
     }
 }
 $StateRoot = [IO.Path]::GetFullPath($StateRoot)
@@ -136,7 +144,7 @@ Write-Host "  Access Policy:     $accessPath" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Restart the managed host so it picks up the policy. Keep the loopback default;" -ForegroundColor Yellow
 Write-Host "  Tailscale Serve already reaches it over an encrypted transport:" -ForegroundColor Yellow
-Write-Host "  scripts/manage-local-host.ps1 -Action Start -Binary .conductor/runtime/dev-conductor.exe -Assets .conductor/runtime/ui" -ForegroundColor White
+Write-Host "  scripts/manage-local-host.ps1 -Action Start -Binary <state>/runtime/clatterforge.exe -Assets <state>/runtime/ui" -ForegroundColor White
 if ($AllowInsecureLan) {
     Write-Host "  Direct LAN access also needs: -Bind 0.0.0.0 -AllowInsecureLan (cleartext)." -ForegroundColor Yellow
 }

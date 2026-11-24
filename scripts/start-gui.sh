@@ -28,7 +28,16 @@ else
     exit 1
 fi
 
-STATE_DIR="${CONDUCTOR_STATE:-$(pwd)/.conductor}"
+# Same rule as the binary: `.clatterforge`, unless only a pre-rename `.conductor` exists.
+if [[ -n "${CLATTERFORGE_STATE:-}" ]]; then
+    STATE_DIR="${CLATTERFORGE_STATE}"
+elif [[ -n "${CONDUCTOR_STATE:-}" ]]; then
+    STATE_DIR="${CONDUCTOR_STATE}"
+elif [[ ! -e "$(pwd)/.clatterforge" && -d "$(pwd)/.conductor" ]]; then
+    STATE_DIR="$(pwd)/.conductor"
+else
+    STATE_DIR="$(pwd)/.clatterforge"
+fi
 mkdir -p "${STATE_DIR}"
 TOKEN_FILE="${STATE_DIR}/serve-token"
 

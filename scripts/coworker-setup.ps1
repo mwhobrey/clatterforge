@@ -6,18 +6,17 @@ Write-Host "  CONTROL THE CHAOS.                                      " -Foregro
 Write-Host "==========================================================" -ForegroundColor White
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BinPath = Join-Path $ScriptDir "dev-conductor.exe"
-if (-not (Test-Path $BinPath)) {
-    $AltPath = Join-Path $ScriptDir "clatterforge.exe"
-    $DistPath = Join-Path $ScriptDir "..\dist\windows-x86_64\dev-conductor.exe"
-    if (Test-Path $AltPath) {
-        $BinPath = $AltPath
-    } elseif (Test-Path $DistPath) {
-        $BinPath = (Resolve-Path $DistPath).Path
-    } else {
-        Write-Error "clatterforge.exe / dev-conductor.exe not found in $ScriptDir"
-        exit 1
-    }
+$BinPath = $null
+foreach ($candidate in @(
+    (Join-Path $ScriptDir "clatterforge.exe"),
+    (Join-Path $ScriptDir "dev-conductor.exe"),
+    (Join-Path $ScriptDir "..\dist\windows-x86_64\clatterforge.exe"),
+    (Join-Path $ScriptDir "..\dist\windows-x86_64\dev-conductor.exe"))) {
+    if (Test-Path $candidate) { $BinPath = (Resolve-Path $candidate).Path; break }
+}
+if (-not $BinPath) {
+    Write-Error "clatterforge.exe / dev-conductor.exe not found in $ScriptDir"
+    exit 1
 }
 
 $InstallRoot = Join-Path $env:LOCALAPPDATA "Clatterforge"
@@ -25,6 +24,7 @@ $InstallDir = Join-Path $InstallRoot "bin"
 $UiInstallDir = Join-Path $InstallRoot "ui"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
+# The pre-rename name stays installed as an alias for existing scripts and configs.
 Copy-Item -Force $BinPath (Join-Path $InstallDir "dev-conductor.exe")
 Copy-Item -Force $BinPath (Join-Path $InstallDir "clatterforge.exe")
 Write-Host "[OK] Installed clatterforge.exe & dev-conductor.exe to $InstallDir" -ForegroundColor Cyan

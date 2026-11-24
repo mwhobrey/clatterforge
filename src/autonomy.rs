@@ -110,7 +110,7 @@ pub struct RealTaskRecord {
 /// not a separately negotiable one per task, matching "a policy must
 /// never grant broader permissions than its individual tasks." The
 /// launcher is never read from this file - like every other real
-/// dispatch in this system, it is always the running `dev-conductor`
+/// dispatch in this system, it is always the running `clatterforge`
 /// binary itself, resolved fresh at policy-create time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealPolicyAuthorization {

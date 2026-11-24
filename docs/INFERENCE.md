@@ -4,9 +4,9 @@ Inference profiles describe an explicit local endpoint, model identity, context/
 
 ```powershell
 cargo +1.90.0 build --locked
-target/debug/dev-conductor.exe capabilities
-target/debug/dev-conductor.exe inference-create --help
-target/debug/dev-conductor.exe inference-run --help
+target/debug/clatterforge.exe capabilities
+target/debug/clatterforge.exe inference-create --help
+target/debug/clatterforge.exe inference-run --help
 ```
 
 Preparation stores an immutable request/config snapshot without dispatch. Running explicitly performs bounded inference. Native Ollama discovery checks model identity and rejects reported cloud-backed models. Artifact pins fail closed on mismatch or absence. Compatible local APIs have their own capability limits.

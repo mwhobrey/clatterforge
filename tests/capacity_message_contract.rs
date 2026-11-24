@@ -1,4 +1,4 @@
-use dev_conductor::{inference::state::Coordinator, process::current_identity};
+use clatterforge::{inference::state::Coordinator, process::current_identity};
 use tempfile::TempDir;
 
 #[test]

@@ -3,8 +3,16 @@ param(
     [string]$Target = 'gemma12b-coder'
 )
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$pilotRoot = Join-Path $projectRoot ('.conductor/orchestration-live/' + [guid]::NewGuid().ToString())
+$pilotRoot = Join-Path (Resolve-StateDir $projectRoot) ('orchestration-live/' + [guid]::NewGuid().ToString())
 $repository = Join-Path $pilotRoot 'repository'
 $state = Join-Path $pilotRoot 'state'
 New-Item -ItemType Directory -Path (Join-Path $repository 'tests') -Force | Out-Null
@@ -46,7 +54,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot index pilot snapshot' }
 if ($LASTEXITCODE -ne 0) { throw 'Cannot commit isolated baseline' }
 $configSource = (Resolve-Path -LiteralPath $ConfigPath).Path
 $config = Get-Content -LiteralPath $configSource -Raw | ConvertFrom-Json
-$config.admission_db = Join-Path $projectRoot '.conductor/inference-admission.sqlite'
+$config.admission_db = Join-Path (Resolve-StateDir $projectRoot) 'inference-admission.sqlite'
 $config.fallback_before_dispatch = $false
 $selected = @($config.targets | Where-Object id -CEQ $Target)
 if ($selected.Count -ne 1 -or $selected[0].provider -ne 'ollama') { throw 'This pilot requires one explicit native Ollama target' }
@@ -75,7 +83,7 @@ $spec = [ordered]@{
 foreach ($item in @(@{name='spec.json';value=$spec},@{name='config.json';value=$config})) {
     [IO.File]::WriteAllText((Join-Path $pilotRoot $item.name), ($item.value | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
 }
-$binary = Join-Path $projectRoot 'target/debug/dev-conductor.exe'
+$binary = Join-Path $projectRoot 'target/debug/clatterforge.exe'
 $prepared = & $binary --state $state orchestrate-prepare --spec (Join-Path $pilotRoot 'spec.json') --config (Join-Path $pilotRoot 'config.json') | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { throw 'Pilot preparation failed; retain snapshot' }
 [IO.File]::WriteAllText((Join-Path $pilotRoot 'prepared.json'), ($prepared | ConvertTo-Json -Depth 60), [Text.UTF8Encoding]::new($false))

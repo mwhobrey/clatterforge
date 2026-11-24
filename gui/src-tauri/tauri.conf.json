@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "dev.conductor.gui",
   "build": {
-    "frontendDist": "../target/dx/conductor-gui/release/web/public",
+    "frontendDist": "../target/dx/clatterforge-gui/release/web/public",
     "devUrl": "http://localhost:8080",
     "beforeDevCommand": "dx serve",
     "beforeBuildCommand": "dx build --release --platform web --locked"

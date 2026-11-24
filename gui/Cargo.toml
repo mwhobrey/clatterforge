@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "conductor-gui"
+name = "clatterforge-gui"
 version = "0.1.0"
 authors = ["Clatterforge contributors"]
 license = "Apache-2.0"

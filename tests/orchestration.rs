@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     inference::{
         config::{Config, EndpointAccess, Target},
         state::Coordinator,
@@ -214,7 +214,7 @@ fn changes(value: &str) -> String {
     json!({"summary":"implement scoped change","files":[{"path":"src/result.txt","contents":value},{"path":"new.txt","contents":"new scoped artifact"}]}).to_string()
 }
 fn prepare(o: &mut Orchestrator, spec: Spec, config: Config) -> Task {
-    o.create(spec, config, Path::new(env!("CARGO_BIN_EXE_dev-conductor")))
+    o.create(spec, config, Path::new(env!("CARGO_BIN_EXE_clatterforge")))
         .unwrap()
 }
 fn approve(o: &mut Orchestrator, task: &Task) -> Task {
@@ -432,7 +432,7 @@ fn protected_tests_path_boundaries_and_changed_pins_block_dispatch() {
         o.create(
             spec.clone(),
             config.clone(),
-            Path::new(env!("CARGO_BIN_EXE_dev-conductor"))
+            Path::new(env!("CARGO_BIN_EXE_clatterforge"))
         )
         .is_err()
     );
@@ -442,7 +442,7 @@ fn protected_tests_path_boundaries_and_changed_pins_block_dispatch() {
         o.create(
             spec.clone(),
             config.clone(),
-            Path::new(env!("CARGO_BIN_EXE_dev-conductor"))
+            Path::new(env!("CARGO_BIN_EXE_clatterforge"))
         )
         .is_err()
     );
@@ -515,7 +515,7 @@ impl Drop for OwnedCli {
 }
 fn start_cli(state: &Path, task: &Task) -> OwnedCli {
     OwnedCli(
-        Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(state)
             .args([
@@ -627,12 +627,11 @@ fn orchestrate_run_and_board_run_cannot_concurrently_execute_against_the_same_re
     // A second, independent task against the identical repository, but on
     // the fake engine, dispatched through `board-run` - the already-leased
     // shared-service path.
-    let mut store = dev_conductor::store::Store::open(&state).unwrap();
+    let mut store = clatterforge::store::Store::open(&state).unwrap();
     let (repository_id, _) = store.register(&repo).unwrap();
-    let mut policy = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let mut policy =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     policy.timeout_ms = 5000;
     policy.verification_timeout_ms = 5000;
     let fake_task = store
@@ -657,7 +656,7 @@ fn orchestrate_run_and_board_run_cannot_concurrently_execute_against_the_same_re
     let mut child = start_cli(&state, &task);
     await_generation(&o, &task.id, &server);
 
-    let blocked = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let blocked = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -682,7 +681,7 @@ fn orchestrate_run_and_board_run_cannot_concurrently_execute_against_the_same_re
     // lease; confirm the fake task can now genuinely dispatch against the
     // same repository.
     assert!(child.wait().unwrap().success());
-    let unblocked = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let unblocked = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args([
@@ -763,8 +762,8 @@ fn verifier_cancellation_and_owner_crash_stop_owned_processes() {
             child.kill().unwrap();
             child.wait().unwrap();
             let until = Instant::now() + Duration::from_secs(3);
-            while dev_conductor::process::presence(&identity)
-                == dev_conductor::process::Presence::Alive
+            while clatterforge::process::presence(&identity)
+                == clatterforge::process::Presence::Alive
             {
                 assert!(
                     Instant::now() < until,
@@ -823,7 +822,7 @@ fn native_verifier_keeps_platform_discovery_but_scrubs_ambient_keys() {
     spec.verify_args = vec!["platform".into(), std::env::var("ProgramFiles").unwrap()];
     let task = prepare(&mut o, spec, config);
     let task = approve(&mut o, &task);
-    let status = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let status = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(temp.path().join("state"))
         .args([
@@ -878,7 +877,7 @@ fn telemetry_partial_failed_usage_legacy_digest_and_cli_summary() {
         assert_eq!(serde_json::to_value(&restored).unwrap(), old);
         assert_eq!(
             o.evidence_digest(&restored).unwrap(),
-            dev_conductor::digest(
+            clatterforge::digest(
                 &serde_json::to_vec(&(restored.assignment.digest().unwrap(), &restored.rounds))
                     .unwrap()
             )
@@ -886,7 +885,7 @@ fn telemetry_partial_failed_usage_legacy_digest_and_cli_summary() {
         let task = approve(&mut o, &prepared);
         let done = o.run(&task.id, task.revision).unwrap();
         assert_eq!(done.status, Status::NeedsWork);
-        let output = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(temp.path().join("state"))
             .args(["orchestrate-show", &done.id, "--summary"])
@@ -905,7 +904,7 @@ fn telemetry_partial_failed_usage_legacy_digest_and_cli_summary() {
         assert!(summary["duration_ms"].is_u64());
         assert_eq!(summary["review"], "unavailable");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("malformed changes"));
-        let normal = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let normal = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(temp.path().join("state"))
             .args(["orchestrate-show", &done.id])
@@ -1029,7 +1028,7 @@ fn ambiguous_multi_object_response_is_refused_not_guessed_then_a_clean_repair_su
     assert_eq!(done.rounds.len(), 2);
     assert_eq!(
         done.rounds[0].failure_stage,
-        Some(dev_conductor::orchestration::FailureStage::Format)
+        Some(clatterforge::orchestration::FailureStage::Format)
     );
     assert!(
         done.rounds[0].verification.is_none(),
@@ -1123,7 +1122,7 @@ fn an_edit_that_cannot_be_applied_gets_a_repair_chance_and_a_true_no_op_does_too
     assert_eq!(done.status, Status::AwaitingReview, "{:?}", done.error);
     assert_eq!(
         done.rounds[0].failure_stage,
-        Some(dev_conductor::orchestration::FailureStage::Edit)
+        Some(clatterforge::orchestration::FailureStage::Edit)
     );
 
     // A true no-op (old == new, or new file content identical to the
@@ -1141,7 +1140,7 @@ fn an_edit_that_cannot_be_applied_gets_a_repair_chance_and_a_true_no_op_does_too
     assert_eq!(done.status, Status::AwaitingReview, "{:?}", done.error);
     assert_eq!(
         done.rounds[0].failure_stage,
-        Some(dev_conductor::orchestration::FailureStage::Edit)
+        Some(clatterforge::orchestration::FailureStage::Edit)
     );
 }
 
@@ -1158,7 +1157,7 @@ fn persistent_format_failures_exhaust_the_repair_budget_and_record_every_stage()
     for round in &done.rounds {
         assert_eq!(
             round.failure_stage,
-            Some(dev_conductor::orchestration::FailureStage::Format)
+            Some(clatterforge::orchestration::FailureStage::Format)
         );
         assert!(round.verification.is_none());
     }
@@ -1343,7 +1342,7 @@ fn gitattributes_forced_crlf_tampering_mid_run_is_still_caught() {
 /// correct result still stops at `AwaitingReview`, never auto-accepting.
 #[test]
 fn hold_my_beer_dispatches_a_real_task_to_awaiting_review_and_never_auto_accepts() {
-    use dev_conductor::{
+    use clatterforge::{
         autonomy::{self, Policies, RealPolicyAuthorizationShared},
         store::Store,
     };
@@ -1364,19 +1363,18 @@ fn hold_my_beer_dispatches_a_real_task_to_awaiting_review_and_never_auto_accepts
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
         .unwrap();
 
-    let execution = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let execution =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     let outcome = autonomy::run(&state, &policy.id, execution, 16384).unwrap();
     assert_eq!(outcome.dispatched.len(), 1, "{outcome:?}");
     // `max_tasks: 1` means the policy is already `Exhausted` by the time the loop
@@ -1401,13 +1399,13 @@ fn hold_my_beer_dispatches_a_real_task_to_awaiting_review_and_never_auto_accepts
         Some(task.id.as_str())
     );
     assert_eq!(
-        after.state(dev_conductor::now()),
+        after.state(clatterforge::now()),
         autonomy::PolicyState::Exhausted
     );
 }
 
-fn real_task_from(spec: &Spec) -> dev_conductor::autonomy::RealTaskSpec {
-    dev_conductor::autonomy::RealTaskSpec {
+fn real_task_from(spec: &Spec) -> clatterforge::autonomy::RealTaskSpec {
+    clatterforge::autonomy::RealTaskSpec {
         objective: spec.objective.clone(),
         acceptance: spec.acceptance.clone(),
         allowed_files: spec.allowed_files.clone(),
@@ -1434,7 +1432,7 @@ fn real_task_from(spec: &Spec) -> dev_conductor::autonomy::RealTaskSpec {
 /// never anything resembling auto-acceptance or scope expansion.
 #[test]
 fn hold_my_beer_ignores_prompt_injection_in_the_objective_and_still_awaits_review() {
-    use dev_conductor::{
+    use clatterforge::{
         autonomy::{self, Policies, RealPolicyAuthorizationShared},
         store::Store,
     };
@@ -1459,19 +1457,18 @@ fn hold_my_beer_ignores_prompt_injection_in_the_objective_and_still_awaits_revie
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
         .unwrap();
 
-    let execution = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let execution =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     let outcome = autonomy::run(&state, &policy.id, execution, 16384).unwrap();
     assert_eq!(outcome.dispatched.len(), 1, "{outcome:?}");
 
@@ -1499,7 +1496,7 @@ fn hold_my_beer_ignores_prompt_injection_in_the_objective_and_still_awaits_revie
 /// duplicated - see `RealTaskSpec::to_orchestration_spec`.
 #[test]
 fn create_real_refuses_a_path_traversal_scope_before_the_policy_ever_exists() {
-    use dev_conductor::{autonomy::Policies, store::Store};
+    use clatterforge::{autonomy::Policies, store::Store};
 
     let server = Server::new(vec![changes("correct")], false);
     let (temp, repo, _orchestrator, mut spec, config) = setup(&server);
@@ -1518,10 +1515,10 @@ fn create_real_refuses_a_path_traversal_scope_before_the_policy_ever_exists() {
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
-            dev_conductor::autonomy::RealPolicyAuthorizationShared {
+            clatterforge::now() + 30 * 60_000,
+            clatterforge::autonomy::RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
@@ -1550,7 +1547,7 @@ fn create_real_refuses_a_path_traversal_scope_before_the_policy_ever_exists() {
 /// exactly the class of error early validation structurally cannot cover.
 #[test]
 fn hold_my_beer_still_refuses_a_case_collision_only_the_real_tree_can_reveal() {
-    use dev_conductor::{
+    use clatterforge::{
         autonomy::{self, Policies, RealPolicyAuthorizationShared},
         store::Store,
     };
@@ -1572,19 +1569,18 @@ fn hold_my_beer_still_refuses_a_case_collision_only_the_real_tree_can_reveal() {
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
         .unwrap();
 
-    let execution = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let execution =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     let error = autonomy::run(&state, &policy.id, execution, 16384).unwrap_err();
     assert!(error.to_string().contains("case mismatch"), "{error}");
     assert!(
@@ -1608,35 +1604,35 @@ fn hold_my_beer_still_refuses_a_case_collision_only_the_real_tree_can_reveal() {
 /// calls, which don't reliably overlap.
 #[test]
 fn two_concurrent_hold_my_beer_processes_racing_one_slot_dispatch_exactly_one_task() {
-    use dev_conductor::autonomy::RealPolicyAuthorizationShared;
+    use clatterforge::autonomy::RealPolicyAuthorizationShared;
 
     let server = Server::new(vec![changes("correct")], false);
     let (temp, repo, _orchestrator, spec, config) = setup(&server);
     let state = temp.path().join("state");
 
     let registration_id = {
-        let mut store = dev_conductor::store::Store::open(&state).unwrap();
+        let mut store = clatterforge::store::Store::open(&state).unwrap();
         let (id, _) = store.register(&repo).unwrap();
         id
     };
 
-    let mut policies = dev_conductor::autonomy::Policies::open(&state).unwrap();
+    let mut policies = clatterforge::autonomy::Policies::open(&state).unwrap();
     let policy = policies
         .create_real(
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
         .unwrap();
 
     // Two real processes, both started before either is waited on.
-    let mut a = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut a = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args(["hold-my-beer", "--policy", &policy.id, "--json"])
@@ -1644,7 +1640,7 @@ fn two_concurrent_hold_my_beer_processes_racing_one_slot_dispatch_exactly_one_ta
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    let mut b = Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let mut b = Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(&state)
         .args(["hold-my-beer", "--policy", &policy.id, "--json"])
@@ -1680,8 +1676,8 @@ fn two_concurrent_hold_my_beer_processes_racing_one_slot_dispatch_exactly_one_ta
         Some(tasks[0].id.as_str())
     );
     assert_eq!(
-        after.state(dev_conductor::now()),
-        dev_conductor::autonomy::PolicyState::Exhausted
+        after.state(clatterforge::now()),
+        clatterforge::autonomy::PolicyState::Exhausted
     );
     // The one task that exists was genuinely carried past approval by
     // whichever process won - not left stuck at AwaitingApproval by a
@@ -1696,7 +1692,7 @@ fn two_concurrent_hold_my_beer_processes_racing_one_slot_dispatch_exactly_one_ta
 /// is next.
 #[test]
 fn revoked_real_task_policy_dispatches_nothing_and_creates_no_orchestration_task() {
-    use dev_conductor::{
+    use clatterforge::{
         autonomy::{self, Policies, RealPolicyAuthorizationShared},
         store::Store,
     };
@@ -1717,10 +1713,10 @@ fn revoked_real_task_policy_dispatches_nothing_and_creates_no_orchestration_task
             &registration_id,
             "fixture",
             1,
-            dev_conductor::now() + 30 * 60_000,
+            clatterforge::now() + 30 * 60_000,
             RealPolicyAuthorizationShared {
                 config,
-                launcher: Path::new(env!("CARGO_BIN_EXE_dev-conductor")).into(),
+                launcher: Path::new(env!("CARGO_BIN_EXE_clatterforge")).into(),
             },
             vec![real_task_from(&spec)],
         )
@@ -1729,10 +1725,9 @@ fn revoked_real_task_policy_dispatches_nothing_and_creates_no_orchestration_task
         .revoke(&policy.id, "fixture", "changed my mind before dispatch")
         .unwrap();
 
-    let execution = dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-        "CARGO_BIN_EXE_dev-conductor"
-    )))
-    .unwrap();
+    let execution =
+        clatterforge::process::ExecutionPolicy::new(Path::new(env!("CARGO_BIN_EXE_clatterforge")))
+            .unwrap();
     let outcome = autonomy::run(&state, &policy.id, execution, 16384).unwrap();
     assert!(outcome.dispatched.is_empty(), "{outcome:?}");
     assert_eq!(outcome.stopped, "Revoked");

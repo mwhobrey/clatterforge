@@ -1,11 +1,11 @@
-//! M12.0 Phase 1-2 edge acceptance: a real `dev-conductor serve` process and a real
-//! `dev-conductor-edge` process, two separate OS processes talking over loopback HTTP,
+//! M12.0 Phase 1-2 edge acceptance: a real `clatterforge serve` process and a real
+//! `clatterforge-edge` process, two separate OS processes talking over loopback HTTP,
 //! with the edge then driven over its own real MCP stdio by a third, independent `rmcp`
 //! client - the full chain this milestone asked for, not an in-process shortcut.
 //! Authenticated against a real `enrollment::Enrollments` record (Phase 2), not Phase 1's
 //! placeholder shared desktop-GUI token.
 
-use dev_conductor::{
+use clatterforge::{
     authorization::{ExecutionMode, Grants, Operation},
     enrollment::{EnrollmentOperation, Enrollments},
     now,
@@ -68,32 +68,38 @@ fn free_port() -> u16 {
         .port()
 }
 
-/// `dev-conductor-edge` lives in a separate workspace member with no declared dependency
-/// relationship to this test crate, so Cargo doesn't set `CARGO_BIN_EXE_dev-conductor-edge`
+/// `clatterforge-edge` lives in a separate workspace member with no declared dependency
+/// relationship to this test crate, so Cargo doesn't set `CARGO_BIN_EXE_clatterforge-edge`
 /// the way it does for this crate's own binary. Building it on demand (a no-op once it
 /// already exists) keeps this test self-contained without assuming a prior manual build
 /// step. Assumes the default `target/` layout; a customized `CARGO_TARGET_DIR` would need
 /// this adjusted, same as `CARGO_BIN_EXE_*` itself would.
 /// Builds (or confirms up to date - cheap, Cargo's own incremental cache) the
-/// `dev-conductor-edge` binary. Always invoking `cargo build` here, not just when the
+/// `clatterforge-edge` binary. Always invoking `cargo build` here, not just when the
 /// binary is missing, is deliberate: this binary lives in a separate workspace member
 /// with no declared dependency on this test crate, so nothing else triggers a rebuild
-/// when its sources (or `conductor-protocol`'s, which it shares with this crate) change -
+/// when its sources (or `clatterforge-protocol`'s, which it shares with this crate) change -
 /// an existing-but-stale binary silently missing a new wire field is exactly the kind of
 /// bug a path-exists check would hide (found live: Phase 5's `agent_preset` field was
 /// silently dropped by a stale edge binary until this was fixed).
 fn edge_binary() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Build into the same target dir as this test binary so a CARGO_TARGET_DIR
+    // override never falls back to a stale edge binary elsewhere.
+    let target_dir = Path::new(env!("CARGO_BIN_EXE_clatterforge"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("cargo target dir");
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "dev-conductor-edge"])
+        .args(["build", "-p", "clatterforge-edge", "--target-dir"])
+        .arg(target_dir)
         .current_dir(manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    manifest_dir.join("target").join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 /// Polls for `<state>/serve-token` to appear - `serve::run` writes it, then binds the
@@ -107,12 +113,12 @@ fn wait_for_main_ready(state: &Path, port: u16) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("dev-conductor serve never became ready on port {port}");
+    panic!("clatterforge serve never became ready on port {port}");
 }
 
 fn start_main(state: &Path) -> (std::process::Child, u16) {
     let port = free_port();
-    let process = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let process = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("serve")
@@ -121,7 +127,7 @@ fn start_main(state: &Path) -> (std::process::Child, u16) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn dev-conductor serve");
+        .expect("spawn clatterforge serve");
     wait_for_main_ready(state, port);
     (process, port)
 }
@@ -142,7 +148,7 @@ async fn spawn_edge(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let stdin = process.stdin.take().expect("edge stdin");
     let stdout = process.stdout.take().expect("edge stdout");
     let client = DummyClient
@@ -181,7 +187,7 @@ async fn edge_dispatch_overrides_caller_supplied_principal_with_the_verified_enr
     Grants::open(&state)
         .unwrap()
         .create(
-            &dev_conductor::enrollment::namespaced_principal(&enrollment.client_id),
+            &clatterforge::enrollment::namespaced_principal(&enrollment.client_id),
             &repo_identity,
             vec!["fake-process-v1".into()],
             vec![Operation::Submit, Operation::Resume, Operation::Approve],
@@ -254,8 +260,8 @@ async fn evidence_retrieval_and_follow_up_linkage_both_work_through_the_real_edg
             "Hitch",
             "grok-bot",
             vec![
-                dev_conductor::enrollment::EnrollmentOperation::Inspect,
-                dev_conductor::enrollment::EnrollmentOperation::Submit,
+                clatterforge::enrollment::EnrollmentOperation::Inspect,
+                clatterforge::enrollment::EnrollmentOperation::Submit,
             ],
             vec![repo_identity.clone()],
             "mike",
@@ -264,7 +270,7 @@ async fn evidence_retrieval_and_follow_up_linkage_both_work_through_the_real_edg
     Grants::open(&state)
         .unwrap()
         .create(
-            &dev_conductor::enrollment::namespaced_principal(&enrollment.client_id),
+            &clatterforge::enrollment::namespaced_principal(&enrollment.client_id),
             &repo_identity,
             vec!["fake-process-v1".into()],
             vec![Operation::Submit, Operation::Resume, Operation::Approve],

@@ -1,5 +1,5 @@
-//! `ConductorBackend`: the trait both `dev-conductor`'s in-process `LocalBackend` (stdio
-//! `mcp-serve`, and the new `/api/edge/tools/call` HTTP route) and `dev-conductor-edge`'s
+//! `ConductorBackend`: the trait both `clatterforge`'s in-process `LocalBackend` (stdio
+//! `mcp-serve`, and the new `/api/edge/tools/call` HTTP route) and `clatterforge-edge`'s
 //! `RemoteBackend` (an authenticated HTTP client talking to that same route) implement.
 //! One tool, one method, one request/response shape - see `M12_0_ARCHITECTURE.md` section 2
 //! for why this is a trait rather than a second hand-copied adapter.

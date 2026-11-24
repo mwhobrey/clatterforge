@@ -1,10 +1,10 @@
-//! M12.0.1 Cloudflare Access integration: proves `dev-conductor-edge` sends the two
+//! M12.0.1 Cloudflare Access integration: proves `clatterforge-edge` sends the two
 //! service-token headers when configured, preserves the existing bearer-token
 //! Conductor auth alongside them, fails clearly on a half-configured credential
 //! pair, and sends neither header when unconfigured - existing direct/private-network
 //! operation must see no difference at all.
 //!
-//! Uses a `tiny_http`-based mock in place of the real `dev-conductor serve`, the same
+//! Uses a `tiny_http`-based mock in place of the real `clatterforge serve`, the same
 //! pattern `tests/inference.rs` already uses for a bare HTTP backend - this is about
 //! the edge binary's own outbound request, not the real Conductor's behavior.
 
@@ -90,23 +90,29 @@ impl Drop for MockConductor {
     }
 }
 
-/// `dev-conductor-edge` lives in a separate workspace member, so Cargo does not
+/// `clatterforge-edge` lives in a separate workspace member, so Cargo does not
 /// auto-inject a `CARGO_BIN_EXE_*` variable for it the way it does for a binary in
 /// this same package - same always-rebuild pattern `tests/edge.rs` already uses, and
 /// for the same reason (a stale binary in a separate workspace member can silently
 /// drop a wire/CLI-flag change nothing else would catch).
 fn edge_binary() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // Build into the same target dir as this test binary so a CARGO_TARGET_DIR
+    // override never falls back to a stale edge binary elsewhere.
+    let target_dir = std::path::Path::new(env!("CARGO_BIN_EXE_clatterforge"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("cargo target dir");
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "dev-conductor-edge"])
+        .args(["build", "-p", "clatterforge-edge", "--target-dir"])
+        .arg(target_dir)
         .current_dir(&manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    manifest_dir.join("target").join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 /// A single `conductor_capabilities` call through a real edge process, over real
@@ -126,7 +132,7 @@ fn run_edge_and_capture(extra_env: &[(&str, &str)]) -> BTreeMap<String, String> 
     for (key, value) in extra_env {
         command.env(key, value);
     }
-    let mut child = command.spawn().expect("spawn dev-conductor-edge");
+    let mut child = command.spawn().expect("spawn clatterforge-edge");
     // Write one framed MCP initialize + tools/call request directly over stdio -
     // deliberately not pulling in the full `rmcp` client for this test, since all
     // that's needed is to make the edge binary emit exactly one outbound HTTP call.
@@ -209,7 +215,7 @@ fn a_half_configured_cf_access_credential_pair_fails_clearly_at_startup() {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let output = child.wait_with_output().unwrap();
     assert!(
         !output.status.success(),
@@ -239,7 +245,7 @@ fn a_secret_without_a_client_id_also_fails_clearly_at_startup() {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let output = child.wait_with_output().unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -279,7 +285,7 @@ fn cf_access_credentials_can_be_read_from_files_and_files_take_precedence() {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command.spawn().expect("spawn dev-conductor-edge");
+    let mut child = command.spawn().expect("spawn clatterforge-edge");
     use std::io::Write;
     let stdin = child.stdin.as_mut().unwrap();
     writeln!(

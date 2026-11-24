@@ -2,14 +2,14 @@
 //! schema + backend for M12.0 (see `docs/m12/M12_0_ARCHITECTURE.md` section 2).
 //!
 //! The tool contract itself (every `conductor_*` request/response DTO, the
-//! `ConductorBackend` trait, `BackendError`) now lives in `conductor-protocol`, a crate
+//! `ConductorBackend` trait, `BackendError`) now lives in `clatterforge-protocol`, a crate
 //! with no dependency on `rmcp`/`rusqlite`/`axum`/any execution engine — see
 //! `protocol/src/lib.rs`. `LocalBackend` below is this trait's in-process implementation,
 //! calling the existing `TaskService`/`Orchestrator`/`Store`/`GlobalStop` lifecycle
 //! directly, exactly as `McpServer`'s tool methods did before this split. `McpServer` is
 //! now a thin `rmcp` adapter over one `LocalBackend` — every `#[tool]` method is a
 //! one-line forward. This module adds no new execution engine and no new safety boundary.
-//! `dev-conductor-edge`'s `RemoteBackend` (a separate crate) implements the identical
+//! `clatterforge-edge`'s `RemoteBackend` (a separate crate) implements the identical
 //! trait over an authenticated HTTP call to this process's new `/api/edge/tools/call`
 //! route (`src/serve.rs`) instead of calling these engines in-process.
 //!
@@ -43,7 +43,7 @@ use crate::{
     store::Store,
 };
 use anyhow::{Context, Result};
-pub use conductor_protocol::{
+pub use clatterforge_protocol::{
     AUTHORIZATION_NOTE, ApprovalRequirementsResponse, CancelTaskRequest, CapabilitiesResponse,
     DecisionRequest, DecisionResponse, EvidenceSummaryRequest, EvidenceSummaryResponse,
     GetArtifactRequest, GetArtifactResponse, GetTaskRequest, ListRepositoriesResponse,
@@ -51,7 +51,7 @@ pub use conductor_protocol::{
     ResumeResponse, ScheduleTaskResponse, StopStatusResponse, SubmitTaskRequest,
     SubmitTaskResponse, TOOL_NAMES, TaskIdRequest, TaskResponse,
 };
-use conductor_protocol::{BackendError, ConductorBackend, ErrorKind};
+use clatterforge_protocol::{BackendError, ConductorBackend, ErrorKind};
 use rmcp::{
     ErrorData as McpError, ServerHandler, ServiceExt,
     handler::server::wrapper::{Json, Parameters},
@@ -180,7 +180,7 @@ fn dispatch_run_in_background(root: PathBuf, task_id: String, revision: u64) {
                 );
             }
             eprintln!(
-                "dev-conductor: background agent run for task {task_id} did not start: {error:#}"
+                "clatterforge: background agent run for task {task_id} did not start: {error:#}"
             );
         }
     });
@@ -258,7 +258,7 @@ impl LocalBackend {
 
     /// Opens the adapter for use *only* after the caller's identity has already been
     /// cryptographically verified (`serve.rs::authenticate_edge`) and substituted into
-    /// every request's `principal` field (`conductor_protocol::SetPrincipal`) - never call
+    /// every request's `principal` field (`clatterforge_protocol::SetPrincipal`) - never call
     /// this with a request whose `principal` could still be caller-controlled.
     /// `repository_scope` is that same enrollment's own `Enrollment.repository_scope` -
     /// pass it verbatim, including empty (meaning unrestricted - see the field's own doc
@@ -465,7 +465,7 @@ impl LocalBackend {
     /// it asserts - that namespace exists specifically so authority meant for one
     /// cryptographically verified remote identity can never be inherited by an unverified
     /// local one. A trusted (edge) caller's `principal` is already the verified, namespaced
-    /// identity by the time it reaches here (`conductor_protocol::SetPrincipal`), so this
+    /// identity by the time it reaches here (`clatterforge_protocol::SetPrincipal`), so this
     /// never filters out a grant the caller was actually, correctly matched against.
     fn covering_grant(
         &self,
@@ -1993,9 +1993,9 @@ impl McpServer {
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("dev-conductor", env!("CARGO_PKG_VERSION")))
+            .with_server_info(Implementation::new("clatterforge", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Dev Conductor local MCP adapter. Generic external-orchestrator interface: not \
+                "Clatterforge local MCP adapter. Generic external-orchestrator interface: not \
                 specific to any one client. Lifecycle: conductor_submit_task creates a task (never \
                 auto-approves/runs) -> conductor_get_approval_requirements/conductor_approve -> \
                 conductor_resume -> conductor_get_task/conductor_get_evidence to inspect the result \

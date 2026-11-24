@@ -3,14 +3,14 @@
 //! actual Windows execution machinery is used"). Uses the same deterministic fake
 //! `cursor-agent` substitute `tests/agents.rs` already uses (`tests/fixtures/
 //! fake_cursor_agent.rs`) - never spends a real credit - driven this time through a real
-//! `dev-conductor-edge` process and a real authenticated enrollment, proving the full
+//! `clatterforge-edge` process and a real authenticated enrollment, proving the full
 //! chain: edge -> `/api/edge/tools/call` -> `agent_preset::AgentPresets` -> the unchanged
 //! `agents::Agents` engine -> a real (fake) external process -> independent verification
 //! -> evidence -> explicit human-equivalent review acceptance.
 //! Bot stand-in scenarios also route through the real local edge gateway and seed
 //! pre-tier saved tasks to exercise legacy cross-engine lookup and retry recovery.
 
-use dev_conductor::{
+use clatterforge::{
     agent_preset::AgentPresets,
     agents::{AgentBackend, CursorAgentPolicy},
     authorization::{ExecutionMode, Grants, Operation},
@@ -127,7 +127,7 @@ fn free_port() -> u16 {
 /// binary so an alternate target directory never tests an unrelated installed edge.
 fn edge_binary() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let target_dir = Path::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let target_dir = Path::new(env!("CARGO_BIN_EXE_clatterforge"))
         .parent()
         .unwrap()
         .parent()
@@ -137,18 +137,17 @@ fn edge_binary() -> PathBuf {
             "build",
             "--locked",
             "-p",
-            "dev-conductor-edge",
+            "clatterforge-edge",
             "--target-dir",
         ])
         .arg(target_dir)
         .current_dir(manifest_dir)
         .status()
-        .expect("run cargo build -p dev-conductor-edge");
-    assert!(status.success(), "building dev-conductor-edge failed");
-    target_dir.join("debug").join(format!(
-        "dev-conductor-edge{}",
-        std::env::consts::EXE_SUFFIX
-    ))
+        .expect("run cargo build -p clatterforge-edge");
+    assert!(status.success(), "building clatterforge-edge failed");
+    target_dir
+        .join("debug")
+        .join(format!("clatterforge-edge{}", std::env::consts::EXE_SUFFIX))
 }
 
 fn wait_for_main_ready(state: &Path, port: u16) {
@@ -160,11 +159,11 @@ fn wait_for_main_ready(state: &Path, port: u16) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!("dev-conductor serve never became ready on port {port}");
+    panic!("clatterforge serve never became ready on port {port}");
 }
 
 fn start_main(state: &Path, port: u16) -> std::process::Child {
-    let process = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    let process = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .arg("serve")
@@ -173,7 +172,7 @@ fn start_main(state: &Path, port: u16) -> std::process::Child {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn dev-conductor serve");
+        .expect("spawn clatterforge serve");
     wait_for_main_ready(state, port);
     process
 }
@@ -194,7 +193,7 @@ async fn spawn_edge(
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn dev-conductor-edge");
+        .expect("spawn clatterforge-edge");
     let stdin = process.stdin.take().expect("edge stdin");
     let stdout = process.stdout.take().expect("edge stdout");
     let client = DummyClient
@@ -439,8 +438,8 @@ impl BotFixture {
                 "n/a".into(),
                 "legacy".into(),
                 4096,
-                dev_conductor::process::ExecutionPolicy::new(Path::new(env!(
-                    "CARGO_BIN_EXE_dev-conductor"
+                clatterforge::process::ExecutionPolicy::new(Path::new(env!(
+                    "CARGO_BIN_EXE_clatterforge"
                 )))
                 .unwrap(),
             )
@@ -453,7 +452,7 @@ impl BotFixture {
             item.as_object_mut().unwrap().remove("tier");
         }
         let context = &record["assignment"]["context"];
-        record["assignment"]["context"]["digest"] = dev_conductor::digest(
+        record["assignment"]["context"]["digest"] = clatterforge::digest(
             &serde_json::to_vec(&(
                 &context["objective"],
                 &context["repository_identity"],
@@ -505,7 +504,7 @@ impl BotFixture {
         let main = TestProcess(start_main(&state, main_port));
         let port = free_port();
         let gateway = TestProcess(
-            Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+            Command::new(env!("CARGO_BIN_EXE_clatterforge"))
                 .args([
                     "edge-gateway",
                     "--port",
@@ -666,7 +665,7 @@ async fn bot_replays_legacy_state_after_reconnect_and_a_human_reviews_the_real_d
     assert_eq!(replayed["replayed"], true);
     assert_eq!(replayed["task"]["id"], id);
     assert_eq!(replayed["task"]["revision"], settled["task"]["revision"]);
-    let mut agents = dev_conductor::agents::Agents::open(&fixture.state).unwrap();
+    let mut agents = clatterforge::agents::Agents::open(&fixture.state).unwrap();
     assert_eq!(agents.tasks().unwrap().len(), 1);
     let task = agents.task(id).unwrap();
     assert!(
@@ -743,14 +742,14 @@ async fn bot_sees_failed_verification_and_can_submit_a_linked_follow_up() {
             .unwrap()
             .contains("verification")
     );
-    let task = dev_conductor::agents::Agents::open(&fixture.state)
+    let task = clatterforge::agents::Agents::open(&fixture.state)
         .unwrap()
         .task(id)
         .unwrap();
     assert_eq!(task.execution.unwrap().outcome, "succeeded");
     assert_eq!(task.verification.unwrap().exit_code, Some(7));
     assert!(
-        dev_conductor::agents::Agents::open(&fixture.state)
+        clatterforge::agents::Agents::open(&fixture.state)
             .unwrap()
             .review(
                 id,
@@ -799,7 +798,7 @@ async fn bot_sees_failed_verification_and_can_submit_a_linked_follow_up() {
         "{repaired:#?}"
     );
     assert_eq!(
-        dev_conductor::agents::Agents::open(&fixture.state)
+        clatterforge::agents::Agents::open(&fixture.state)
             .unwrap()
             .task(id)
             .unwrap()
@@ -873,7 +872,7 @@ async fn bot_can_retry_a_rejected_submission_with_the_same_idempotency_key() {
     presets.delete("bot-preset").unwrap();
     bot_refused(&client, "conductor_submit_task", args.clone()).await;
     assert!(
-        dev_conductor::agents::Agents::open(&fixture.state)
+        clatterforge::agents::Agents::open(&fixture.state)
             .unwrap()
             .tasks()
             .unwrap()
@@ -889,7 +888,7 @@ async fn bot_can_retry_a_rejected_submission_with_the_same_idempotency_key() {
     assert_eq!(replayed["replayed"], true);
     assert_eq!(replayed["task"]["id"], id);
     assert_eq!(
-        dev_conductor::agents::Agents::open(&fixture.state)
+        clatterforge::agents::Agents::open(&fixture.state)
             .unwrap()
             .tasks()
             .unwrap()
@@ -912,7 +911,7 @@ async fn bot_resumes_after_local_approval_and_refuses_a_stale_revision() {
     let replayed = bot_call(&client, "conductor_submit_task", args).await;
     assert_eq!(replayed["replayed"], true);
     assert_eq!(replayed["task"]["status"], "awaiting_approval");
-    let mut agents = dev_conductor::agents::Agents::open(&fixture.state).unwrap();
+    let mut agents = clatterforge::agents::Agents::open(&fixture.state).unwrap();
     let task = agents.task(id).unwrap();
     let approved = agents
         .approve(
@@ -1017,7 +1016,7 @@ async fn one_slot_grant_conducts_its_admitted_task_but_cannot_start_a_second() {
     assert_eq!(submitted["authorization"][1]["operation"], "resume");
     let done = poll_until_settled(&client, id).await;
     assert_eq!(done["task"]["status"], "awaiting_review");
-    let detail = dev_conductor::service::TaskService::open(&fixture.state)
+    let detail = clatterforge::service::TaskService::open(&fixture.state)
         .unwrap()
         .detail(id, None)
         .unwrap();

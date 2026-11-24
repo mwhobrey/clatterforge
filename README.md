@@ -1,8 +1,10 @@
-# Dev Conductor
+# Clatterforge
+
+> **Renamed from Dev Conductor.** The binary is `clatterforge` (setup scripts also install the old `dev-conductor` name as an alias). State defaults to `.clatterforge`; an existing `.conductor` directory keeps being used in place when no `.clatterforge` exists. Sessions paired under the old cookie names stay signed in.
 
 A local-first development conductor: give it an objective, approve its scope, and review the resulting change and verification evidence.
 
-Dev Conductor is a supervised Windows source alpha. A local model chooses the next approved coding worker; local Cursor and Codex CLI adapters do the coding. The host validates routing decisions, owns process supervision and retains durable task state. Workflow stages share one Git worktree with checkpoints and pass objectives, prior results and references between stages. Git supplies source and diff evidence on demand.
+Clatterforge is a supervised Windows source alpha. A local model chooses the next approved coding worker; local Cursor and Codex CLI adapters do the coding. The host validates routing decisions, owns process supervision and retains durable task state. Workflow stages share one Git worktree with checkpoints and pass objectives, prior results and references between stages. Git supplies source and diff evidence on demand.
 
 The desktop and authenticated HTTP/MCP interfaces expose the same task lifecycle. Finishing a workflow produces a candidate for human review. Applying an accepted candidate to its source checkout is a separate, explicit integration action.
 
@@ -18,7 +20,7 @@ cargo +1.90.0 test --workspace --locked -- --test-threads=4
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo.ps1
 ```
 
-The demo creates an expendable repository under `.conductor/demos/`, uses simulated approval and leaves a patch awaiting human review. It does not represent real-provider acceptance.
+The demo creates an expendable repository under `.clatterforge/demos/`, uses simulated approval and leaves a patch awaiting human review. It does not represent real-provider acceptance.
 
 ## Documentation
 

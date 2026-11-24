@@ -5,8 +5,16 @@ param(
     [string]$RequestPath
 )
 $ErrorActionPreference = 'Stop'
+# State directory rule shared with the binary: `.clatterforge`, unless only a pre-rename
+# `.conductor` exists, which keeps being used in place.
+function Resolve-StateDir([string]$Base) {
+    $current = Join-Path $Base '.clatterforge'
+    $legacy = Join-Path $Base '.conductor'
+    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy -PathType Container)) { return $legacy }
+    return $current
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$binaryPath = Join-Path $projectRoot 'target/debug/dev-conductor.exe'
+$binaryPath = Join-Path $projectRoot 'target/debug/clatterforge.exe'
 if (-not $RequestPath) { $RequestPath = Join-Path $projectRoot 'examples/inference-checked-add.json' }
 if (-not $ResumeTarget) { $ResumeTarget = $Target }
 $sourceConfig = (Resolve-Path -LiteralPath $ConfigPath).Path
@@ -19,7 +27,7 @@ if (-not [IO.Path]::IsPathRooted($config.admission_db)) {
 }
 $request = Get-Content -LiteralPath $RequestPath -Raw | ConvertFrom-Json
 if ($request.tools -ne 'checked_add') { throw 'This check requires a checked_add request for 2 plus 3' }
-$pilotRoot = Join-Path $projectRoot ('.conductor/inference-live/' + [guid]::NewGuid().ToString())
+$pilotRoot = Join-Path (Resolve-StateDir $projectRoot) ('inference-live/' + [guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $pilotRoot | Out-Null
 $statePath = Join-Path $pilotRoot 'state'
 function Save-Receipt($Name, $Value) {

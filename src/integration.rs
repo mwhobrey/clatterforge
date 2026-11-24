@@ -1040,6 +1040,8 @@ impl IndexLock {
     }
     fn acquire(index: &Path, id: &str) -> Result<Self> {
         let path = Self::path(index);
+        // Keeps its pre-rename spelling on purpose: interrupted-write recovery matches existing
+        // marker files byte for byte, so renaming it would strand journals already on disk.
         let marker = format!("dev-conductor-integration:{id}\n");
         let mut file = fs::OpenOptions::new()
             .create_new(true)

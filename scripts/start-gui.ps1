@@ -35,10 +35,11 @@ if (-not (Test-Path $UiDir)) {
     exit 1
 }
 
-$DefaultState = if (Test-Path (Join-Path $ScriptDir "clatterforge-desktop.exe")) {
-    Join-Path $ScriptDir ".conductor"
-} else {
-    Join-Path (Get-Location) ".conductor"
+# Same rule as the binary: `.clatterforge`, unless only a pre-rename `.conductor` exists.
+$StateBase = if (Test-Path (Join-Path $ScriptDir "clatterforge-desktop.exe")) { $ScriptDir } else { (Get-Location).Path }
+$DefaultState = Join-Path $StateBase ".clatterforge"
+if (-not (Test-Path -LiteralPath $DefaultState) -and (Test-Path -LiteralPath (Join-Path $StateBase ".conductor") -PathType Container)) {
+    $DefaultState = Join-Path $StateBase ".conductor"
 }
 $StateDir = if ($env:CONDUCTOR_STATE) { $env:CONDUCTOR_STATE } else { $DefaultState }
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null

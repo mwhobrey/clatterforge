@@ -8,7 +8,7 @@
 //! revocation, and a coarse allowed-operations gate checked before any `Grant` lookup even
 //! happens. `Grant.principal` and `Enrollment.client_id` share one namespace by design:
 //! `serve.rs`'s edge dispatch overwrites every tool call's caller-supplied `principal`
-//! field with the verified `client_id` (`conductor_protocol::SetPrincipal`) before it ever
+//! field with the verified `client_id` (`clatterforge_protocol::SetPrincipal`) before it ever
 //! reaches `authorization::Grants::find_covering` or a task record - the model never
 //! supplies or overrides its own authenticated identity, per this milestone's own
 //! requirement. Stdio local mode is unaffected and keeps its separate, weaker,
@@ -69,7 +69,7 @@ impl EnrollmentOperation {
 
     /// Every one of the 15 `conductor_*` tools maps to exactly one category - `None` means
     /// an unrecognized tool name, not an ungated one. Kept exhaustive and listed alongside
-    /// `conductor_protocol::TOOL_NAMES` deliberately, mirroring how `src/mcp.rs::TOOL_NAMES`
+    /// `clatterforge_protocol::TOOL_NAMES` deliberately, mirroring how `src/mcp.rs::TOOL_NAMES`
     /// itself is kept as one list so nothing can silently drift out of sync.
     pub fn for_tool(tool: &str) -> Option<Self> {
         match tool {
@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn for_tool_covers_every_tool_name_exhaustively() {
-        for tool in conductor_protocol::TOOL_NAMES {
+        for tool in clatterforge_protocol::TOOL_NAMES {
             assert!(
                 EnrollmentOperation::for_tool(tool).is_some(),
                 "tool {tool} has no EnrollmentOperation mapping"

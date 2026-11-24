@@ -1,4 +1,4 @@
-use dev_conductor::{
+use clatterforge::{
     digest,
     execution::{CodexEngine, ExecutionEngine},
     inference::{config::*, jobs, provider::Decoder, state::*, types::*},
@@ -380,7 +380,7 @@ fn execute(store: &mut JobStore, job: &Job, target: Option<&str>, one_turn: bool
 
 #[test]
 fn telemetry_usage_survives_partial_reports_failure_and_cancellation() {
-    use dev_conductor::telemetry::{ApiPricing, job_summary};
+    use clatterforge::telemetry::{ApiPricing, job_summary};
     for mode in ["usage-complete", "usage-failed", "usage-slow"] {
         let temp = TempDir::new().unwrap();
         let server = Server::start();
@@ -450,7 +450,7 @@ fn telemetry_usage_survives_partial_reports_failure_and_cancellation() {
             assert!(summary["estimated_api_cost"].is_null());
         }
         assert!(!summary.to_string().contains("private fixture text"));
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&root)
             .args(["inference-show", &done.id, "--summary"])
@@ -1153,7 +1153,7 @@ fn explicit_backend_extension_provenance_and_sanitized_provider_errors() {
 }
 
 fn cli(state: &std::path::Path, args: &[&str]) -> std::process::Output {
-    std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+    std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
         .arg("--state")
         .arg(state)
         .args(args)
@@ -1236,7 +1236,7 @@ fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() 
     let job: Job = serde_json::from_slice(&prepared.stdout).unwrap();
     assert!(!state.join("state.sqlite").exists()); // Direct jobs don't mutate delegated state.
     let mut child = OwnedCli(
-        std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
@@ -1543,7 +1543,7 @@ fn real_killed_process_still_auto_recovers_the_next_real_dispatch_without_reconc
     let job_a: Job = serde_json::from_slice(&prepared.stdout).unwrap();
 
     let mut child = OwnedCli(
-        std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
@@ -1673,7 +1673,7 @@ fn global_stop_still_blocks_admission_even_through_the_auto_recovery_path() {
     assert!(prepared.status.success());
     let job_a: Job = serde_json::from_slice(&prepared.stdout).unwrap();
     let mut child = OwnedCli(
-        std::process::Command::new(env!("CARGO_BIN_EXE_dev-conductor"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_clatterforge"))
             .arg("--state")
             .arg(&state)
             .args([
