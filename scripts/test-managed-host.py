@@ -52,7 +52,22 @@ def start():
 
 
 def receipt():
-    return json.loads((state / "host-runtime.json").read_text(encoding="utf-8-sig"))
+    # The supervisor swaps the receipt every 500 ms; a read landing on the swap can see it
+    # briefly missing, delete-pending (PermissionError) or partially visible. Retry briefly.
+    deadline = time.monotonic() + 5
+    while True:
+        try:
+            return json.loads((state / "host-runtime.json").read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.05)
+
+
+def complete_receipt():
+    """The receipt once it records both roles, else None (wait_for retries)."""
+    current = receipt()
+    return current if {"backend", "ui"} <= set(current["roles"]) else None
 
 
 def get(path="/health", ui=False, host=None):
@@ -66,7 +81,10 @@ runner = start()
 try:
     wait_for(lambda: get())
     wait_for(lambda: get("/", ui=True) == b"isolated compiled GUI fixture")
-    before = receipt()
+    # Both services can answer before the supervisor's first receipt lands: Windows
+    # PowerShell is slow to reach its first write on a cold CI runner. Wait for a receipt
+    # that records both roles instead of reading once.
+    before = wait_for(complete_receipt)
     token = (state / "serve-token").read_bytes()
     duplicate = subprocess.run([str(binary), "--state", str(state), "serve", "--port", str(port)],
                                capture_output=True, timeout=10)
