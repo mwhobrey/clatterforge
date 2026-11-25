@@ -33,4 +33,4 @@ The Windows supervisor (the main forge), Linux Sparks (`clatterforge-edge`) with
 
 ## License
 
-First-party code is licensed under [Apache-2.0](LICENSE), with attribution in [NOTICE](NOTICE). Dependencies retain their own terms; [third-party notices](THIRD_PARTY_NOTICES.md) list collected texts and unresolved binary redistribution gaps. Model weights and external CLI tools are separately installed and licensed.
+First-party code is licensed under [Apache-2.0](LICENSE), with attribution in [NOTICE](NOTICE). Dependencies retain their own terms; [third-party notices](THIRD_PARTY_NOTICES.md) list collected texts for every dependency. Model weights and external CLI tools are separately installed and licensed.

@@ -11,15 +11,12 @@ Package sources are available at the linked version-specific crates.io pages.
 
 ## Unresolved license text
 
-Bundled binary redistribution is blocked until these missing upstream texts/attributions are resolved.
-Declared metadata alone is not a complete notice. This source repository does not vendor these crates.
+No missing license texts for packages linked into a shipped artifact.
 
-- `sledgehammer_bindgen 0.6.0`: declared `MIT`, no license text in the published crate or pinned upstream root.
-- `sledgehammer_bindgen_macro 0.6.5`: declared `MIT`, no license text in the published crate or pinned upstream root.
-- `sledgehammer_utils 0.3.1`: declared `MIT`, no license text in the published crate or pinned upstream root.
-- `warnings 0.2.1`: declared `MIT OR Apache-2.0`, no license text in the published crate or pinned upstream root.
-- `warnings-macro 0.2.0`: declared `MIT OR Apache-2.0`, no license text in the published crate or pinned upstream root.
-- `selectors 0.38.0`: declared `MPL-2.0`, no license text in the published crate or pinned upstream root.
+Used only at build time (build scripts or proc macros), so not redistributed in any artifact,
+and published without a license file:
+
+- `selectors 0.38.0`: declared `MPL-2.0`.
 
 ## Package index
 
@@ -369,9 +366,9 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [simd-adler32](https://crates.io/crates/simd-adler32/0.3.10) | 0.3.10 | MIT | [42a35170233e83e1](#license-42a35170233e83e18856792e748de4c1ce4a63b2afce9a370c89ef3fe23f9f2d) |
 | [siphasher](https://crates.io/crates/siphasher/1.0.4) | 1.0.4 | MIT OR Apache-2.0 | [c962ee4d1d05ddc1](#license-c962ee4d1d05ddc138b202b2540219ebc57893fcf97b364852094a9a94ce1365), [cfc7749b96f63bd3](#license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30), [f9c4c77baa382800](#license-f9c4c77baa3828004ee54b8a4f2db2e88ed44a6237a493965bf551fac0fcb62d) |
 | [slab](https://crates.io/crates/slab/0.4.12) | 0.4.12 | MIT | [8ce0830173fdac60](#license-8ce0830173fdac609dfb4ea603fdc002c2f4af0dc9b1a005653f5da9cf534b18) |
-| [sledgehammer_bindgen](https://crates.io/crates/sledgehammer_bindgen/0.6.0) | 0.6.0 | MIT | UNRESOLVED |
-| [sledgehammer_bindgen_macro](https://crates.io/crates/sledgehammer_bindgen_macro/0.6.5) | 0.6.5 | MIT | UNRESOLVED |
-| [sledgehammer_utils](https://crates.io/crates/sledgehammer_utils/0.3.1) | 0.3.1 | MIT | UNRESOLVED |
+| [sledgehammer_bindgen](https://crates.io/crates/sledgehammer_bindgen/0.6.0) | 0.6.0 | MIT | [ac69fb993eb3b207](#license-ac69fb993eb3b2070f9e44db444fb38ce71060180ac683de64b0b409a443c502) |
+| [sledgehammer_bindgen_macro](https://crates.io/crates/sledgehammer_bindgen_macro/0.6.5) | 0.6.5 | MIT | [ac69fb993eb3b207](#license-ac69fb993eb3b2070f9e44db444fb38ce71060180ac683de64b0b409a443c502) |
+| [sledgehammer_utils](https://crates.io/crates/sledgehammer_utils/0.3.1) | 0.3.1 | MIT | [ac69fb993eb3b207](#license-ac69fb993eb3b2070f9e44db444fb38ce71060180ac683de64b0b409a443c502) |
 | [slotmap](https://crates.io/crates/slotmap/1.1.1) | 1.1.1 | Zlib | [6cec81441b2ab2b5](#license-6cec81441b2ab2b5090954c1fb5d0bcca81b86487b5849061fa8952d20ef67d4) |
 | [smallvec](https://crates.io/crates/smallvec/1.16.3) | 1.16.3 | MIT OR Apache-2.0 | [0b28172679e0009b](#license-0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [socket2](https://crates.io/crates/socket2/0.6.5) | 0.6.5 | MIT OR Apache-2.0 | [378f5840b258e277](#license-378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
@@ -462,8 +459,8 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [vswhom-sys](https://crates.io/crates/vswhom-sys/0.1.3) | 0.1.3 | MIT | [e339134e53732f09](#license-e339134e53732f093f68ef00bcec3687ebf964ef8c6c812f31e74099c07d3f49) |
 | [walkdir](https://crates.io/crates/walkdir/2.5.0) | 2.5.0 | Unlicense/MIT | [01c266bced4a434d](#license-01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f), [0f96a83840e146e4](#license-0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f) |
 | [want](https://crates.io/crates/want/0.3.2) | 0.3.2 | MIT | [96d741569b18c610](#license-96d741569b18c61043e5ad2b8505b5e4891a27994b732b1da9f86f46be67f59a) |
-| [warnings](https://crates.io/crates/warnings/0.2.1) | 0.2.1 | MIT OR Apache-2.0 | UNRESOLVED |
-| [warnings-macro](https://crates.io/crates/warnings-macro/0.2.0) | 0.2.0 | MIT OR Apache-2.0 | UNRESOLVED |
+| [warnings](https://crates.io/crates/warnings/0.2.1) | 0.2.1 | MIT OR Apache-2.0 | [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
+| [warnings-macro](https://crates.io/crates/warnings-macro/0.2.0) | 0.2.0 | MIT OR Apache-2.0 | [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [wasm-bindgen](https://crates.io/crates/wasm-bindgen/0.2.129) | 0.2.129 | MIT OR Apache-2.0 | [378f5840b258e277](#license-378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [wasm-bindgen-futures](https://crates.io/crates/wasm-bindgen-futures/0.4.79) | 0.4.79 | MIT OR Apache-2.0 | [378f5840b258e277](#license-378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [wasm-bindgen-macro](https://crates.io/crates/wasm-bindgen-macro/0.2.129) | 0.2.129 | MIT OR Apache-2.0 | [378f5840b258e277](#license-378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
@@ -7179,7 +7176,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"></a>
 ### 62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a
 
-Sources: anyhow 1.0.104: LICENSE-APACHE from published crate; async-trait 0.1.92: LICENSE-APACHE from published crate; constant_time_eq 0.6.1: LICENSE-APACHE from published crate; dtoa 1.0.11: LICENSE-APACHE from published crate; dyn-clone 1.0.20: LICENSE-APACHE from published crate; erased-serde 0.4.10: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-APACHE; inventory 0.3.25: LICENSE-APACHE from published crate; itoa 1.0.18: LICENSE-APACHE from published crate; libc 0.2.190: LICENSE-APACHE from published crate; libc 0.2.191: LICENSE-APACHE from published crate; macro-string 0.1.4: LICENSE-APACHE from published crate; pastey 0.2.3: LICENSE-APACHE from published crate; proc-macro2 1.0.107: LICENSE-APACHE from published crate; proc-macro2-diagnostics 0.10.1: LICENSE-APACHE from published crate; quote 1.0.47: LICENSE-APACHE from published crate; ref-cast 1.0.27: LICENSE-APACHE from published crate; ref-cast-impl 1.0.27: LICENSE-APACHE from published crate; rustc-hash 2.1.3: LICENSE-APACHE from published crate; rustversion 1.0.23: LICENSE-APACHE from published crate; ryu 1.0.23: LICENSE-APACHE from published crate; semver 1.0.28: LICENSE-APACHE from published crate; serde 1.0.229: LICENSE-APACHE from published crate; serde-untagged 0.1.9: LICENSE-APACHE from published crate; serde_core 1.0.229: LICENSE-APACHE from published crate; serde_derive 1.0.229: LICENSE-APACHE from published crate; serde_derive_internals 0.29.1: LICENSE-APACHE from published crate; serde_derive_internals 0.30.0: LICENSE-APACHE from published crate; serde_json 1.0.154: LICENSE-APACHE from published crate; serde_path_to_error 0.1.20: LICENSE-APACHE from published crate; serde_qs 0.15.0: LICENSE-APACHE from published crate; serde_repr 0.1.21: LICENSE-APACHE from published crate; serde_urlencoded 0.7.1: LICENSE-APACHE from published crate; syn 2.0.119: LICENSE-APACHE from published crate; syn 3.0.8: LICENSE-APACHE from published crate; syn 3.0.9: LICENSE-APACHE from published crate; thiserror 1.0.69: LICENSE-APACHE from published crate; thiserror 2.0.21: LICENSE-APACHE from published crate; thiserror-impl 1.0.69: LICENSE-APACHE from published crate; thiserror-impl 2.0.21: LICENSE-APACHE from published crate; typed-path 0.13.0: LICENSE-APACHE from published crate; typeid 1.0.3: LICENSE-APACHE from published crate; unicode-ident 1.0.26: LICENSE-APACHE from published crate; unicode-ident 1.0.27: LICENSE-APACHE from published crate; utf8parse 0.2.2: LICENSE-APACHE from published crate; wasm-streams 0.4.2: LICENSE-APACHE from published crate
+Sources: anyhow 1.0.104: LICENSE-APACHE from published crate; async-trait 0.1.92: LICENSE-APACHE from published crate; constant_time_eq 0.6.1: LICENSE-APACHE from published crate; dtoa 1.0.11: LICENSE-APACHE from published crate; dyn-clone 1.0.20: LICENSE-APACHE from published crate; erased-serde 0.4.10: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-APACHE; inventory 0.3.25: LICENSE-APACHE from published crate; itoa 1.0.18: LICENSE-APACHE from published crate; libc 0.2.190: LICENSE-APACHE from published crate; libc 0.2.191: LICENSE-APACHE from published crate; macro-string 0.1.4: LICENSE-APACHE from published crate; pastey 0.2.3: LICENSE-APACHE from published crate; proc-macro2 1.0.107: LICENSE-APACHE from published crate; proc-macro2-diagnostics 0.10.1: LICENSE-APACHE from published crate; quote 1.0.47: LICENSE-APACHE from published crate; ref-cast 1.0.27: LICENSE-APACHE from published crate; ref-cast-impl 1.0.27: LICENSE-APACHE from published crate; rustc-hash 2.1.3: LICENSE-APACHE from published crate; rustversion 1.0.23: LICENSE-APACHE from published crate; ryu 1.0.23: LICENSE-APACHE from published crate; semver 1.0.28: LICENSE-APACHE from published crate; serde 1.0.229: LICENSE-APACHE from published crate; serde-untagged 0.1.9: LICENSE-APACHE from published crate; serde_core 1.0.229: LICENSE-APACHE from published crate; serde_derive 1.0.229: LICENSE-APACHE from published crate; serde_derive_internals 0.29.1: LICENSE-APACHE from published crate; serde_derive_internals 0.30.0: LICENSE-APACHE from published crate; serde_json 1.0.154: LICENSE-APACHE from published crate; serde_path_to_error 0.1.20: LICENSE-APACHE from published crate; serde_qs 0.15.0: LICENSE-APACHE from published crate; serde_repr 0.1.21: LICENSE-APACHE from published crate; serde_urlencoded 0.7.1: LICENSE-APACHE from published crate; syn 2.0.119: LICENSE-APACHE from published crate; syn 3.0.8: LICENSE-APACHE from published crate; syn 3.0.9: LICENSE-APACHE from published crate; thiserror 1.0.69: LICENSE-APACHE from published crate; thiserror 2.0.21: LICENSE-APACHE from published crate; thiserror-impl 1.0.69: LICENSE-APACHE from published crate; thiserror-impl 2.0.21: LICENSE-APACHE from published crate; typed-path 0.13.0: LICENSE-APACHE from published crate; typeid 1.0.3: LICENSE-APACHE from published crate; unicode-ident 1.0.26: LICENSE-APACHE from published crate; unicode-ident 1.0.27: LICENSE-APACHE from published crate; utf8parse 0.2.2: LICENSE-APACHE from published crate; warnings 0.2.1: canonical Apache-2.0 text for its declared `MIT OR Apache-2.0`; the published crate ships no license file; warnings-macro 0.2.0: canonical Apache-2.0 text for its declared `MIT OR Apache-2.0`; the published crate ships no license file; wasm-streams 0.4.2: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -12565,6 +12562,35 @@ SOFTWARE.
 This project contains portions of code and architectural concepts originally
 derived from the "nipper" project (https://github.com/importcjj/nipper),
 developed by Chen Jiaju, licensed under the MIT License and the Apache License 2.0 (dual licensed).
+``````
+
+<a id="license-ac69fb993eb3b2070f9e44db444fb38ce71060180ac683de64b0b409a443c502"></a>
+### ac69fb993eb3b2070f9e44db444fb38ce71060180ac683de64b0b409a443c502
+
+Sources: sledgehammer_bindgen 0.6.0: canonical MIT text for its declared `MIT`, attributed to the author in its Cargo.toml (Evan Almloff); the published crate ships no license file; sledgehammer_bindgen_macro 0.6.5: canonical MIT text for its declared `MIT`, attributed to the author in its Cargo.toml (Evan Almloff); the published crate ships no license file; sledgehammer_utils 0.3.1: canonical MIT text for its declared `MIT`, attributed to the author in its Cargo.toml (Evan Almloff); the published crate ships no license file
+
+``````text
+MIT License
+
+Copyright (c) Evan Almloff
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ``````
 
 <a id="license-ae078f5c300de75464ac3feafe98111bd27ce41d226d95d30adc280479517ac2"></a>

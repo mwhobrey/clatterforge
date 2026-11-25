@@ -13,6 +13,50 @@ from concurrent.futures import ThreadPoolExecutor
 
 UPSTREAM_CACHE = {}
 
+# Crates whose published package and upstream root carry no license file. Each entry applies
+# the canonical text of a license the crate itself declares, with attribution taken from the
+# authors in its published Cargo.toml. Reviewed November 25, 2026 (#42).
+CLARIFICATIONS = {
+    ('sledgehammer_bindgen', '0.6.0'): ('MIT', 'MIT.txt', 'Evan Almloff'),
+    ('sledgehammer_utils', '0.3.1'): ('MIT', 'MIT.txt', 'Evan Almloff'),
+    ('sledgehammer_bindgen_macro', '0.6.5'): ('MIT', 'MIT.txt', 'Evan Almloff'),
+    ('warnings', '0.2.1'): ('MIT OR Apache-2.0', 'Apache-2.0.txt', None),
+    ('warnings-macro', '0.2.0'): ('MIT OR Apache-2.0', 'Apache-2.0.txt', None),
+}
+
+
+def clarified_text(root, package):
+    """Canonical text for a CLARIFICATIONS entry, only while the declared license still matches."""
+    entry = CLARIFICATIONS.get((package['name'], package['version']))
+    if not entry or package.get('license') != entry[0]:
+        return []
+    _, file_name, holder = entry
+    text = (root / 'licenses' / file_name).read_text(encoding='utf-8')
+    if holder:
+        text = text.replace('<copyright holders>', holder)
+    chosen = file_name.removesuffix('.txt')
+    origin = (f'{package["name"]} {package["version"]}: canonical {chosen} text for its declared '
+              f'`{entry[0]}`' + (f', attributed to the author in its Cargo.toml ({holder})' if holder else '')
+              + '; the published crate ships no license file')
+    return [(text.encode('utf-8'), origin)]
+
+
+def shipped_packages(root, toolchain, manifest, target):
+    """(name, version) of packages linked into an artifact: normal dependencies only, no build
+    scripts, dev-dependencies or proc macros. `cargo tree` is used because it applies the
+    resolver's split between build-time (host) and target features; `cargo metadata` merges
+    them and would count crates that only a build-time copy pulls in."""
+    output = subprocess.check_output(
+        ['cargo', f'+{toolchain}', 'tree', '--locked', '--manifest-path', str(root / manifest),
+         '--target', target, '-e', 'normal,no-proc-macro', '--prefix', 'none', '--workspace'],
+        cwd=root, text=True)
+    shipped = set()
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1].startswith('v'):
+            shipped.add((parts[0], parts[1][1:]))
+    return shipped
+
 
 def upstream_texts(package, package_root):
     repository = urllib.parse.urlparse(package.get('repository') or '')
@@ -58,10 +102,12 @@ def collect(root, toolchain):
         ('gui/src-tauri/Cargo.toml', 'x86_64-pc-windows-msvc'),
     ]
     packages, documents, provenance, unresolved = {}, {}, {}, []
+    shipped = set()
     for manifest, target in graphs:
         metadata = json.loads(subprocess.check_output(
             ['cargo', f'+{toolchain}', 'metadata', '--locked', '--format-version', '1',
              '--manifest-path', str(root / manifest), '--filter-platform', target], cwd=root))
+        shipped |= shipped_packages(root, toolchain, manifest, target)
         for package in metadata['packages']:
             if not package.get('source'):
                 continue
@@ -85,6 +131,8 @@ def collect(root, toolchain):
                     raise RuntimeError(f'Oversized license source for {key}; review it explicitly')
                 texts.append((data, f'{package["name"]} {package["version"]}: {resolved.name} from published crate'))
             if not texts:
+                texts = clarified_text(root, package)
+            if not texts:
                 texts = upstream_texts(package, package_root)
             if not texts and key == ('content_disposition', '0.4.0') and package['license'] == 'MIT OR 0BSD':
                 texts = [((root / 'licenses/0BSD.txt').read_bytes(),
@@ -98,6 +146,7 @@ def collect(root, toolchain):
             if not package.get('license') or not refs:
                 unresolved.append((key, package.get('license') or 'UNKNOWN'))
             packages[key] = (package['license'], sorted(refs))
+    unresolved = [(key, license_name, key in shipped) for key, license_name in unresolved]
     return packages, documents, provenance, unresolved
 
 
@@ -118,13 +167,20 @@ def main():
              'Line endings and trailing whitespace in collected texts are normalized; license wording and attribution are retained.', '',
              'Package sources are available at the linked version-specific crates.io pages.', '',
              '## Unresolved license text', '']
-    if unresolved:
+    blocking = [entry for entry in unresolved if entry[2]]
+    build_only = [entry for entry in unresolved if not entry[2]]
+    if blocking:
         lines += ['Bundled binary redistribution is blocked until these missing upstream texts/attributions are resolved.',
                   'Declared metadata alone is not a complete notice. This source repository does not vendor these crates.', '']
         lines += [f'- `{name} {version}`: declared `{license_name}`, no license text in the published crate or pinned upstream root.'
-                  for (name, version), license_name in unresolved]
+                  for (name, version), license_name, _ in blocking]
     else:
-        lines += ['No missing dependency license texts in this inventory.']
+        lines += ['No missing license texts for packages linked into a shipped artifact.']
+    if build_only:
+        lines += ['', 'Used only at build time (build scripts or proc macros), so not redistributed in any artifact,',
+                  'and published without a license file:', '']
+        lines += [f'- `{name} {version}`: declared `{license_name}`.'
+                  for (name, version), license_name, _ in build_only]
     lines += ['', '## Package index', '', '| Package | Version | Declared license | License texts |',
              '|---|---|---|---|']
     for (name, version), (license_name, refs) in sorted(packages.items()):
@@ -138,8 +194,9 @@ def main():
     output = args.output if args.output.is_absolute() else root / args.output
     output.write_text('\n'.join(lines), encoding='utf-8')
     print(json.dumps({'packages': len(packages), 'license_texts': len(documents),
-                      'unresolved': len(unresolved), 'output': output.name}))
-    if unresolved and not args.allow_missing:
+                      'unresolved_shipped': len(blocking), 'unresolved_build_only': len(build_only),
+                      'output': output.name}))
+    if blocking and not args.allow_missing:
         raise SystemExit('Missing upstream license texts; see the generated unresolved list. Binary redistribution remains blocked.')
 
 
