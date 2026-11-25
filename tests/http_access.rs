@@ -64,15 +64,20 @@ async fn default_access_is_local_and_deployment_opt_ins_are_exact() {
     let client = reqwest::Client::new();
     let default = Server::start(None);
     let url = format!("{}/api/tasks", default.base);
+    let first = client
+        .get(&url)
+        .bearer_auth(&default.token)
+        .send()
+        .await
+        .unwrap();
+    let status = first.status();
+    // Report the server's error text if this ever fails (seen once as a 500 on a slow
+    // Windows CI runner), so the cause is in the log rather than guessed at.
     assert_eq!(
-        client
-            .get(&url)
-            .bearer_auth(&default.token)
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        StatusCode::OK
+        status,
+        StatusCode::OK,
+        "{}",
+        first.text().await.unwrap_or_default()
     );
     assert_eq!(
         client
