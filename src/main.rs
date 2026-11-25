@@ -144,6 +144,51 @@ enum Commands {
     WorkflowShow {
         task: String,
     },
+    /// Commit an accepted candidate onto a new branch from its recorded base. No working
+    /// tree, index or checked-out branch is touched; nothing is pushed.
+    #[command(name = "deliver-commit")]
+    DeliverCommit {
+        task: String,
+        /// The evidence digest the task was accepted on.
+        #[arg(long)]
+        digest: String,
+        #[arg(long)]
+        by: String,
+        /// Branch to create (default clatterforge/<task id prefix>). Must not exist.
+        #[arg(long)]
+        branch: Option<String>,
+        /// Commit message file (default: a generated summary naming the evidence).
+        #[arg(long)]
+        message_file: Option<PathBuf>,
+    },
+    /// Push a delivered branch to a configured remote with your own Git credentials.
+    #[command(name = "deliver-push")]
+    DeliverPush {
+        task: String,
+        #[arg(long, default_value = "origin")]
+        remote: String,
+        #[arg(long)]
+        by: String,
+    },
+    /// Open a pull request for a pushed delivery with the GitHub CLI (a draft unless --ready).
+    #[command(name = "deliver-pr")]
+    DeliverPr {
+        task: String,
+        #[arg(long)]
+        by: String,
+        /// Target branch (default: the repository's default branch).
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        ready: bool,
+        #[arg(long, default_value = "gh")]
+        gh: PathBuf,
+    },
+    /// Show a task's delivery record.
+    #[command(name = "deliver-show")]
+    DeliverShow {
+        task: String,
+    },
     /// Print a bounded planning brief for a workflow, to paste into a desktop chat app.
     #[command(name = "workflow-plan-export")]
     WorkflowPlanExport {
@@ -2992,6 +3037,57 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             print(&profile)?;
         }
         Commands::WorkflowShow { task } => print(&Workflows::open(&cli.state)?.get(task)?)?,
+        Commands::DeliverCommit {
+            task,
+            digest,
+            by,
+            branch,
+            message_file,
+        } => {
+            let message = message_file
+                .as_ref()
+                .map(|path| {
+                    std::fs::read_to_string(path)
+                        .with_context(|| format!("read message file {}", path.display()))
+                })
+                .transpose()?;
+            let id = clatterforge::service::TaskService::open(&cli.state)?.resolve(task)?;
+            print(
+                &clatterforge::delivery::Deliveries::open(&cli.state)?.commit(
+                    &id,
+                    digest,
+                    branch.as_deref(),
+                    message.as_deref(),
+                    by,
+                )?,
+            )?
+        }
+        Commands::DeliverPush { task, remote, by } => {
+            let id = clatterforge::service::TaskService::open(&cli.state)?.resolve(task)?;
+            print(&clatterforge::delivery::Deliveries::open(&cli.state)?.push(&id, remote, by)?)?
+        }
+        Commands::DeliverPr {
+            task,
+            by,
+            base,
+            ready,
+            gh,
+        } => {
+            let id = clatterforge::service::TaskService::open(&cli.state)?.resolve(task)?;
+            print(
+                &clatterforge::delivery::Deliveries::open(&cli.state)?.open_pr(
+                    &id,
+                    gh,
+                    base.as_deref(),
+                    *ready,
+                    by,
+                )?,
+            )?
+        }
+        Commands::DeliverShow { task } => {
+            let id = clatterforge::service::TaskService::open(&cli.state)?.resolve(task)?;
+            print(&clatterforge::delivery::Deliveries::open(&cli.state)?.get(&id)?)?
+        }
         Commands::WorkflowPlanExport { task, out } => {
             let pack = Workflows::open(&cli.state)?.context_pack(task)?;
             match out {

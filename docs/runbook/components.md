@@ -15,6 +15,7 @@ Where behavior lives in `src/`, and what each module persists under the state ro
 | `agent_progress.rs` | Host-observed progress, an approved inactivity window and an independent hard cap |
 | `workflow.rs`, `workflow_workspace.rs` | Multi-stage workflows (local model or built-in router), review gates, retry/resume, failover; shared worktrees and Git tree checkpoints |
 | `integration.rs` | Applying an accepted candidate to its exact source checkout, with a byte journal and restore |
+| `delivery.rs` | Explicit, digest-bound delivery of an accepted candidate to a new branch (plumbing commit, no checkout touched), then optional push and pull request |
 | `service.rs` | `TaskService`: one id-resolution and engine-dispatch path shared by CLI, HTTP and MCP; dependency gate and repository leases |
 
 Cancellation is revision-checked, with one tolerance: a stale revision is accepted when the only events since it are the task's own progress updates. An approval, retry/restart/resume or assignment revision since then still fails with a revision conflict (`cancel_revision` in `lib.rs`).

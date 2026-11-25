@@ -85,10 +85,10 @@ struct Plan {
     files: Vec<FileChange>,
 }
 pub(crate) struct Candidate {
-    repository: Repository,
-    revision: u64,
-    evidence_digest: String,
-    files: BTreeMap<String, Option<String>>,
+    pub(crate) repository: Repository,
+    pub(crate) revision: u64,
+    pub(crate) evidence_digest: String,
+    pub(crate) files: BTreeMap<String, Option<String>>,
 }
 fn text(path: &Path) -> Result<Option<String>> {
     match fs::symlink_metadata(path) {
@@ -128,7 +128,7 @@ fn artifact(a: &crate::store::Artifact) -> Result<Vec<u8>> {
     );
     Ok(bytes)
 }
-fn candidate(root: &Path, id: &str) -> Result<Candidate> {
+pub(crate) fn candidate(root: &Path, id: &str) -> Result<Candidate> {
     let workflows = Workflows::open(root)?;
     let agents = Agents::open(root)?;
     let (repo, revision, evidence, files, child) = if let Ok(w) = workflows.get(id) {
@@ -956,7 +956,7 @@ impl Integrations {
         self.finish_owner(outcome, by)
     }
 }
-fn actor(by: &str) -> Result<()> {
+pub(crate) fn actor(by: &str) -> Result<()> {
     ensure!(
         !by.trim().is_empty() && by.len() <= 128,
         "integration actor label required (up to 128 bytes)"

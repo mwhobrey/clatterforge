@@ -8,6 +8,7 @@ pub mod board;
 pub mod codex;
 pub mod context;
 pub mod coordination;
+pub mod delivery;
 pub mod enrollment;
 pub mod execution;
 pub mod fixture;

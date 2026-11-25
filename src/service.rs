@@ -570,7 +570,8 @@ impl TaskService {
         Ok(ids)
     }
 
-    fn resolve(&self, query: &str) -> Result<String> {
+    /// Resolves an exact task id or unambiguous prefix across every engine.
+    pub fn resolve(&self, query: &str) -> Result<String> {
         board::resolve(&self.ids()?, query)
     }
 

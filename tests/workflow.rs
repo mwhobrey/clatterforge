@@ -4836,3 +4836,140 @@ fn plan_imports_are_bounded_and_labelled() {
         "an empty source defaults to desktop_chat"
     );
 }
+
+#[test]
+fn an_accepted_workflow_is_delivered_to_a_branch_without_touching_the_checkout() {
+    use clatterforge::delivery::{Deliveries, default_branch};
+    let model = Model::new(vec![
+        dispatch("worker-a", "WORK_A"),
+        dispatch("worker-b", "WORK_B"),
+        json!({"action":"finish","summary":"done"}),
+    ]);
+    let f = fixture(&model, 3);
+    let done = run(&f);
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{done:?}");
+    let evidence = done.evidence_digest().unwrap();
+    git(&f.repo, &["config", "user.name", "Delivery Fixture"]).unwrap();
+    git(
+        &f.repo,
+        &["config", "user.email", "delivery@example.invalid"],
+    )
+    .unwrap();
+    let mut deliveries = Deliveries::open(&f.state).unwrap();
+    assert!(
+        deliveries
+            .commit(&done.id, &evidence, None, None, "mike")
+            .is_err(),
+        "an unreviewed candidate cannot be delivered"
+    );
+
+    let accepted = Workflows::open(&f.state)
+        .unwrap()
+        .review(&done.id, done.revision, &evidence, "mike", true)
+        .unwrap();
+    assert_eq!(accepted.status, AgentStatus::Accepted);
+    let head_before = git(&f.repo, &["rev-parse", "HEAD"]).unwrap();
+    git(&f.repo, &["branch", "taken"]).unwrap();
+    assert!(
+        deliveries
+            .commit(&done.id, "not-the-evidence", None, None, "mike")
+            .is_err(),
+        "delivery is bound to the accepted evidence digest"
+    );
+    assert!(
+        deliveries
+            .commit(&done.id, &evidence, Some("taken"), None, "mike")
+            .is_err(),
+        "an existing branch is never overwritten"
+    );
+    assert!(
+        deliveries.push(&done.id, "origin", "mike").is_err(),
+        "nothing to push yet"
+    );
+
+    let delivered = deliveries
+        .commit(&done.id, &evidence, None, None, "mike")
+        .unwrap();
+    assert_eq!(delivered.branch, default_branch(&done.id));
+    assert_eq!(delivered.status, "committed");
+    assert_eq!(
+        delivered.files,
+        vec!["a.txt".to_string(), "b.txt".to_string()]
+    );
+    let parent = git(&f.repo, &["rev-parse", &format!("{}^", delivered.commit)]).unwrap();
+    assert_eq!(
+        String::from_utf8(parent).unwrap().trim(),
+        f.workflow.assignment.profile.repository.base
+    );
+    let show = |path: &str| {
+        String::from_utf8(git(&f.repo, &["show", &format!("{}:{path}", delivered.branch)]).unwrap())
+            .unwrap()
+    };
+    assert_eq!(show("a.txt"), "fixed-a");
+    assert_eq!(
+        show("contract.txt"),
+        "Both files must be fixed. Protected contract."
+    );
+    assert_eq!(
+        git(&f.repo, &["rev-parse", "HEAD"]).unwrap(),
+        head_before,
+        "HEAD unchanged"
+    );
+    assert!(
+        git(&f.repo, &["status", "--porcelain"]).unwrap().is_empty(),
+        "working tree and index unchanged"
+    );
+    assert_eq!(fs::read_to_string(f.repo.join("a.txt")).unwrap(), "wrong-a");
+    assert!(
+        deliveries
+            .commit(&done.id, &evidence, Some("again"), None, "mike")
+            .is_err(),
+        "one delivery per task"
+    );
+
+    let gh = f._dir.path().join("no-such-gh.exe");
+    assert!(
+        deliveries
+            .open_pr(&done.id, &gh, None, false, "mike")
+            .is_err(),
+        "a pull request needs a pushed branch"
+    );
+    assert!(
+        deliveries.push(&done.id, "nowhere", "mike").is_err(),
+        "only a configured remote is pushed to"
+    );
+    let bare = f._dir.path().join("remote.git");
+    git(f._dir.path(), &["init", "--bare", bare.to_str().unwrap()]).unwrap();
+    git(
+        &f.repo,
+        &["remote", "add", "origin", bare.to_str().unwrap()],
+    )
+    .unwrap();
+    let pushed = deliveries.push(&done.id, "origin", "mike").unwrap();
+    assert_eq!(pushed.status, "pushed");
+    let remote_head = git(
+        &bare,
+        &["rev-parse", &format!("refs/heads/{}", pushed.branch)],
+    )
+    .unwrap();
+    assert_eq!(
+        String::from_utf8(remote_head).unwrap().trim(),
+        pushed.commit
+    );
+
+    assert!(
+        deliveries
+            .open_pr(&done.id, &gh, None, false, "mike")
+            .is_err(),
+        "a missing GitHub CLI fails cleanly"
+    );
+    assert_eq!(deliveries.get(&done.id).unwrap().unwrap().status, "pushed");
+
+    git(&f.repo, &["branch", "-f", &pushed.branch, "taken"]).unwrap();
+    assert!(
+        deliveries
+            .open_pr(&done.id, &gh, None, false, "mike")
+            .is_err(),
+        "a moved branch is never published"
+    );
+}
