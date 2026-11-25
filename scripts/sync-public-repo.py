@@ -14,9 +14,16 @@ Commits that change nothing public are recorded and skipped. The development-to-
 mapping lives in a private JSON file (default `<state>/oss-sync/published.json`), so the
 next run starts after the last published commit.
 
+By default each change goes through a pull request so CodeRabbit and CI review it before it
+reaches `main`: a run opens one PR (branch `sync/<dev sha>`) for the next unpublished change
+and stops. Later runs report that PR while it is open; once it is merged (rebase or squash),
+the next run records the merged commit and opens the PR for the following change. A PR closed
+without merging stops the sync until the operator decides. `--direct` pushes every pending
+change straight to `main` instead.
+
 Usage:
   python scripts/sync-public-repo.py --clone <public clone> --privacy-policy <deny list>
-      [--message <dev-sha>=<file>] [--no-push]
+      [--message <dev-sha>=<file>] [--no-push] [--direct]
 """
 import argparse
 import json
@@ -96,6 +103,46 @@ def verify_final(clone):
         print('gitleaks not installed; CI will still run it', file=sys.stderr)
 
 
+def gh(cwd, *args):
+    result = subprocess.run([shutil.which('gh') or 'gh', *args], cwd=cwd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f'gh {" ".join(args[:2])} failed: {result.stderr.strip()}')
+    return result.stdout
+
+
+def resolve_pending_pr(clone, state):
+    """Returns True when the sync may continue: no PR is waiting, or the waiting one merged."""
+    pending = state.get('pending_pr')
+    if not pending:
+        return True
+    view = json.loads(gh(clone, 'pr', 'view', str(pending['number']),
+                         '--json', 'state,mergeCommit,url'))
+    if view['state'] == 'OPEN':
+        print(f"waiting on {view['url']} for {pending['dev'][:7]}; nothing else opened")
+        return False
+    if view['state'] != 'MERGED' or not view.get('mergeCommit'):
+        raise RuntimeError(f"{view['url']} was closed without merging; reopen it, or remove "
+                           f"pending_pr from the state file to publish that change again")
+    state['published'].append({'dev': pending['dev'], 'public': view['mergeCommit']['oid']})
+    del state['pending_pr']
+    git(clone, 'fetch', '-q', 'origin')
+    git(clone, 'checkout', '-q', 'main')
+    git(clone, 'reset', '-q', '--hard', 'origin/main')
+    print(f"recorded {pending['dev'][:7]} -> {view['mergeCommit']['oid'][:7]} from {view['url']}")
+    return True
+
+
+def open_pull_request(clone, sha, message):
+    """Pushes the change on its own branch and opens a PR against main."""
+    branch = f'sync/{sha[:12]}'
+    git(clone, 'push', '-q', 'origin', f'HEAD:refs/heads/{branch}')
+    title, _, body = message.partition('\n')
+    url = gh(clone, 'pr', 'create', '--base', 'main', '--head', branch,
+             '--title', title.strip(), '--body', body.strip() or title.strip()).strip()
+    number = int(url.rstrip('/').rsplit('/', 1)[-1])
+    return branch, number, url
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--clone', type=Path, required=True, help='clone of the public repo')
@@ -106,6 +153,8 @@ def main():
                         help='public commit message for one development commit, for messages '
                              'that describe private-only files')
     parser.add_argument('--no-push', action='store_true')
+    parser.add_argument('--direct', action='store_true',
+                        help='push every pending change straight to main instead of opening a PR')
     args = parser.parse_args()
     clone = args.clone.resolve()
     args.privacy_policy = args.privacy_policy.resolve()
@@ -122,6 +171,11 @@ def main():
     if git(ROOT, 'status', '--porcelain').strip():
         raise RuntimeError('development checkout has uncommitted changes; commit or stash first')
     git(clone, 'fetch', '-q', 'origin')
+    if not args.direct:
+        if not resolve_pending_pr(clone, state):
+            return 0
+        args.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+        last_dev = state['published'][-1]['dev']
     if git(clone, 'rev-parse', 'HEAD').strip() != git(clone, 'rev-parse', 'origin/main').strip():
         raise RuntimeError('public clone is not at origin/main; reset it before syncing')
     pending = git(ROOT, 'rev-list', '--reverse', f'{last_dev}..HEAD').split()
@@ -157,7 +211,26 @@ def main():
             public_sha = git(clone, 'rev-parse', 'HEAD').strip()
             verify_commit(clone, export, args.privacy_policy)
             print(f'{sha[:7]} -> {public_sha[:7]} {message.splitlines()[0]}')
+            if not args.direct:
+                # One reviewed change at a time: verify it, open its PR and stop.
+                verify_final(clone)
+                if args.no_push:
+                    print('--no-push: verified locally; no branch pushed, no PR opened')
+                    return 0
+                branch, number, url = open_pull_request(clone, sha, message)
+                state['published'].extend(published)
+                state['pending_pr'] = {'dev': sha, 'branch': branch, 'number': number}
+                args.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+                git(clone, 'reset', '-q', '--hard', 'origin/main')
+                print(f'opened {url}; merge it (rebase or squash), then run again')
+                return 0
             published.append({'dev': sha, 'public': public_sha})
+        if not args.direct:
+            # Only skipped (no public change) commits were pending.
+            state['published'].extend(published)
+            args.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+            print('nothing public to open a PR for')
+            return 0
         if any(entry['public'] for entry in published):
             verify_final(clone)
         if not args.no_push:
