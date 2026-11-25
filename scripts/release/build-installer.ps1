@@ -73,11 +73,23 @@ if ($SignCommand) {
 
 Write-Host "== backend (release)"
 $env:CARGO_TARGET_DIR = Join-Path $repo 'target\installer'
+# Link the C runtime statically, as Tauri already does for the desktop app. A dynamically
+# linked backend needs VCRUNTIME140.dll, which a clean Windows install lacks (only the Visual
+# C++ Redistributable provides it), and the sidecar then fails with STATUS_DLL_NOT_FOUND.
+$savedRustFlags = $env:RUSTFLAGS
+$env:RUSTFLAGS = (@($env:RUSTFLAGS, '-C target-feature=+crt-static') | Where-Object { $_ }) -join ' '
 Push-Location $repo
 try {
     cargo build --release --locked -p clatterforge
     if ($LASTEXITCODE -ne 0) { throw 'backend build failed' }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    $env:RUSTFLAGS = $savedRustFlags
+}
+$backend = Join-Path $env:CARGO_TARGET_DIR 'release\clatterforge.exe'
+if ([Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($backend)) -match '(?i)vcruntime140|msvcp140') {
+    throw "$backend imports the Visual C++ runtime DLLs; it would not start on a clean Windows install."
+}
 $triple = ((rustc -vV) | Select-String '^host: ').ToString().Substring(6).Trim()
 $binaries = Join-Path $tauriDir 'binaries'
 New-Item -ItemType Directory -Force -Path $binaries | Out-Null
