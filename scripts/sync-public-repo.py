@@ -19,11 +19,14 @@ reaches `main`: a run opens one PR (branch `sync/<dev sha>`) for the next unpubl
 and stops. Later runs report that PR while it is open; once it is merged (rebase or squash),
 the next run records the merged commit and opens the PR for the following change. A PR closed
 without merging stops the sync until the operator decides. `--direct` pushes every pending
-change straight to `main` instead.
+change straight to `main` instead. `--bundle` puts every pending change on one PR branch,
+still one public commit per change, for when later changes fix the checks of earlier ones;
+after a rebase merge each change maps to its own commit, after a squash merge all of them map
+to the squash commit.
 
 Usage:
   python scripts/sync-public-repo.py --clone <public clone> --privacy-policy <deny list>
-      [--message <dev-sha>=<file>] [--no-push] [--direct]
+      [--message <dev-sha>=<file>] [--no-push] [--direct | --bundle]
 """
 import argparse
 import json
@@ -134,18 +137,38 @@ def resolve_pending_pr(clone, state):
     if view['state'] != 'MERGED' or not view.get('mergeCommit'):
         raise RuntimeError(f"{view['url']} was closed without merging; reopen it, or remove "
                            f"pending_pr from the state file to publish that change again")
-    state['published'].append({'dev': pending['dev'], 'public': view['mergeCommit']['oid']})
-    del state['pending_pr']
+    merged = view['mergeCommit']['oid']
     git(clone, 'fetch', '-q', 'origin')
+    if 'entries' in pending:
+        state['published'].extend(bundle_mapping(clone, pending, merged))
+    else:
+        state['published'].append({'dev': pending['dev'], 'public': merged})
+    del state['pending_pr']
     git(clone, 'checkout', '-q', 'main')
     git(clone, 'reset', '-q', '--hard', 'origin/main')
-    print(f"recorded {pending['dev'][:7]} -> {view['mergeCommit']['oid'][:7]} from {view['url']}")
+    label = pending.get('dev', pending.get('entries', [{}])[-1].get('dev', ''))
+    print(f"recorded {label[:7]} -> {merged[:7]} from {view['url']}")
     return True
 
 
-def open_pull_request(clone, sha, message):
+def bundle_mapping(clone, pending, merged):
+    """Maps a merged bundle PR back to development commits: one public commit per changed
+    development commit after a rebase merge, or the single squash commit for all of them."""
+    changed = [entry['dev'] for entry in pending['entries'] if entry['changed']]
+    landed = git(clone, 'rev-list', '--reverse', f"{pending['base']}..{merged}").split()
+    if len(landed) == len(changed):
+        public = dict(zip(changed, landed))
+    elif len(landed) == 1:
+        public = dict.fromkeys(changed, landed[0])
+    else:
+        raise RuntimeError(f'bundle PR landed {len(landed)} commits for {len(changed)} changes; '
+                           'record the mapping by hand')
+    return [{'dev': entry['dev'], 'public': public.get(entry['dev'])} for entry in pending['entries']]
+
+
+def open_pull_request(clone, sha, message, branch=None):
     """Pushes the change on its own branch and opens a PR against main."""
-    branch = f'sync/{sha[:12]}'
+    branch = branch or f'sync/{sha[:12]}'
     git(clone, 'push', '-q', 'origin', f'HEAD:refs/heads/{branch}')
     title, _, body = message.partition('\n')
     url = gh(clone, 'pr', 'create', '--base', 'main', '--head', branch,
@@ -164,8 +187,11 @@ def main():
                         help='public commit message for one development commit, for messages '
                              'that describe private-only files')
     parser.add_argument('--no-push', action='store_true')
-    parser.add_argument('--direct', action='store_true',
-                        help='push every pending change straight to main instead of opening a PR')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--direct', action='store_true',
+                      help='push every pending change straight to main instead of opening a PR')
+    mode.add_argument('--bundle', action='store_true',
+                      help='open one PR carrying every pending change, one commit each')
     args = parser.parse_args()
     clone = args.clone.resolve()
     args.privacy_policy = args.privacy_policy.resolve()
@@ -222,7 +248,7 @@ def main():
             public_sha = git(clone, 'rev-parse', 'HEAD').strip()
             verify_commit(clone, export, args.privacy_policy)
             print(f'{sha[:7]} -> {public_sha[:7]} {message.splitlines()[0]}')
-            if not args.direct:
+            if not args.direct and not args.bundle:
                 # One reviewed change at a time: verify it, open its PR and stop.
                 verify_final(clone, args.privacy_policy)
                 if args.no_push:
@@ -236,6 +262,26 @@ def main():
                 print(f'opened {url}; merge it (rebase or squash), then run again')
                 return 0
             published.append({'dev': sha, 'public': public_sha})
+        if args.bundle and any(entry['public'] for entry in published):
+            verify_final(clone, args.privacy_policy)
+            if args.no_push:
+                print('--no-push: verified locally; no branch pushed, no PR opened')
+                return 0
+            base = git(clone, 'rev-parse', 'origin/main').strip()
+            changes = [entry for entry in published if entry['public']]
+            subjects = [git(clone, 'log', '-1', '--format=%s', entry['public']).strip() for entry in changes]
+            message = (f'Sync {len(changes)} changes' + '\n\n'
+                       + '\n'.join(f'- {s}' for s in subjects) + '\n\n'
+                       + 'Merge with rebase to keep one commit per change.')
+            branch, number, url = open_pull_request(
+                clone, pending[-1], message, branch=f'sync/bundle-{pending[-1][:12]}')
+            state['pending_pr'] = {
+                'entries': [{'dev': entry['dev'], 'changed': bool(entry['public'])} for entry in published],
+                'base': base, 'branch': branch, 'number': number}
+            args.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+            git(clone, 'reset', '-q', '--hard', 'origin/main')
+            print(f'opened {url}; merge it with rebase, then run again')
+            return 0
         if not args.direct:
             # Only skipped (no public change) commits were pending.
             state['published'].extend(published)
