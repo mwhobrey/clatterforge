@@ -164,23 +164,33 @@ fn two_legacy_run_processes_racing_the_same_repository_admit_exactly_one() {
     );
 
     // Clean up the hung attempt and confirm the lease is then free again.
-    let hung = Store::open(&state).unwrap().task(&hang_id).unwrap();
-    let cancelled = cli(
-        &state,
-        &[
-            "cancel",
-            &hang_id,
-            "--revision",
-            &hung.revision.to_string(),
-            "--by",
-            "fixture",
-        ],
-    );
-    assert!(
-        cancelled.status.success(),
-        "{}",
-        String::from_utf8_lossy(&cancelled.stderr)
-    );
+    // The running process can still advance the task's revision after it
+    // reaches Running, so a cancel against a just-read revision may be
+    // refused as stale; re-read and retry, as an operator would.
+    let until = Instant::now() + Duration::from_secs(10);
+    loop {
+        let hung = Store::open(&state).unwrap().task(&hang_id).unwrap();
+        let cancelled = cli(
+            &state,
+            &[
+                "cancel",
+                &hang_id,
+                "--revision",
+                &hung.revision.to_string(),
+                "--by",
+                "fixture",
+            ],
+        );
+        if cancelled.status.success() {
+            break;
+        }
+        let stderr = String::from_utf8_lossy(&cancelled.stderr);
+        assert!(
+            stderr.contains("revision conflict") && Instant::now() < until,
+            "{stderr}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
     // Unlike `agent-run`, the legacy `run` command's own existing
     // `ensure!` (pre-dating this milestone) treats Cancelled the same as
     // Failed/TimedOut/Unknown - a non-zero exit. Only the lease release
