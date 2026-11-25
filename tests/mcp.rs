@@ -399,26 +399,14 @@ async fn capabilities_lists_every_tool_and_declares_known_limits() {
     let (_dir, _repo, state, _id) = setup();
     let server = McpServer::open(state).unwrap();
     let caps = server.conductor_capabilities().await.unwrap().0;
-    assert!(!caps.scheduling_supported, "no scheduler exists yet");
+    assert!(caps.scheduling_supported, "#24 added durable scheduling");
     assert!(
         caps.standing_delegation_supported,
         "Phase 2 added standing grants"
     );
-    assert_eq!(caps.tools.len(), 17);
+    assert_eq!(caps.tools.len(), 19);
     assert!(caps.tools.iter().any(|t| t == "conductor_submit_task"));
     assert!(caps.tools.iter().any(|t| t == "conductor_schedule_task"));
-}
-
-#[tokio::test]
-async fn schedule_task_honestly_reports_unsupported() {
-    let (_dir, _repo, state, _id) = setup();
-    let server = McpServer::open(state).unwrap();
-    let response = server
-        .conductor_schedule_task(Parameters(RequestIdOnly { request_id: None }))
-        .await
-        .unwrap()
-        .0;
-    assert!(!response.supported);
 }
 
 #[tokio::test]

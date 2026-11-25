@@ -207,7 +207,10 @@ async fn edge_dispatch_overrides_caller_supplied_principal_with_the_verified_enr
         .expect("conductor_capabilities through the edge")
         .structured_content
         .expect("structured content");
-    assert_eq!(caps["tools"].as_array().unwrap().len(), 17);
+    assert_eq!(
+        caps["tools"].as_array().unwrap().len(),
+        clatterforge_protocol::TOOL_NAMES.len()
+    );
 
     let submit_args = serde_json::json!({
         "backend": "fake-process-v1",

@@ -46,7 +46,7 @@ use uuid::Uuid;
 #[serde(rename_all = "snake_case")]
 pub enum EnrollmentOperation {
     /// Every read-only tool: capabilities, list/get/evidence/approval-requirements,
-    /// global-stop-status, and the side-effect-free propose/schedule probes.
+    /// list-schedules, global-stop-status, and the side-effect-free propose probe.
     Inspect,
     Submit,
     Approve,
@@ -67,7 +67,7 @@ impl EnrollmentOperation {
         }
     }
 
-    /// Every one of the 15 `conductor_*` tools maps to exactly one category - `None` means
+    /// Every one of the `conductor_*` tools maps to exactly one category - `None` means
     /// an unrecognized tool name, not an ungated one. Kept exhaustive and listed alongside
     /// `clatterforge_protocol::TOOL_NAMES` deliberately, mirroring how `src/mcp.rs::TOOL_NAMES`
     /// itself is kept as one list so nothing can silently drift out of sync.
@@ -78,18 +78,19 @@ impl EnrollmentOperation {
             | "conductor_list_tasks"
             | "conductor_get_task"
             | "conductor_propose_task"
-            | "conductor_schedule_task"
+            | "conductor_list_schedules"
             | "conductor_get_execution"
             | "conductor_get_evidence"
             | "conductor_get_approval_requirements"
             | "conductor_global_stop_status"
             | "conductor_get_evidence_summary"
             | "conductor_get_artifact" => Some(Self::Inspect),
-            "conductor_submit_task" => Some(Self::Submit),
+            // Scheduling submits later as this client, so it needs the same right now.
+            "conductor_submit_task" | "conductor_schedule_task" => Some(Self::Submit),
             "conductor_approve" => Some(Self::Approve),
             "conductor_reject" => Some(Self::Reject),
             "conductor_resume" => Some(Self::Resume),
-            "conductor_cancel_task" => Some(Self::Cancel),
+            "conductor_cancel_task" | "conductor_cancel_schedule" => Some(Self::Cancel),
             _ => None,
         }
     }

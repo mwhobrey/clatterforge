@@ -39,8 +39,18 @@ pub trait ConductorBackend {
 
     async fn conductor_schedule_task(
         &self,
-        req: RequestIdOnly,
+        req: ScheduleTaskRequest,
     ) -> Result<ScheduleTaskResponse, BackendError>;
+
+    async fn conductor_list_schedules(
+        &self,
+        req: RequestIdOnly,
+    ) -> Result<ListSchedulesResponse, BackendError>;
+
+    async fn conductor_cancel_schedule(
+        &self,
+        req: CancelScheduleRequest,
+    ) -> Result<ListSchedulesResponse, BackendError>;
 
     async fn conductor_get_execution(
         &self,

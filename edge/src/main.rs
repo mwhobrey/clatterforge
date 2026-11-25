@@ -13,12 +13,13 @@
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use clatterforge_protocol::{
-    ApprovalRequirementsResponse, BackendError, CancelTaskRequest, CapabilitiesResponse,
-    ConductorBackend, DecisionRequest, DecisionResponse, ErrorKind, EvidenceSummaryRequest,
-    EvidenceSummaryResponse, GetArtifactRequest, GetArtifactResponse, GetTaskRequest,
-    ListRepositoriesResponse, ListTasksResponse, ProposeTaskRequest, ProposeTaskResponse,
-    RequestIdOnly, ResumeRequest, ResumeResponse, ScheduleTaskResponse, StopStatusResponse,
-    SubmitTaskRequest, SubmitTaskResponse, TaskIdRequest, TaskResponse,
+    ApprovalRequirementsResponse, BackendError, CancelScheduleRequest, CancelTaskRequest,
+    CapabilitiesResponse, ConductorBackend, DecisionRequest, DecisionResponse, ErrorKind,
+    EvidenceSummaryRequest, EvidenceSummaryResponse, GetArtifactRequest, GetArtifactResponse,
+    GetTaskRequest, ListRepositoriesResponse, ListSchedulesResponse, ListTasksResponse,
+    ProposeTaskRequest, ProposeTaskResponse, RequestIdOnly, ResumeRequest, ResumeResponse,
+    ScheduleTaskRequest, ScheduleTaskResponse, StopStatusResponse, SubmitTaskRequest,
+    SubmitTaskResponse, TaskIdRequest, TaskResponse,
 };
 use rmcp::{
     ErrorData as McpError, ServerHandler, ServiceExt,
@@ -290,9 +291,23 @@ impl ConductorBackend for RemoteBackend {
 
     async fn conductor_schedule_task(
         &self,
-        req: RequestIdOnly,
+        req: ScheduleTaskRequest,
     ) -> Result<ScheduleTaskResponse, BackendError> {
         self.call("conductor_schedule_task", req).await
+    }
+
+    async fn conductor_list_schedules(
+        &self,
+        req: RequestIdOnly,
+    ) -> Result<ListSchedulesResponse, BackendError> {
+        self.call("conductor_list_schedules", req).await
+    }
+
+    async fn conductor_cancel_schedule(
+        &self,
+        req: CancelScheduleRequest,
+    ) -> Result<ListSchedulesResponse, BackendError> {
+        self.call("conductor_cancel_schedule", req).await
     }
 
     async fn conductor_get_execution(
@@ -487,14 +502,40 @@ impl EdgeMcpServer {
     }
 
     #[tool(
-        description = "Durable/delayed scheduling does not exist. Always returns supported=false."
+        description = "Schedule a conductor_submit_task request for later (not_before_ms, \
+    optional bounded repeat). Each occurrence is submitted as this client under the same \
+    approval rules; a standing grant may auto-authorize it at that moment."
     )]
     async fn conductor_schedule_task(
         &self,
-        Parameters(req): Parameters<RequestIdOnly>,
+        Parameters(req): Parameters<ScheduleTaskRequest>,
     ) -> Result<Json<ScheduleTaskResponse>, McpError> {
         self.backend
             .conductor_schedule_task(req)
+            .await
+            .map(Json)
+            .map_err(to_mcp_error)
+    }
+
+    #[tool(description = "List this client's schedules and every firing.")]
+    async fn conductor_list_schedules(
+        &self,
+        Parameters(req): Parameters<RequestIdOnly>,
+    ) -> Result<Json<ListSchedulesResponse>, McpError> {
+        self.backend
+            .conductor_list_schedules(req)
+            .await
+            .map(Json)
+            .map_err(to_mcp_error)
+    }
+
+    #[tool(description = "Cancel one of this client's active schedules.")]
+    async fn conductor_cancel_schedule(
+        &self,
+        Parameters(req): Parameters<CancelScheduleRequest>,
+    ) -> Result<Json<ListSchedulesResponse>, McpError> {
+        self.backend
+            .conductor_cancel_schedule(req)
             .await
             .map(Json)
             .map_err(to_mcp_error)

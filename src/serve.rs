@@ -24,9 +24,10 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use clatterforge_protocol::{
-    BackendError, CancelTaskRequest, ConductorBackend, DecisionRequest, ErrorKind,
-    EvidenceSummaryRequest, GetArtifactRequest, GetTaskRequest, ProposeTaskRequest, RequestIdOnly,
-    ResumeRequest, SetPrincipal, SubmitTaskRequest, TaskIdRequest,
+    BackendError, CancelScheduleRequest, CancelTaskRequest, ConductorBackend, DecisionRequest,
+    ErrorKind, EvidenceSummaryRequest, GetArtifactRequest, GetTaskRequest, ProposeTaskRequest,
+    RequestIdOnly, ResumeRequest, ScheduleTaskRequest, SetPrincipal, SubmitTaskRequest,
+    TaskIdRequest,
 };
 use serde::Deserialize;
 use std::{
@@ -2257,7 +2258,23 @@ async fn post_edge_tools_call(
         "conductor_submit_task" => {
             dispatch_authenticated!(conductor_submit_task, SubmitTaskRequest)
         }
-        "conductor_schedule_task" => dispatch!(conductor_schedule_task, RequestIdOnly),
+        "conductor_schedule_task" => {
+            dispatch_authenticated!(conductor_schedule_task, ScheduleTaskRequest)
+        }
+        "conductor_list_schedules" => {
+            let backend = backend.with_verified_principal(verified_principal.clone());
+            let req: RequestIdOnly = match serde_json::from_value(call.params) {
+                Ok(req) => req,
+                Err(error) => return invalid_tool_params(&call.tool, error),
+            };
+            match backend.conductor_list_schedules(req).await {
+                Ok(response) => Json(response).into_response(),
+                Err(error) => backend_error_response(error),
+            }
+        }
+        "conductor_cancel_schedule" => {
+            dispatch_authenticated!(conductor_cancel_schedule, CancelScheduleRequest)
+        }
         "conductor_get_execution" => dispatch!(conductor_get_execution, GetTaskRequest),
         "conductor_get_evidence" => dispatch!(conductor_get_evidence, GetTaskRequest),
         "conductor_get_approval_requirements" => {
@@ -2762,8 +2779,56 @@ pub async fn run_with_rotation(
             hosts.join(", ")
         );
     }
+    spawn_schedule_tick(root.clone(), Arc::clone(&logger));
     axum::serve(listener, app).await.context("serve")?;
     Ok(())
+}
+
+/// Fires due schedules every `schedule::TICK_MS` for as long as this process serves. One
+/// firing at a time, so a long inline run delays the next tick rather than stacking up.
+fn spawn_schedule_tick(root: PathBuf, logger: Arc<JsonLogger>) {
+    tokio::spawn(async move {
+        let mut tick =
+            tokio::time::interval(std::time::Duration::from_millis(crate::schedule::TICK_MS));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            tick.tick().await;
+            match crate::schedule::fire_due(&root, crate::now()).await {
+                Ok(outcomes) => {
+                    for outcome in outcomes {
+                        let level_error = outcome.error.is_some();
+                        let message = match (&outcome.task_id, &outcome.error) {
+                            (_, Some(error)) => format!(
+                                "schedule {} occurrence {} failed: {error}",
+                                outcome.schedule_id, outcome.occurrence
+                            ),
+                            (Some(task), None) => format!(
+                                "schedule {} occurrence {} submitted task {task}",
+                                outcome.schedule_id, outcome.occurrence
+                            ),
+                            (None, None) => format!(
+                                "schedule {} occurrence {} submitted",
+                                outcome.schedule_id, outcome.occurrence
+                            ),
+                        };
+                        let fields = serde_json::to_value(&outcome).unwrap_or_default();
+                        if level_error {
+                            logger.warn("schedule", "schedule.fire_failed", None, message, fields);
+                        } else {
+                            logger.info("schedule", "schedule.fired", None, message, fields);
+                        }
+                    }
+                }
+                Err(error) => logger.warn(
+                    "schedule",
+                    "schedule.tick_failed",
+                    None,
+                    format!("schedule tick failed: {error:#}"),
+                    serde_json::json!({}),
+                ),
+            }
+        }
+    });
 }
 
 #[cfg(test)]

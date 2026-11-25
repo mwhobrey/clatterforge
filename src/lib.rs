@@ -22,6 +22,7 @@ pub mod orchestration;
 pub mod process;
 pub mod repository;
 pub mod runner;
+pub mod schedule;
 pub mod serve;
 pub mod service;
 pub mod stop;

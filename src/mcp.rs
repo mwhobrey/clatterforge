@@ -44,12 +44,13 @@ use crate::{
 };
 use anyhow::{Context, Result};
 pub use clatterforge_protocol::{
-    AUTHORIZATION_NOTE, ApprovalRequirementsResponse, CancelTaskRequest, CapabilitiesResponse,
-    DecisionRequest, DecisionResponse, EvidenceSummaryRequest, EvidenceSummaryResponse,
-    GetArtifactRequest, GetArtifactResponse, GetTaskRequest, ListRepositoriesResponse,
-    ListTasksResponse, ProposeTaskRequest, ProposeTaskResponse, RequestIdOnly, ResumeRequest,
-    ResumeResponse, ScheduleTaskResponse, StopStatusResponse, SubmitTaskRequest,
-    SubmitTaskResponse, TOOL_NAMES, TaskIdRequest, TaskResponse,
+    AUTHORIZATION_NOTE, ApprovalRequirementsResponse, CancelScheduleRequest, CancelTaskRequest,
+    CapabilitiesResponse, DecisionRequest, DecisionResponse, EvidenceSummaryRequest,
+    EvidenceSummaryResponse, GetArtifactRequest, GetArtifactResponse, GetTaskRequest,
+    ListRepositoriesResponse, ListSchedulesResponse, ListTasksResponse, ProposeTaskRequest,
+    ProposeTaskResponse, RequestIdOnly, ResumeRequest, ResumeResponse, ScheduleTaskRequest,
+    ScheduleTaskResponse, StopStatusResponse, SubmitTaskRequest, SubmitTaskResponse, TOOL_NAMES,
+    TaskIdRequest, TaskResponse,
 };
 use clatterforge_protocol::{BackendError, ConductorBackend, ErrorKind};
 use rmcp::{
@@ -205,6 +206,11 @@ pub(crate) fn to_mcp_error(err: BackendError) -> McpError {
     }
 }
 
+fn schedule_value(schedule: &crate::schedule::Schedule) -> Result<Value, BackendError> {
+    serde_json::to_value(schedule)
+        .map_err(|e| BackendError::internal(format!("failed to serialize schedule: {e}")))
+}
+
 fn detail_value(detail: &board::Detail) -> Result<Value, BackendError> {
     serde_json::to_value(detail)
         .map_err(|e| BackendError::internal(format!("failed to serialize task detail: {e}")))
@@ -240,9 +246,20 @@ pub struct LocalBackend {
     /// two places that ever read this field, and a grant - however broad - cannot widen it;
     /// see `src/enrollment.rs`'s module doc for why that ordering matters.
     repository_scope: Vec<String>,
+    /// The verified, namespaced principal of a trusted edge caller, set by the edge
+    /// dispatcher (`with_verified_principal`). Restricts listings that carry no principal of
+    /// their own, such as `conductor_list_schedules`, to that caller's records.
+    schedule_owner: Option<String>,
 }
 
 impl LocalBackend {
+    /// Records the verified edge principal for principal-less listings. Only the edge
+    /// dispatcher calls this, with the identity `authenticate_edge` just verified.
+    pub fn with_verified_principal(mut self, principal: String) -> Self {
+        self.schedule_owner = Some(principal);
+        self
+    }
+
     /// Opens the adapter against `root` (the same state directory every other engine uses),
     /// creating the small idempotency table this module owns if it doesn't exist yet. Used
     /// by stdio `mcp-serve` - `principal` is whatever the caller asserts, unverified,
@@ -253,6 +270,7 @@ impl LocalBackend {
             root,
             trusted: false,
             repository_scope: Vec::new(),
+            schedule_owner: None,
         })
     }
 
@@ -269,6 +287,7 @@ impl LocalBackend {
             root,
             trusted: true,
             repository_scope,
+            schedule_owner: None,
         })
     }
 
@@ -742,7 +761,7 @@ impl ConductorBackend for LocalBackend {
                 "workflow-v1".to_string(),
             ],
             tools: TOOL_NAMES.iter().map(|s| s.to_string()).collect(),
-            scheduling_supported: false,
+            scheduling_supported: true,
             standing_delegation_supported: true,
             notes: vec![
                 "workflow-v1 profiles can include immutable versioned specialist agentlets. Inspect task.workflow.agentlets, pending_agentlet_gates and each step.result.agentlet_result for approved roles and typed findings. Required reviewers must complete on the current candidate before result review. Definitions and local bindings are CLI-administered; remote clients cannot change their instructions or capabilities.".to_string(),
@@ -751,6 +770,7 @@ impl ConductorBackend for LocalBackend {
                 "cursor-agent/codex execution is dispatched asynchronously: conductor_submit_task/conductor_resume return as soon as the run is started, not when it finishes - poll conductor_get_task/conductor_get_execution for completion.".to_string(),
                 "prefer conductor_get_evidence_summary over conductor_get_task/conductor_get_evidence for a bounded, actionable result - it reports has_verifier_output=false explicitly rather than inventing a summary when nothing has run yet, and names the artifact labels conductor_get_artifact can page through for the full log.".to_string(),
                 "standing grants (CLI-managed only, never created/listed/modified through MCP) can auto-authorize submit/approve/resume/review-accept; without a covering grant, every decision still needs an explicit interactive call with a caller-asserted principal that is not yet cryptographically verified over stdio local mode.".to_string(),
+                "conductor_schedule_task stores a conductor_submit_task request with not_before_ms and an optional bounded repeat. Only a running `serve` fires schedules (every 15 s): each occurrence is submitted through conductor_submit_task as the scheduling principal, so grants are evaluated at fire time and requested_execution_mode \"interactive\" still waits for approval. Nothing fires during a global stop; missed occurrences fire once, not as a burst. Inspect fires (task ids, authorization steps, errors) with conductor_list_schedules.".to_string(),
             ],
         })
     }
@@ -1141,13 +1161,73 @@ impl ConductorBackend for LocalBackend {
 
     async fn conductor_schedule_task(
         &self,
-        req: RequestIdOnly,
+        req: ScheduleTaskRequest,
     ) -> Result<ScheduleTaskResponse, BackendError> {
+        let rid = request_id(req.request_id.clone());
+        // Over the edge path the dispatcher has already replaced the principal with the
+        // verified, namespaced enrollment identity; record which enrollment that is so every
+        // firing rechecks it.
+        let client_id = if self.trusted {
+            req.submission
+                .principal
+                .strip_prefix(crate::enrollment::PRINCIPAL_NAMESPACE_PREFIX)
+                .map(str::to_owned)
+        } else {
+            None
+        };
+        let schedule = crate::schedule::Schedules::open(&self.root)?
+            .create(&req, client_id.as_deref(), crate::now())
+            .map_err(|e| BackendError::invalid_params(e.to_string()))?;
         Ok(ScheduleTaskResponse {
-            supported: false,
-            explanation: "Durable scheduling is not implemented in this milestone. Own the schedule \
-            in your own orchestrator and call conductor_submit_task when the task should actually run."
+            supported: true,
+            explanation: "Stored. The running serve process submits each occurrence through \
+            conductor_submit_task when it falls due; a standing grant covering it then may \
+            auto-authorize it, otherwise it waits for approval. Nothing fires while the global \
+            stop is engaged."
                 .to_string(),
+            schedule: Some(schedule_value(&schedule)?),
+            request_id: rid,
+        })
+    }
+
+    async fn conductor_list_schedules(
+        &self,
+        req: RequestIdOnly,
+    ) -> Result<ListSchedulesResponse, BackendError> {
+        // Edge callers only ever see their own schedules; this listing has no principal of
+        // its own, so trusted callers get the enrollment-scoped view via the dispatcher.
+        let schedules = crate::schedule::Schedules::open(&self.root)?
+            .list(None)?
+            .iter()
+            .filter(|s| !self.trusted || self.schedule_owner.as_deref() == Some(&s.principal))
+            .map(schedule_value)
+            .collect::<Result<_, _>>()?;
+        Ok(ListSchedulesResponse {
+            schedules,
+            request_id: request_id(req.request_id),
+        })
+    }
+
+    async fn conductor_cancel_schedule(
+        &self,
+        req: CancelScheduleRequest,
+    ) -> Result<ListSchedulesResponse, BackendError> {
+        let by = req
+            .principal
+            .clone()
+            .unwrap_or_else(|| "mcp-stdio".to_string());
+        let owner = self.trusted.then_some(by.as_str());
+        let schedule = crate::schedule::Schedules::open(&self.root)?
+            .cancel(&req.schedule_id, &by, owner)
+            .map_err(|e| {
+                if e.to_string() == "unknown schedule" {
+                    BackendError::not_found("unknown schedule")
+                } else {
+                    BackendError::invalid_params(e.to_string())
+                }
+            })?;
+        Ok(ListSchedulesResponse {
+            schedules: vec![schedule_value(&schedule)?],
             request_id: request_id(req.request_id),
         })
     }
@@ -1702,8 +1782,9 @@ impl McpServer {
 impl McpServer {
     #[tool(
         description = "Describe what this adapter actually supports: the tool list, which \
-    backends are reachable, whether durable scheduling exists (it does not, in this phase), \
-    and whether standing delegation exists (it does, since M11 Phase 2). Call this first."
+    backends are reachable, whether durable scheduling exists (it does: a running serve fires \
+    conductor_schedule_task entries), and whether standing delegation exists (it does, since \
+    M11 Phase 2). Call this first."
     )]
     pub async fn conductor_capabilities(&self) -> Result<Json<CapabilitiesResponse>, McpError> {
         self.backend
@@ -1832,17 +1913,49 @@ impl McpServer {
     }
 
     #[tool(
-        description = "Durable/delayed task scheduling does not exist in this engine (M11 \
-    Phase 0 confirmed zero prior scheduling infrastructure — no cron table, no timer thread). \
-    This always returns supported=false; own scheduling in the external orchestrator and call \
-    conductor_submit_task when ready, per this milestone's own fallback instruction."
+        description = "Schedule a conductor_submit_task request for later: not_before_ms (unix \
+    ms) plus an optional repeat_every_ms (>= 60000, requires max_occurrences). The running serve \
+    process submits each occurrence as you, under the same approval and admission rules: a \
+    standing grant covering it at that moment may auto-authorize it; requested_execution_mode \
+    \"interactive\" always waits for approval. Nothing fires during a global stop, and missed \
+    occurrences fire once. Each occurrence is idempotent, so restarts never duplicate a task."
     )]
     pub async fn conductor_schedule_task(
         &self,
-        Parameters(req): Parameters<RequestIdOnly>,
+        Parameters(req): Parameters<ScheduleTaskRequest>,
     ) -> Result<Json<ScheduleTaskResponse>, McpError> {
         self.backend
             .conductor_schedule_task(req)
+            .await
+            .map(Json)
+            .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        description = "List schedules with their state, next due time and every firing \
+    (task id, grant authorization steps, error). Edge callers see only their own."
+    )]
+    pub async fn conductor_list_schedules(
+        &self,
+        Parameters(req): Parameters<RequestIdOnly>,
+    ) -> Result<Json<ListSchedulesResponse>, McpError> {
+        self.backend
+            .conductor_list_schedules(req)
+            .await
+            .map(Json)
+            .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        description = "Cancel an active schedule so no further occurrence fires. Tasks it \
+    already created are unaffected; cancel those with conductor_cancel_task."
+    )]
+    pub async fn conductor_cancel_schedule(
+        &self,
+        Parameters(req): Parameters<CancelScheduleRequest>,
+    ) -> Result<Json<ListSchedulesResponse>, McpError> {
+        self.backend
+            .conductor_cancel_schedule(req)
             .await
             .map(Json)
             .map_err(to_mcp_error)

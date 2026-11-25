@@ -15,6 +15,8 @@ pub const TOOL_NAMES: &[&str] = &[
     "conductor_propose_task",
     "conductor_submit_task",
     "conductor_schedule_task",
+    "conductor_list_schedules",
+    "conductor_cancel_schedule",
     "conductor_get_execution",
     "conductor_get_evidence",
     "conductor_get_approval_requirements",
@@ -330,11 +332,53 @@ pub struct StopStatusResponse {
     pub request_id: String,
 }
 
+/// A submission to make later. When it falls due, the running `serve` process submits it
+/// through `conductor_submit_task` exactly as written (same principal, same approval and
+/// admission rules); a standing grant that covers it at that moment may auto-authorize it,
+/// and `requested_execution_mode: "interactive"` still forces it to wait for approval.
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ScheduleTaskRequest {
+    /// The `conductor_submit_task` request to make. Its `workflow_id`/`idempotency_key` are
+    /// replaced per occurrence so a retried or restarted firing never creates a duplicate.
+    pub submission: SubmitTaskRequest,
+    /// Unix milliseconds of the first occurrence. A past time fires on the next tick.
+    pub not_before_ms: u64,
+    /// Repeat interval in milliseconds (at least 60000). Requires `max_occurrences`.
+    /// Occurrences missed while the host was down or stopped fire once, never as a burst.
+    #[serde(default)]
+    pub repeat_every_ms: Option<u64>,
+    /// Total occurrences, 1 to 10000. Defaults to 1.
+    #[serde(default)]
+    pub max_occurrences: Option<u32>,
+    #[serde(default)]
+    pub request_id: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ScheduleTaskResponse {
     pub supported: bool,
     pub explanation: String,
+    /// The stored schedule, as `conductor_list_schedules` reports it.
+    #[serde(default)]
+    pub schedule: Option<Value>,
     pub request_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ListSchedulesResponse {
+    pub schedules: Vec<Value>,
+    pub request_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct CancelScheduleRequest {
+    pub schedule_id: String,
+    /// Who is cancelling. Over the edge path the verified enrollment identity replaces it,
+    /// and only that same identity's schedules can be cancelled.
+    #[serde(default)]
+    pub principal: Option<String>,
+    #[serde(default)]
+    pub request_id: Option<String>,
 }
 
 /// Implemented by every request DTO that carries a caller-asserted `principal`-shaped
@@ -351,6 +395,18 @@ pub trait SetPrincipal {
 impl SetPrincipal for SubmitTaskRequest {
     fn set_principal(&mut self, client_id: &str) {
         self.principal = client_id.to_string();
+    }
+}
+
+impl SetPrincipal for ScheduleTaskRequest {
+    fn set_principal(&mut self, client_id: &str) {
+        self.submission.principal = client_id.to_string();
+    }
+}
+
+impl SetPrincipal for CancelScheduleRequest {
+    fn set_principal(&mut self, client_id: &str) {
+        self.principal = Some(client_id.to_string());
     }
 }
 

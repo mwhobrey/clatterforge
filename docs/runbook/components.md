@@ -38,5 +38,6 @@ Cancellation is revision-checked, with one tolerance: a stale revision is accept
 | `ui_server.rs` | Static compiled-GUI server with the same Host/Origin checks | None |
 | `logging.rs` | JSONL logs to stderr and a size-rotated file; stateless per-record appends, rotation under a lock file | `logs/clatterforge.jsonl` (+ `.1`-`.3`) |
 | `mcp.rs`, `gateway.rs`, `enrollment.rs` | MCP stdio adapter, loopback edge gateway, enrolled edge clients | Enrollments, grants |
+| `schedule.rs` | Durable scheduled submissions. A running `serve` fires due ones every 15 s through `conductor_submit_task` as the scheduling principal: grants are judged at fire time, nothing fires during a global stop, missed occurrences fire once, retries replay instead of duplicating | `scheduled_submissions`, `schedule_fires` |
 
 All tables live in `<state>/state.sqlite` unless noted. Session verification and other SQLite work in HTTP handlers run on the blocking pool, not on async workers.
