@@ -122,7 +122,6 @@ if [ "$os_name" = Darwin ]; then
     cp "$dmg" "$out_dir/"
     # The bundler names the update archive after the app only, so two CPUs would collide.
     artifact=$out_dir/Clatterforge_${version}_${arch_label}.app.tar.gz
-    artifact_sig=
     if [ $skip_updater -eq 0 ]; then
         src=$(ls "$bundle_dir"/macos/*.app.tar.gz 2>/dev/null | head -n 1)
         [ -n "$src" ] && [ -f "$src.sig" ] || fail "update archive or signature missing in $bundle_dir/macos"

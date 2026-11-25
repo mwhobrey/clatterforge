@@ -2,11 +2,13 @@ name: Release
 
 # On a version tag (v<version from gui/src-tauri/tauri.conf.json>): build the installers with
 # signed update artifacts, merge one latest.json and draft a GitHub release for review.
-# Nothing is published until a maintainer publishes the draft. macOS joins the matrix with #39.
+# Nothing is published until a maintainer publishes the draft.
 #
 # Needs repository secrets TAURI_SIGNING_PRIVATE_KEY (key contents) and
 # TAURI_SIGNING_PRIVATE_KEY_PASSWORD, and the matching public key committed in tauri.conf.json
 # (scripts/release/new-update-key.ps1). Update URLs are derived from this repository.
+# The macOS builds also need the Apple secrets listed in docs/runbook/packaging.md: APPLE_CERTIFICATE,
+# APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_API_ISSUER, APPLE_API_KEY, APPLE_API_KEY_P8.
 on:
   push:
     tags: ['v*']
@@ -62,6 +64,11 @@ jobs:
           # The oldest supported runner, so the AppImage runs on older glibc too.
           - name: linux
             os: ubuntu-22.04
+          # One build per CPU: the updater manifest has a darwin-aarch64 and a darwin-x86_64 entry.
+          - name: macos-arm64
+            os: macos-latest
+          - name: macos-x64
+            os: macos-15-intel
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     steps:
@@ -108,6 +115,35 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VERSION: ${{ needs.check.outputs.version }}
         run: scripts/release/build-installer.ps1 -OutDir dist/release -Notes "Clatterforge $env:VERSION"
+      - name: Apple notarization key
+        if: startsWith(matrix.name, 'macos')
+        shell: bash
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - name: Build macOS app and dmg
+        if: startsWith(matrix.name, 'macos')
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          # Unset secrets arrive as empty strings, which would quietly ship an ad-hoc signed,
+          # un-notarized app. A release must be signed and notarized.
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY; do
+            eval "value=\${$name:-}"
+            [ -n "$value" ] || { echo "repository secret $name is not set" >&2; exit 1; }
+          done
+          [ -s "$APPLE_API_KEY_PATH" ] || { echo 'repository secret APPLE_API_KEY_P8 is not set' >&2; exit 1; }
+          sh scripts/release/build-installer.sh --out-dir dist/release --notes "Clatterforge $VERSION"
       - name: Build Linux AppImage and .deb
         if: matrix.name == 'linux'
         env:
