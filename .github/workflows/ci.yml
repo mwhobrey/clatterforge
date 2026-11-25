@@ -40,6 +40,8 @@ jobs:
           }
       - name: Verify public source export boundaries
         run: python scripts/test-public-release.py
+      - name: Verify release manifest merging
+        run: python scripts/test-merge-manifests.py
       - run: cargo +1.90.0 build --locked --workspace
       - name: Verify managed-host restart and isolation
         run: python scripts/test-managed-host.py target/debug/clatterforge.exe

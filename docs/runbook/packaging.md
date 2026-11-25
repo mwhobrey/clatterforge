@@ -50,6 +50,18 @@ It needs Tauri's Linux build dependencies, `tauri-cli`, `dioxus-cli` and the `wa
 
 Verified on a clean Debian 12 container as an unprivileged user under Xvfb, for the `.deb` and the extracted AppImage: the app starts its sidecar with the XDG state folder and the bundled UI, the UI is served, the API answers 200 with the token and 401 without it, and uninstalling the `.deb` keeps the state. A signed build with a throwaway key produced the AppImage `.sig` and `latest.json`. Not yet exercised: an in-place AppImage update (it needs a mounted AppImage, so a FUSE-capable desktop) and desktop integration on distributions other than Debian.
 
+## Releasing from CI
+
+Added November 25, 2026 (#40). `.github/workflows/release.yml` runs on a `v<version>` tag (or by hand) once Actions are available on the public repository:
+
+1. `check` confirms the tag matches `version` in `tauri.conf.json` and that the update public key is committed.
+2. `build` runs the same scripts as a local release on `windows-latest` and `ubuntu-22.04` (the oldest runner, so the AppImage works on older glibc). Each writes `~/.clatterforge/release/updater.json` from the repository URL, so no owner name is committed, and signs with the key from secrets.
+3. `release` merges the per-platform manifests with `scripts/release/merge-manifests.py`, which refuses mixed versions, duplicate platforms and unsigned or non-https entries, and creates a **draft** release with every installer, signature and `latest.json`. Only this job can write to the repository.
+
+Before the first run, add repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key file's contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and commit the public key that `new-update-key.ps1` wrote. To release: bump `version`, commit, tag `v<version>`, push the tag, review the draft and publish it. Publishing makes `releases/latest/download/latest.json` live for installed apps. macOS joins the build matrix with #39.
+
+The workflow is linted (actionlint with shellcheck) and the merge script is unit-tested (`scripts/test-merge-manifests.py`), but the workflow itself has not run: Actions are unavailable until the repository is public.
+
 ## Code signing
 
 Installers and binaries are not code-signed yet, so Windows SmartScreen warns on first run. `-SignCommand "<signing command> %1"` passes a signing command to Tauri, which signs each file before update signatures are computed; use it once a certificate or signing service is available.

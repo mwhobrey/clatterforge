@@ -1,0 +1,155 @@
+name: Release
+
+# On a version tag (v<version from gui/src-tauri/tauri.conf.json>): build the installers with
+# signed update artifacts, merge one latest.json and draft a GitHub release for review.
+# Nothing is published until a maintainer publishes the draft. macOS joins the matrix with #39.
+#
+# Needs repository secrets TAURI_SIGNING_PRIVATE_KEY (key contents) and
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD, and the matching public key committed in tauri.conf.json
+# (scripts/release/new-update-key.ps1). Update URLs are derived from this repository.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: 1.90.0
+  TAURI_CLI_VERSION: 2.12.4
+  DIOXUS_CLI_VERSION: 0.7.10
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: version
+        name: Version, tag and update key
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("gui/src-tauri/tauri.conf.json"))["version"])')
+          pubkey=$(python3 -c 'import json; print(json.load(open("gui/src-tauri/tauri.conf.json"))["plugins"]["updater"]["pubkey"].strip())')
+          if [ "$REF_TYPE" = tag ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "tag $REF_NAME does not match app version $version" >&2; exit 1
+          fi
+          if [ -z "$pubkey" ]; then
+            echo 'no update public key in tauri.conf.json; run scripts/release/new-update-key.ps1 and commit it' >&2; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          # The oldest supported runner, so the AppImage runs on older glibc too.
+          - name: linux
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build dependencies
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev build-essential file xdg-utils
+      - name: Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+      - id: tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-tauri*
+            ~/.cargo/bin/dx*
+          key: release-tools-${{ matrix.os }}-rust${{ env.RUST_TOOLCHAIN }}-tauri${{ env.TAURI_CLI_VERSION }}-dx${{ env.DIOXUS_CLI_VERSION }}
+      - name: Install tauri-cli and dioxus-cli
+        if: steps.tools.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          cargo install --locked tauri-cli --version "$TAURI_CLI_VERSION"
+          cargo install --locked dioxus-cli --version "$DIOXUS_CLI_VERSION"
+      - name: Release endpoint for this repository
+        shell: bash
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          mkdir -p ~/.clatterforge/release
+          printf '{"endpoint":"%s/releases/latest/download/latest.json","asset_base_url":"%s/releases/download/v{version}/"}\n' \
+            "$REPO_URL" "$REPO_URL" > ~/.clatterforge/release/updater.json
+      - name: Build Windows installer
+        if: matrix.name == 'windows'
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: scripts/release/build-installer.ps1 -OutDir dist/release -Notes "Clatterforge $env:VERSION"
+      - name: Build Linux AppImage and .deb
+        if: matrix.name == 'linux'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: sh scripts/release/build-installer.sh --out-dir dist/release --notes "Clatterforge $VERSION"
+      - name: Name this platform's manifest
+        shell: bash
+        run: mv dist/release/latest.json "dist/release/latest-${{ matrix.name }}.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-${{ matrix.name }}
+          path: dist/release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: dist
+      - name: Merge update manifests
+        run: |
+          python3 scripts/release/merge-manifests.py --output dist/latest.json dist/latest-*.json
+          rm dist/latest-*.json
+          ls -l dist
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh release create "v$VERSION" dist/* --draft --target "$SHA" \
+            --title "Clatterforge $VERSION" --generate-notes --repo "$GITHUB_REPOSITORY"
