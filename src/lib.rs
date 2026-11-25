@@ -25,6 +25,7 @@ pub mod race;
 pub mod repository;
 pub mod runner;
 pub mod sandbox;
+pub mod sandbox_settings;
 pub mod schedule;
 pub mod serve;
 pub mod service;

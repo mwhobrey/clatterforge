@@ -52,3 +52,15 @@ cargo test -p clatterforge --test workflow live_docker_sandbox -- --ignored
 ```
 
 It runs a task at `isolated` and at `network` and checks the container user is 1000, only loopback exists without network, an interface exists with it, and no host profile or token variables reach the container.
+
+## Settings page
+
+The forge UI's **Forge Settings: Verifier Sandbox** panel edits the same preset policy without the CLI. Pick a preset, then:
+
+- **Curated images:** Clatterforge ships an opinionated catalog (`src/sandbox_catalog.json`) of images pinned by digest: a minimal Alpine shell and Rust, Node.js and Python toolchains, each with a starting command, levels and memory. **Use** fills the form; **Pull** fetches the pinned image if it is not present locally (by digest, so the bytes cannot differ from the pin). Toolchain entries that install dependencies default to `network`; the agent CLI already has the repository and network, so the sandbox's job there is keeping host secrets and your profile out.
+- **Local images:** pick any local image that carries a digest and it is pinned as `name@sha256:<digest>`; a tag is never stored.
+- Edit the command (one argument per line), default level, ceiling, limits, read-only paths and passthrough names, then **Save sandbox** or **Remove sandbox**. Validation matches `agent-preset-sandbox`.
+
+Only the main forge can change these: the bearer-token desktop/local UI reached through a loopback host. Paired browsers and phones see the panel read-only, a bearer request through a remote host name (such as Tailscale Serve) is refused, and Sparks never reach it. Changes apply to newly assigned tasks; existing tasks keep the sandbox their approval recorded.
+
+Refresh the catalog's digests from their tags with `python scripts/refresh-sandbox-catalog.py` (or `--check` to report drift); review the diff, since a new digest is new code the verifier will run.

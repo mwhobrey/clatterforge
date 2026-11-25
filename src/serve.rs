@@ -1519,6 +1519,107 @@ async fn post_retry(
     }
 }
 
+/// The main forge: the bearer token (desktop app or local tokenized UI) reached through a
+/// loopback Host. Paired sessions and any request through a remote host name (for example
+/// Tailscale Serve) are not, so they can read forge settings but never change them.
+fn is_main_forge(actor: &Actor, headers: &HeaderMap) -> bool {
+    let loopback_host = headers
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .map(|host| {
+            let name = match host.strip_prefix('[') {
+                Some(rest) => rest.split(']').next().unwrap_or(""),
+                None => host.rsplit_once(':').map_or(host, |(name, _)| name),
+            };
+            matches!(name, "127.0.0.1" | "localhost" | "::1")
+        })
+        .unwrap_or(false);
+    matches!(actor, Actor::Bearer) && loopback_host
+}
+
+fn main_forge_only() -> Response {
+    (
+        StatusCode::FORBIDDEN,
+        "forge settings can only be changed from the main forge's desktop connection",
+    )
+        .into_response()
+}
+
+/// `GET /api/settings/sandbox`: catalog, local images, presets and whether this caller may edit.
+async fn get_sandbox_settings(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+) -> Response {
+    let actor = match authenticate(&headers, &state, false).await {
+        Ok(actor) => actor,
+        Err(err) => return err.into_response(),
+    };
+    let editable = is_main_forge(&actor, &headers);
+    let root = state.root.clone();
+    match tokio::task::spawn_blocking(move || crate::sandbox_settings::overview(&root, editable))
+        .await
+    {
+        Ok(Ok(view)) => Json(view).into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
+/// `POST /api/settings/sandbox/presets/{name}`: set or clear a preset's verifier sandbox.
+async fn post_sandbox_preset(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    Json(form): Json<crate::sandbox_settings::SandboxForm>,
+) -> Response {
+    let actor = match authenticate(&headers, &state, true).await {
+        Ok(actor) => actor,
+        Err(err) => return err.into_response(),
+    };
+    if !is_main_forge(&actor, &headers) {
+        return main_forge_only();
+    }
+    let root = state.root.clone();
+    match tokio::task::spawn_blocking(move || crate::sandbox_settings::apply(&root, &name, form))
+        .await
+    {
+        Ok(Ok(updated)) => Json(updated).into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct PullBody {
+    image: String,
+}
+
+/// `POST /api/settings/sandbox/pull`: pull a digest-pinned image onto the forge.
+async fn post_sandbox_pull(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+    Json(body): Json<PullBody>,
+) -> Response {
+    let actor = match authenticate(&headers, &state, true).await {
+        Ok(actor) => actor,
+        Err(err) => return err.into_response(),
+    };
+    if !is_main_forge(&actor, &headers) {
+        return main_forge_only();
+    }
+    match tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+        let docker = crate::sandbox_settings::find_docker()
+            .ok_or_else(|| anyhow::anyhow!("Docker CLI not found on this forge"))?;
+        crate::sandbox_settings::pull(&docker, &body.image)
+    })
+    .await
+    {
+        Ok(Ok(())) => Json(serde_json::json!({"pulled": true})).into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
 #[derive(Deserialize)]
 struct PlanImportBody {
     revision: u64,
@@ -2671,6 +2772,12 @@ fn build_router(state: Arc<ServeState>, ui_assets: Option<PathBuf>) -> Result<Ro
         .route("/api/tasks/{id}/reconcile", post(post_reconcile))
         .route("/api/tasks/{id}/review", post(post_review))
         .route("/api/tasks/{id}/retry", post(post_retry))
+        .route("/api/settings/sandbox", get(get_sandbox_settings))
+        .route(
+            "/api/settings/sandbox/presets/{name}",
+            post(post_sandbox_preset),
+        )
+        .route("/api/settings/sandbox/pull", post(post_sandbox_pull))
         .route("/api/tasks/{id}/context-pack", get(get_context_pack))
         .route("/api/tasks/{id}/plan", post(post_plan))
         .route(
@@ -2942,6 +3049,142 @@ mod tests {
             let _ = axum::serve(listener, app).await;
         });
         (port, handle)
+    }
+
+    #[test]
+    fn only_the_bearer_on_a_loopback_host_is_the_main_forge() {
+        let with_host = |host: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::HOST, host.parse().unwrap());
+            headers
+        };
+        for host in [
+            "127.0.0.1:8787",
+            "localhost:8787",
+            "[::1]:8787",
+            "localhost",
+        ] {
+            assert!(is_main_forge(&Actor::Bearer, &with_host(host)), "{host}");
+        }
+        for host in [
+            "forge.example.ts.net",
+            "forge.example.ts.net:443",
+            "192.168.1.20:8787",
+        ] {
+            assert!(!is_main_forge(&Actor::Bearer, &with_host(host)), "{host}");
+        }
+        assert!(!is_main_forge(
+            &Actor::Session("phone".into()),
+            &with_host("127.0.0.1:8787")
+        ));
+        assert!(!is_main_forge(&Actor::Bearer, &HeaderMap::new()));
+    }
+
+    #[tokio::test]
+    async fn sandbox_settings_are_read_only_for_paired_sessions() {
+        let dir = tempfile::tempdir().unwrap();
+        let (port, handle) = spawn_test_server(
+            dir.path().to_path_buf(),
+            AccessPolicy::default_local(),
+            None,
+        )
+        .await;
+        let base = format!("http://127.0.0.1:{port}");
+        let client = reqwest::Client::new();
+        let bearer = "Bearer test-bearer-token";
+
+        let forge = client
+            .get(format!("{base}/api/settings/sandbox"))
+            .header("Authorization", bearer)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(forge.status(), reqwest::StatusCode::OK);
+        let view = forge.json::<serde_json::Value>().await.unwrap();
+        assert_eq!(view["editable"], true);
+        assert!(view["catalog"].as_array().unwrap().len() >= 4);
+
+        let code = client
+            .post(format!("{base}/api/pair/start"))
+            .header("Authorization", bearer)
+            .send()
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap()["code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let paired = client
+            .post(format!("{base}/api/pair"))
+            .json(&serde_json::json!({"code": code, "principal": "Phone"}))
+            .send()
+            .await
+            .unwrap();
+        let cookie_value = |name: &str| {
+            paired
+                .headers()
+                .get_all(reqwest::header::SET_COOKIE)
+                .iter()
+                .filter_map(|v| v.to_str().ok())
+                .find(|c| c.starts_with(&format!("{name}=")))
+                .and_then(|c| c.split(';').next())
+                .map(str::to_string)
+                .unwrap()
+        };
+        let session = cookie_value(SESSION_COOKIE);
+        let csrf = cookie_value(CSRF_COOKIE);
+        let csrf_token = csrf.split_once('=').unwrap().1.to_string();
+        let cookies = format!("{session}; {csrf}");
+
+        let phone = client
+            .get(format!("{base}/api/settings/sandbox"))
+            .header(reqwest::header::COOKIE, &cookies)
+            .send()
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap();
+        assert_eq!(
+            phone["editable"], false,
+            "paired devices only read settings"
+        );
+
+        for (path, body) in [
+            (
+                "/api/settings/sandbox/presets/anything",
+                serde_json::json!({"clear": true}),
+            ),
+            (
+                "/api/settings/sandbox/pull",
+                serde_json::json!({"image": format!("alpine@sha256:{}", "a".repeat(64))}),
+            ),
+        ] {
+            let refused = client
+                .post(format!("{base}{path}"))
+                .header(reqwest::header::COOKIE, &cookies)
+                .header("X-CSRF-Token", &csrf_token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(refused.status(), reqwest::StatusCode::FORBIDDEN, "{path}");
+        }
+
+        let unpinned = client
+            .post(format!("{base}/api/settings/sandbox/pull"))
+            .header("Authorization", bearer)
+            .json(&serde_json::json!({"image": "alpine:latest"}))
+            .send()
+            .await
+            .unwrap();
+        assert!(
+            !unpinned.status().is_success(),
+            "the forge only pulls digest-pinned images"
+        );
+        handle.abort();
     }
 
     #[tokio::test]

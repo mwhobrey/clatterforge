@@ -868,7 +868,11 @@ fn spawn_suggest_files(
                         .dispatch_allowed_files
                         .set(resp.merged_scope.join(", "));
                     let match_noun = if match_count == 1 { "file" } else { "files" };
-                    let idx_noun = if resp.indexed_files == 1 { "file" } else { "files" };
+                    let idx_noun = if resp.indexed_files == 1 {
+                        "file"
+                    } else {
+                        "files"
+                    };
                     target.auto_scope_note.set(Some(format!(
                         "Auto-selected {match_count} matched {match_noun} merged with top profile files ({merged_count} total · {} indexed {idx_noun}, {cache_tag}).",
                         resp.indexed_files
@@ -1051,7 +1055,9 @@ fn apply_auth(
             }
             if mutating {
                 // `conductor_csrf` is the pre-rename name; sessions paired before it still use it.
-                if let Some(csrf) = read_cookie("clatterforge_csrf").or_else(|| read_cookie("conductor_csrf")) {
+                if let Some(csrf) =
+                    read_cookie("clatterforge_csrf").or_else(|| read_cookie("conductor_csrf"))
+                {
                     req = req.header("X-CSRF-Token", csrf);
                 }
             }
@@ -2394,6 +2400,7 @@ fn Dashboard() -> Element {
 
             if let Some(conn) = active_conn.clone() {
                 ProviderMonitor { config: conn.clone() }
+                ForgeSettings { config: conn.clone() }
                 WorkflowIntake {
                     config: conn.clone(),
                     actor,
@@ -2947,8 +2954,18 @@ fn WorkflowIntake(
                         chosen()
                     };
                     if !active_name.is_empty() {
-                        spawn_load_profile_files(config.clone(), active_name.clone(), chosen, repo_files);
-                        spawn_load_profile_repo_status(config.clone(), active_name, chosen, repo_status);
+                        spawn_load_profile_files(
+                            config.clone(),
+                            active_name.clone(),
+                            chosen,
+                            repo_files,
+                        );
+                        spawn_load_profile_repo_status(
+                            config.clone(),
+                            active_name,
+                            chosen,
+                            repo_status,
+                        );
                     }
                     profiles.set(list);
                 }
@@ -3119,8 +3136,18 @@ fn WorkflowIntake(
                         profiles.set(current_list);
                         let created_name = created_profile.name.clone();
                         chosen.set(created_name.clone());
-                        spawn_load_profile_files(config.clone(), created_name.clone(), chosen, repo_files);
-                        spawn_load_profile_repo_status(config.clone(), created_name, chosen, repo_status);
+                        spawn_load_profile_files(
+                            config.clone(),
+                            created_name.clone(),
+                            chosen,
+                            repo_files,
+                        );
+                        spawn_load_profile_repo_status(
+                            config.clone(),
+                            created_name,
+                            chosen,
+                            repo_status,
+                        );
                         profile_notice.set(None);
                         profile_error.set(None);
                         onboard_probe.set(None);
@@ -4480,5 +4507,409 @@ fn format_tokens(n: u64) -> String {
         format!("{:.1}k", n as f64 / 1_000.0)
     } else {
         n.to_string()
+    }
+}
+
+/// Forge settings, starting with each preset's verifier sandbox (#35). The server decides
+/// `editable`: only the main forge's desktop connection may change anything; paired
+/// devices get this same view read-only, and Sparks never reach it.
+#[component]
+fn ForgeSettings(config: ApiConnection) -> Element {
+    let mut open = use_signal(|| false);
+    let mut view = use_signal(|| None::<serde_json::Value>);
+    let mut error = use_signal(|| None::<String>);
+    let mut notice = use_signal(|| None::<String>);
+    let mut busy = use_signal(|| false);
+    let mut preset = use_signal(String::new);
+    let mut image = use_signal(String::new);
+    let mut command = use_signal(String::new);
+    let mut default_level = use_signal(|| "isolated".to_string());
+    let mut ceiling = use_signal(|| "network".to_string());
+    let mut memory_mb = use_signal(|| "2048".to_string());
+    let mut cpus = use_signal(|| "2".to_string());
+    let mut pids = use_signal(|| "512".to_string());
+    let mut env_names = use_signal(String::new);
+    let mut read_only = use_signal(String::new);
+    let mut image_filter = use_signal(String::new);
+
+    let load = {
+        let config = config.clone();
+        move || {
+            let config = config.clone();
+            spawn(async move {
+                match api_get::<serde_json::Value>(&config, "/api/settings/sandbox").await {
+                    Ok(v) => {
+                        error.set(None);
+                        view.set(Some(v));
+                    }
+                    Err(e) => error.set(Some(e)),
+                }
+            });
+        }
+    };
+
+    // Fill the form from a preset's current sandbox, or reset it when there is none.
+    let mut select_preset = move |name: String| {
+        preset.set(name.clone());
+        notice.set(None);
+        let current = view()
+            .and_then(|v| {
+                v["presets"]
+                    .as_array()
+                    .and_then(|p| p.iter().find(|p| p["name"] == name.as_str()).cloned())
+            })
+            .map(|p| p["sandbox"].clone())
+            .unwrap_or(serde_json::Value::Null);
+        let text = |v: &serde_json::Value| v.as_str().unwrap_or("").to_string();
+        if current.is_null() {
+            image.set(String::new());
+            command.set(String::new());
+        } else {
+            image.set(text(&current["backend"]["image"]));
+            command.set(
+                current["backend"]["command"]
+                    .as_array()
+                    .map(|a| a.iter().map(text).collect::<Vec<_>>().join("\n"))
+                    .unwrap_or_default(),
+            );
+            default_level.set(text(&current["default_level"]));
+            ceiling.set(text(&current["ceiling"]));
+            memory_mb.set(current["memory_mb"].to_string());
+            cpus.set(current["cpus"].to_string());
+            pids.set(current["pids"].to_string());
+            env_names.set(
+                current["env_passthrough"]
+                    .as_array()
+                    .map(|a| a.iter().map(text).collect::<Vec<_>>().join(", "))
+                    .unwrap_or_default(),
+            );
+            read_only.set(
+                current["read_only_paths"]
+                    .as_array()
+                    .map(|a| a.iter().map(text).collect::<Vec<_>>().join("\n"))
+                    .unwrap_or_default(),
+            );
+        }
+    };
+
+    let mut use_catalog = move |entry: serde_json::Value| {
+        let text = |v: &serde_json::Value| v.as_str().unwrap_or("").to_string();
+        image.set(text(&entry["image"]));
+        command.set(
+            entry["command"]
+                .as_array()
+                .map(|a| a.iter().map(text).collect::<Vec<_>>().join("\n"))
+                .unwrap_or_default(),
+        );
+        default_level.set(text(&entry["default_level"]));
+        ceiling.set(text(&entry["ceiling"]));
+        memory_mb.set(entry["memory_mb"].to_string());
+    };
+
+    let post = {
+        let config = config.clone();
+        let load = load.clone();
+        move |path: String, body: serde_json::Value, done: String| {
+            let config = config.clone();
+            let load = load.clone();
+            busy.set(true);
+            notice.set(None);
+            spawn(async move {
+                match api_post_json::<serde_json::Value>(&config, &path, body).await {
+                    Ok(_) => {
+                        error.set(None);
+                        notice.set(Some(done));
+                        load();
+                    }
+                    Err(e) => error.set(Some(e)),
+                }
+                busy.set(false);
+            });
+        }
+    };
+
+    let toggle = {
+        let load = load.clone();
+        move |_| {
+            let next = !open();
+            open.set(next);
+            if next && view().is_none() {
+                load();
+            }
+        }
+    };
+
+    let data = view();
+    let editable = data
+        .as_ref()
+        .and_then(|v| v["editable"].as_bool())
+        .unwrap_or(false);
+    let presets: Vec<serde_json::Value> = data
+        .as_ref()
+        .and_then(|v| v["presets"].as_array().cloned())
+        .unwrap_or_default();
+    let catalog: Vec<serde_json::Value> = data
+        .as_ref()
+        .and_then(|v| v["catalog"].as_array().cloned())
+        .unwrap_or_default();
+    let filter = image_filter().to_lowercase();
+    let local_images: Vec<String> = data
+        .as_ref()
+        .and_then(|v| v["local_images"].as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|i| i["reference"].as_str().map(str::to_string))
+        .filter(|r| filter.is_empty() || r.to_lowercase().contains(&filter))
+        .take(40)
+        .collect();
+    let docker_status = data
+        .as_ref()
+        .map(|v| {
+            match (
+                v["docker"]["server_version"].as_str(),
+                v["docker"]["error"].as_str(),
+            ) {
+                (Some(version), _) => format!("Docker {version}"),
+                (None, Some(err)) => format!("Docker unavailable: {err}"),
+                _ => "Docker unavailable".to_string(),
+            }
+        })
+        .unwrap_or_default();
+    let selected = preset();
+    let input_class = "w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-100 disabled:opacity-60";
+
+    rsx! {
+        div { class: "mb-3 rounded border border-neutral-700 bg-neutral-900/60 p-3",
+            button {
+                r#type: "button",
+                class: "flex items-center gap-2 text-left text-xs sm:text-sm text-emerald-400 hover:text-emerald-300 cursor-pointer py-2 font-semibold",
+                aria_expanded: "{open()}",
+                onclick: toggle,
+                span { class: "text-[11px] text-neutral-400", if open() { "▾" } else { "▸" } }
+                span { "⚙ Forge Settings: Verifier Sandbox" }
+            }
+            if open() {
+                div { class: "mt-2 space-y-3 text-xs text-neutral-300",
+                    if let Some(err) = error() {
+                        p { class: "text-red-400 break-words", "{err}" }
+                    }
+                    if let Some(msg) = notice() {
+                        p { class: "text-emerald-400", "{msg}" }
+                    }
+                    if data.is_some() {
+                        p { class: "text-neutral-400", "{docker_status}" }
+                        if !editable {
+                            p { class: "text-amber-400/90",
+                                "Read-only here. Change sandbox settings from the main forge's desktop app."
+                            }
+                        }
+                        div {
+                            label { class: "block text-neutral-400 mb-1", "Preset" }
+                            select {
+                                class: input_class,
+                                value: "{selected}",
+                                onchange: move |e| select_preset(e.value()),
+                                option { value: "", "Choose a preset" }
+                                for p in presets.iter() {
+                                    {
+                                        let name = p["name"].as_str().unwrap_or("").to_string();
+                                        let tag = if p["sandbox"].is_null() { "host verifier" } else { "sandboxed" };
+                                        rsx! { option { value: "{name}", "{name} ({tag})" } }
+                                    }
+                                }
+                            }
+                        }
+                        if !selected.is_empty() {
+                            div { class: "space-y-2",
+                                p { class: "text-neutral-400", "Curated images (pinned by digest)" }
+                                div { class: "flex flex-wrap gap-2",
+                                    for entry in catalog.iter() {
+                                        {
+                                            let entry = entry.clone();
+                                            let label = entry["label"].as_str().unwrap_or("").to_string();
+                                            let note = entry["note"].as_str().unwrap_or("").to_string();
+                                            let present = entry["present"].as_bool().unwrap_or(false);
+                                            let pinned = entry["image"].as_str().unwrap_or("").to_string();
+                                            let mut post = post.clone();
+                                            let pick = entry.clone();
+                                            rsx! {
+                                                div { class: "rounded border border-neutral-700 p-2 max-w-xs", title: "{note}",
+                                                    p { class: "font-semibold text-neutral-200", "{label}" }
+                                                    p { class: "text-[11px] text-neutral-400", if present { "Present locally" } else { "Not pulled yet" } }
+                                                    div { class: "mt-1 flex gap-2",
+                                                        button {
+                                                            r#type: "button",
+                                                            class: "rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-50",
+                                                            disabled: !editable,
+                                                            onclick: move |_| use_catalog(pick.clone()),
+                                                            "Use"
+                                                        }
+                                                        if !present {
+                                                            button {
+                                                                r#type: "button",
+                                                                class: "rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-50",
+                                                                disabled: !editable || busy(),
+                                                                onclick: move |_| post(
+                                                                    "/api/settings/sandbox/pull".to_string(),
+                                                                    serde_json::json!({"image": pinned.clone()}),
+                                                                    format!("Pulled {}", pinned),
+                                                                ),
+                                                                "Pull"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                div {
+                                    label { class: "block text-neutral-400 mb-1", "Or pin a local image" }
+                                    input {
+                                        class: input_class,
+                                        placeholder: "Filter local images",
+                                        value: "{image_filter}",
+                                        oninput: move |e| image_filter.set(e.value()),
+                                    }
+                                    select {
+                                        class: "{input_class} mt-1",
+                                        disabled: !editable,
+                                        onchange: move |e| if !e.value().is_empty() { image.set(e.value()) },
+                                        option { value: "", "Choose a local image" }
+                                        for reference in local_images.iter() {
+                                            option { value: "{reference}", "{reference}" }
+                                        }
+                                    }
+                                }
+                                div {
+                                    label { class: "block text-neutral-400 mb-1", "Pinned image" }
+                                    input {
+                                        class: input_class,
+                                        disabled: !editable,
+                                        value: "{image}",
+                                        oninput: move |e| image.set(e.value()),
+                                    }
+                                }
+                                div {
+                                    label { class: "block text-neutral-400 mb-1", "Verifier command (one argument per line)" }
+                                    textarea {
+                                        class: "{input_class} font-mono",
+                                        rows: "3",
+                                        disabled: !editable,
+                                        value: "{command}",
+                                        oninput: move |e| command.set(e.value()),
+                                    }
+                                }
+                                div { class: "grid grid-cols-2 gap-2 sm:grid-cols-5",
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Default level" }
+                                        select {
+                                            class: input_class,
+                                            disabled: !editable,
+                                            value: "{default_level}",
+                                            onchange: move |e| default_level.set(e.value()),
+                                            option { value: "isolated", "isolated" }
+                                            option { value: "network", "network" }
+                                            option { value: "trusted_paths", "trusted paths" }
+                                        }
+                                    }
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Ceiling" }
+                                        select {
+                                            class: input_class,
+                                            disabled: !editable,
+                                            value: "{ceiling}",
+                                            onchange: move |e| ceiling.set(e.value()),
+                                            option { value: "isolated", "isolated" }
+                                            option { value: "network", "network" }
+                                            option { value: "trusted_paths", "trusted paths" }
+                                        }
+                                    }
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Memory (MB)" }
+                                        input { class: input_class, disabled: !editable, value: "{memory_mb}", oninput: move |e| memory_mb.set(e.value()) }
+                                    }
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "CPUs" }
+                                        input { class: input_class, disabled: !editable, value: "{cpus}", oninput: move |e| cpus.set(e.value()) }
+                                    }
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Processes" }
+                                        input { class: input_class, disabled: !editable, value: "{pids}", oninput: move |e| pids.set(e.value()) }
+                                    }
+                                }
+                                div { class: "grid gap-2 sm:grid-cols-2",
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Environment names at trusted paths (comma separated)" }
+                                        input { class: input_class, disabled: !editable, value: "{env_names}", oninput: move |e| env_names.set(e.value()) }
+                                    }
+                                    div {
+                                        label { class: "block text-neutral-400 mb-1", "Read-only host paths at trusted paths (one per line)" }
+                                        textarea { class: input_class, rows: "2", disabled: !editable, value: "{read_only}", oninput: move |e| read_only.set(e.value()) }
+                                    }
+                                }
+                                if editable {
+                                    div { class: "flex flex-wrap gap-2",
+                                        {
+                                            let mut post = post.clone();
+                                            let name = selected.clone();
+                                            rsx! {
+                                                button {
+                                                    r#type: "button",
+                                                    class: "rounded bg-emerald-700 px-3 py-1 text-white hover:bg-emerald-600 disabled:opacity-50",
+                                                    disabled: busy(),
+                                                    onclick: move |_| {
+                                                        let number = |s: String, fallback: u32| s.trim().parse::<u32>().unwrap_or(fallback);
+                                                        let body = serde_json::json!({
+                                                            "image": image(),
+                                                            "command": command().lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>(),
+                                                            "default_level": default_level(),
+                                                            "ceiling": ceiling(),
+                                                            "memory_mb": number(memory_mb(), 2048),
+                                                            "cpus": number(cpus(), 2),
+                                                            "pids": number(pids(), 512),
+                                                            "env_passthrough": env_names().split(',').map(str::trim).filter(|n| !n.is_empty()).collect::<Vec<_>>(),
+                                                            "read_only_paths": read_only().lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>(),
+                                                        });
+                                                        post(
+                                                            format!("/api/settings/sandbox/presets/{}", name),
+                                                            body,
+                                                            format!("Saved the verifier sandbox for {}", name),
+                                                        );
+                                                    },
+                                                    "Save sandbox"
+                                                }
+                                            }
+                                        }
+                                        {
+                                            let mut post = post.clone();
+                                            let name = selected.clone();
+                                            rsx! {
+                                                button {
+                                                    r#type: "button",
+                                                    class: "rounded bg-neutral-800 px-3 py-1 hover:bg-neutral-700 disabled:opacity-50",
+                                                    disabled: busy(),
+                                                    onclick: move |_| post(
+                                                        format!("/api/settings/sandbox/presets/{}", name),
+                                                        serde_json::json!({"clear": true}),
+                                                        format!("{} now verifies on the host", name),
+                                                    ),
+                                                    "Remove sandbox"
+                                                }
+                                            }
+                                        }
+                                    }
+                                    p { class: "text-[11px] text-neutral-500",
+                                        "Changes apply to newly assigned tasks; existing tasks keep the sandbox their approval recorded."
+                                    }
+                                }
+                            }
+                        }
+                    } else if error().is_none() {
+                        p { class: "text-neutral-400", "Loading..." }
+                    }
+                }
+            }
+        }
     }
 }
