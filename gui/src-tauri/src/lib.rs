@@ -50,10 +50,35 @@ fn bundle_state_dir(exe_dir: &std::path::Path) -> PathBuf {
     if explicit || beside.exists() {
         return beside;
     }
-    match std::env::var_os("LOCALAPPDATA") {
-        Some(local) => PathBuf::from(local).join("Clatterforge").join("state"),
-        None => beside,
-    }
+    user_state_dir().unwrap_or(beside)
+}
+
+/// The per-user data folder for installed builds (ADR 0018).
+#[cfg(windows)]
+fn user_state_dir() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA")
+        .map(|local| PathBuf::from(local).join("Clatterforge").join("state"))
+}
+
+/// The per-user data folder for installed builds: `~/Library/Application Support`.
+#[cfg(target_os = "macos")]
+fn user_state_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .map(|home| PathBuf::from(home).join("Library/Application Support/Clatterforge/state"))
+}
+
+/// The per-user data folder for installed builds: `$XDG_DATA_HOME`, else `~/.local/share`.
+/// An installed binary sits in `/usr/bin` or a read-only AppImage mount, so state never goes
+/// beside it.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn user_state_dir() -> Option<PathBuf> {
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+        })?;
+    Some(data.join("clatterforge/state"))
 }
 
 /// Resolves the backend CLI executable and state directory (`.clatterforge`, or a legacy `.conductor`).
@@ -251,13 +276,20 @@ fn spawn_api(app: &tauri::AppHandle) -> Result<ApiConfig> {
         .arg("--port")
         .arg(target_port.to_string());
 
-    // If a sibling compiled `ui/index.html` exists (standalone release bundle), serve it
-    // on the same origin so Tailscale/LAN browsers get unified UI + SameSite=Strict cookies.
-    if let Some(bin_dir) = binary.parent() {
-        let sibling_ui = bin_dir.join("ui");
-        if sibling_ui.join("index.html").is_file() {
-            cmd.arg("--ui-assets").arg(&sibling_ui);
-        }
+    // If a compiled `ui/index.html` ships with the app, serve it on the same origin so
+    // Tailscale/LAN browsers get unified UI + SameSite=Strict cookies. Installed bundles keep
+    // it in the resource folder (beside the app on Windows, `/usr/lib/Clatterforge` on Linux);
+    // a portable bundle keeps it beside the backend.
+    let bundled_ui = app
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("ui"))
+        .into_iter()
+        .chain(binary.parent().map(|dir| dir.join("ui")))
+        .find(|dir| dir.join("index.html").is_file());
+    if let Some(ui) = bundled_ui {
+        cmd.arg("--ui-assets").arg(ui);
     }
 
     // Stay loopback-only by default. If CLATTERFORGE_BIND is set, honor it; otherwise

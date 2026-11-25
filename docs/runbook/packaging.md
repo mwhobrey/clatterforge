@@ -33,6 +33,23 @@ One-time setup by the maintainer:
 
 For each release, bump `version` in `gui/src-tauri/tauri.conf.json`, set `TAURI_SIGNING_PRIVATE_KEY` (path or contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, run the build script, then upload the installer, its `.sig` and `latest.json` to a GitHub release tagged `v<version>`. Builds without a public key or endpoint never check for updates. Until the repository is public, the manifest URL returns 404 and the app simply reports nothing.
 
+## Linux
+
+Added November 25, 2026 (#38). `scripts/release/build-installer.sh` builds an AppImage and a `.deb` with the same release-only override as Windows: backend sidecar, `ui/` resource, update artifacts and endpoint.
+
+```sh
+scripts/release/build-installer.sh --skip-updater          # local test build
+scripts/release/build-installer.sh --notes "What changed"  # signed AppImage update artifact + latest.json
+```
+
+It needs Tauri's Linux build dependencies, `tauri-cli`, `dioxus-cli` and the `wasm32-unknown-unknown` target. `scripts/release/linux-build.Dockerfile` pins all of them (Rust 1.90.0, tauri-cli 2.12.4, dioxus-cli 0.7.10). The script sets `APPIMAGE_EXTRACT_AND_RUN=1`, so the bundler's linuxdeploy runs without FUSE. Override the target directory with `INSTALLER_TARGET_DIR`.
+
+- **Layout:** the `.deb` installs `/usr/bin/clatterforge-desktop`, the backend as `/usr/bin/clatterforge` and the UI under `/usr/lib/Clatterforge/ui`, and depends on `libwebkit2gtk-4.1-0` and `libgtk-3-0`. The AppImage carries the same tree.
+- **State:** `$XDG_DATA_HOME/clatterforge/state` (default `~/.local/share/clatterforge/state`); `CLATTERFORGE_STATE` overrides it. Removing the package leaves it.
+- **Updates:** only the AppImage updates itself (Tauri replaces the file named by `$APPIMAGE`). `.deb` installs update through the package manager. The script's `latest.json` holds only the `linux-x86_64` entry; the release workflow (#40) merges it with the Windows one.
+
+Verified on a clean Debian 12 container as an unprivileged user under Xvfb, for the `.deb` and the extracted AppImage: the app starts its sidecar with the XDG state folder and the bundled UI, the UI is served, the API answers 200 with the token and 401 without it, and uninstalling the `.deb` keeps the state. A signed build with a throwaway key produced the AppImage `.sig` and `latest.json`. Not yet exercised: an in-place AppImage update (it needs a mounted AppImage, so a FUSE-capable desktop) and desktop integration on distributions other than Debian.
+
 ## Code signing
 
 Installers and binaries are not code-signed yet, so Windows SmartScreen warns on first run. `-SignCommand "<signing command> %1"` passes a signing command to Tauri, which signs each file before update signatures are computed; use it once a certificate or signing service is available.

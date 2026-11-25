@@ -36,10 +36,15 @@ $config = Get-Content -LiteralPath (Join-Path $tauriDir 'tauri.conf.json') -Raw 
 $version = $config.version
 if (-not $OutDir) { $OutDir = Join-Path $repo "dist\installer\$version" }
 
+# dx honours CARGO_TARGET_DIR, so the web build lands under the desktop target set below;
+# point Tauri at that fresh output rather than whatever an earlier development build left in
+# gui\target (which would ship a stale UI).
+$webDist = Join-Path $repo 'target\installer-desktop\dx\clatterforge-gui\release\web\public'
 $override = [ordered]@{
+    build = [ordered]@{ frontendDist = $webDist }
     bundle = [ordered]@{
         externalBin = @('binaries/clatterforge')
-        resources = @{ '../target/dx/clatterforge-gui/release/web/public/' = 'ui/' }
+        resources = @{ "$webDist\" = 'ui/' }
         createUpdaterArtifacts = (-not $SkipUpdater)
     }
 }
