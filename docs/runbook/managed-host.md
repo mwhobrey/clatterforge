@@ -24,7 +24,7 @@ scripts/manage-local-host.sh status
 scripts/manage-local-host.sh stop
 ```
 
-`python3 scripts/test-managed-host.py target/debug/clatterforge` exercises the POSIX runner; it passes on Linux. The macOS paths (`ps`-based start markers, the LaunchAgent) have not been run.
+`python3 scripts/test-managed-host.py target/debug/clatterforge` exercises the POSIX runner; it passes on Linux and macOS. On macOS the LaunchAgent plist is generated and lints, but `launchctl bootstrap` has not been run.
 
 The private state root retains `host-runtime.json`, `host-logs/`, supervisor logs and the explicit stop request. Runtime metadata includes process creation identities and roles, not credentials. A crashed watchdog can adopt only matching saved child identities. A duplicate watchdog refuses; a duplicate backend bind preserves the active token. Unexpected child exits restart with bounded backoff. Closing the desktop UI does not stop a backend it reused.
 

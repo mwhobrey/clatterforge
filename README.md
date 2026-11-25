@@ -4,7 +4,7 @@
 
 A local-first development conductor: give it an objective, approve its scope, and review the resulting change and verification evidence.
 
-Clatterforge is a supervised Windows source alpha. A local model chooses the next approved coding worker; local Cursor and Codex CLI adapters do the coding. The host validates routing decisions, owns process supervision and retains durable task state. Workflow stages share one Git worktree with checkpoints and pass objectives, prior results and references between stages. Git supplies source and diff evidence on demand.
+Clatterforge is a supervised source alpha for Windows, Linux and macOS. A local model chooses the next approved coding worker; local Cursor and Codex CLI adapters do the coding. The host validates routing decisions, owns process supervision and retains durable task state. Workflow stages share one Git worktree with checkpoints and pass objectives, prior results and references between stages. Git supplies source and diff evidence on demand.
 
 The desktop and authenticated HTTP/MCP interfaces expose the same task lifecycle. Finishing a workflow produces a candidate for human review. Applying an accepted candidate to its source checkout is a separate, explicit integration action.
 
@@ -12,11 +12,16 @@ The desktop and authenticated HTTP/MCP interfaces expose the same task lifecycle
 
 ## Try it
 
-Prerequisites: Windows, Git, native Rust 1.90.0 with Visual Studio C++ build tools, and Python 3.11 or later. SQLite is bundled. Tests and the fixture demo need no model download, provider account or existing private service.
+Prerequisites: Git, Rust 1.90.0 (on Windows, native with the Visual Studio C++ build tools), and Python 3.11 or later. SQLite is bundled. Installers for all three platforms are on the [releases page](../../releases/latest). Tests and the fixture demo need no model download, provider account or existing private service.
 
-```powershell
+```sh
 cargo +1.90.0 fetch --locked
 cargo +1.90.0 test --workspace --locked -- --test-threads=4
+```
+
+On Windows, the fixture demo:
+
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo.ps1
 ```
 
@@ -29,7 +34,7 @@ The demo creates an expendable repository under `.clatterforge/demos/`, uses sim
 - [Remote access](docs/REMOTE_ACCESS.md) and [local inference](docs/INFERENCE.md)
 - [Contribution guide](CONTRIBUTING.md), [security boundaries](SECURITY.md) and [release gates](docs/RELEASE.md)
 
-The Windows supervisor (the main forge), Linux Sparks (`clatterforge-edge`) with the shared protocol, and the WASM web client have different support boundaries. A per-user installer with signed updates and durable scheduling now exist; generic onboarding, automatic recovery and code signing are still work in progress. A worktree isolates Git changes. The optional verifier sandbox (Docker, or a Windows AppContainer) and the worker environment allowlist add process, network and secret limits; the coding CLIs themselves still run with your account, profile and network (see the sandbox runbook).
+The main forge (Windows, Linux or macOS), Linux Sparks (`clatterforge-edge`) with the shared protocol, and the WASM web client have different support boundaries. Per-user installers with signed updates and durable scheduling exist; macOS builds are Developer ID signed and notarized, while Windows and Linux code signing, generic onboarding and automatic recovery are still work in progress. A worktree isolates Git changes. The optional verifier sandbox (Docker, or a Windows AppContainer) and the worker environment allowlist add process, network and secret limits; the coding CLIs themselves still run with your account, profile and network (see the sandbox runbook).
 
 ## License
 

@@ -50,17 +50,50 @@ It needs Tauri's Linux build dependencies, `tauri-cli`, `dioxus-cli` and the `wa
 
 Verified on a clean Debian 12 container as an unprivileged user under Xvfb, for the `.deb` and the extracted AppImage: the app starts its sidecar with the XDG state folder and the bundled UI, the UI is served, the API answers 200 with the token and 401 without it, and uninstalling the `.deb` keeps the state. A signed build with a throwaway key produced the AppImage `.sig` and `latest.json`. Not yet exercised: an in-place AppImage update (it needs a mounted AppImage, so a FUSE-capable desktop) and desktop integration on distributions other than Debian.
 
+## macOS
+
+Added November 25, 2026 (#39). `scripts/release/build-installer.sh` also runs on macOS and builds `Clatterforge.app` and a `.dmg` for the host CPU, with the same release-only override (sidecar, `ui/` resource, update artifacts, endpoint).
+
+```sh
+scripts/release/build-installer.sh --skip-updater                # local test build, ad-hoc signed
+scripts/release/build-installer.sh --skip-notarize --notes "..."  # signed update artifact, no notarization
+scripts/release/build-installer.sh --notes "What changed"        # signed, notarized and stapled (app and dmg)
+```
+
+It needs Xcode command line tools, `tauri-cli` and `dioxus-cli` at the versions in `release.yml` and the `wasm32-unknown-unknown` target.
+
+- **Layout:** sidecar `Contents/MacOS/clatterforge`, UI `Contents/Resources/ui`.
+- **State:** `~/Library/Application Support/Clatterforge/state`; `CLATTERFORGE_STATE` overrides it. Deleting the app leaves it.
+- **Signing and notarization** come from the environment. Set `APPLE_SIGNING_IDENTITY` to the Developer ID Application identity (list yours with `security find-identity -v -p codesigning`), and `APPLE_API_ISSUER`, `APPLE_API_KEY` and `APPLE_API_KEY_PATH` (the `.p8` file) from an App Store Connect API key with the Developer role. Never put these in a file in the repository.
+- **Updates:** the update artifact is `Clatterforge_<version>_<arch>.app.tar.gz` plus `.sig`; `latest.json` holds `darwin-aarch64` or `darwin-x86_64`. The release workflow merges both architectures with the other platforms.
+- **DMG layout:** the script sets `CI=true` so create-dmg skips its Finder AppleScript step (it hangs without a GUI session); the image has default icon placement.
+
+Verified locally on Apple silicon (Rust 1.90.0, November 25, 2026): an unsigned build produces the app and a valid `.dmg`. A build with the owner's Developer ID and an App Store Connect API key produced a hardened-runtime signed app and `.dmg`, both notarized and stapled; `codesign --verify --deep --strict`, `stapler validate` and `spctl` (source `Notarized Developer ID`) accept them. Launched with a throwaway `HOME`, the signed app starts its sidecar with the Application Support state folder and the bundled UI, serves the UI (200), and the API answers 200 with the token and 401 without it. A throwaway minisign key produced the `.app.tar.gz`, its `.sig` and a `latest.json` with a `darwin-aarch64` entry that `merge-manifests.py` accepts. Not yet exercised: an in-place update with the real update key, an Intel build, and the CI jobs.
+
 ## Releasing from CI
 
 Added November 25, 2026 (#40). `.github/workflows/release.yml` runs on a `v<version>` tag (or by hand) once Actions are available on the public repository:
 
 1. `check` confirms the tag matches `version` in `tauri.conf.json` and that the update public key is committed.
-2. `build` runs the same scripts as a local release on `windows-latest` and `ubuntu-22.04` (the oldest runner, so the AppImage works on older glibc). Each writes `~/.clatterforge/release/updater.json` from the repository URL, so no owner name is committed, and signs with the key from secrets.
+2. `build` runs the same scripts as a local release on `windows-latest`, `ubuntu-22.04` (the oldest runner, so the AppImage works on older glibc), `macos-latest` (Apple silicon) and `macos-15-intel`. Each writes `~/.clatterforge/release/updater.json` from the repository URL, so no owner name is committed, and signs with the key from secrets.
 3. `release` merges the per-platform manifests with `scripts/release/merge-manifests.py`, which refuses mixed versions, duplicate platforms and unsigned or non-https entries, and creates a **draft** release with every installer, signature and `latest.json`. Only this job can write to the repository.
 
-Before the first run, add repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key file's contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and commit the public key that `new-update-key.ps1` wrote. To release: bump `version`, commit, tag `v<version>`, push the tag, review the draft and publish it. Publishing makes `releases/latest/download/latest.json` live for installed apps. macOS joins the build matrix with #39.
+Before the first run, add repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key file's contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and commit the public key that `new-update-key.ps1` wrote. To release: bump `version`, commit, tag `v<version>`, push the tag, review the draft and publish it. Publishing makes `releases/latest/download/latest.json` live for installed apps.
 
-The workflow is linted (actionlint with shellcheck) and the merge script is unit-tested (`scripts/test-merge-manifests.py`), but the workflow itself has not run: Actions are unavailable until the repository is public.
+macOS builds need these additional repository secrets (Settings, Secrets and variables, Actions). None is ever committed or printed:
+
+| Secret | What it is |
+|---|---|
+| `APPLE_CERTIFICATE` | Base64 of the exported Developer ID Application certificate and private key (`.p12`): `base64 -i cert.p12 \| pbcopy`. Tauri imports it into a temporary keychain. |
+| `APPLE_CERTIFICATE_PASSWORD` | The password chosen when exporting the `.p12`. |
+| `APPLE_SIGNING_IDENTITY` | The identity name, for example `Developer ID Application: Name (TEAMID)` (`security find-identity -v -p codesigning`). |
+| `APPLE_API_ISSUER` | The issuer ID shown on the App Store Connect API keys page. |
+| `APPLE_API_KEY` | The key ID of an App Store Connect API key (Developer role is enough for notarization). |
+| `APPLE_API_KEY_P8` | The contents of that key's `AuthKey_<id>.p8` file. The workflow writes it to a temporary file and points `APPLE_API_KEY_PATH` at it. |
+
+Without them a macOS job fails before building: unset secrets are empty strings, and the workflow refuses to ship an ad-hoc signed, un-notarized app.
+
+The workflow is linted (actionlint) and the merge script is unit-tested (`scripts/test-merge-manifests.py`), but the workflow itself has not run: Actions are unavailable until the repository is public.
 
 ## Code signing
 
