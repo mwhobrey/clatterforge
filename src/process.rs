@@ -603,7 +603,8 @@ mod platform {
 
     pub fn child_identity(child: &Child) -> Result<ProcessIdentity> {
         let pid = child.id();
-        let created = inspect_created_time(pid)?;
+        // A child that already exited is a zombie with no readable start time on macOS.
+        let created = inspect_created_time(pid).unwrap_or_else(|_| now());
         Ok(ProcessIdentity { pid, created })
     }
 
@@ -621,6 +622,26 @@ mod platform {
                 libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
                 Ok(())
             });
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn bsd_info(pid: u32) -> std::result::Result<libc::proc_bsdinfo, Option<i32>> {
+        let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+        let want = std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
+        let got = unsafe {
+            libc::proc_pidinfo(
+                pid as libc::c_int,
+                libc::PROC_PIDTBSDINFO,
+                0,
+                &mut info as *mut _ as *mut libc::c_void,
+                want,
+            )
+        };
+        if got == want {
+            Ok(info)
+        } else {
+            Err(std::io::Error::last_os_error().raw_os_error())
         }
     }
 
@@ -649,29 +670,11 @@ mod platform {
         }
         #[cfg(target_os = "macos")]
         {
-            let mut kinfo: libc::kinfo_proc = unsafe { std::mem::zeroed() };
-            let mut size = std::mem::size_of::<libc::kinfo_proc>();
-            let mut mib = [
-                libc::CTL_KERN,
-                libc::KERN_PROC,
-                libc::KERN_PROC_PID,
-                pid as i32,
-            ];
-            let res = unsafe {
-                libc::sysctl(
-                    mib.as_mut_ptr(),
-                    4,
-                    &mut kinfo as *mut _ as *mut libc::c_void,
-                    &mut size,
-                    std::ptr::null_mut(),
-                    0,
-                )
-            };
-            if res == 0 && size > 0 {
-                let tv = kinfo.kp_proc.p_starttime;
-                return Ok((tv.tv_sec as u64) * 1_000_000 + (tv.tv_usec as u64));
+            // A zombie still answers kill(pid, 0) but not proc_pidinfo, so no start time.
+            match bsd_info(pid) {
+                Ok(info) => Ok(info.pbi_start_tvsec * 1_000_000 + info.pbi_start_tvusec),
+                Err(_) => anyhow::bail!("process {pid} start time unavailable"),
             }
-            Ok(now())
         }
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         {
@@ -710,26 +713,10 @@ mod platform {
         }
         #[cfg(target_os = "macos")]
         {
-            let mut kinfo: libc::kinfo_proc = unsafe { std::mem::zeroed() };
-            let mut size = std::mem::size_of::<libc::kinfo_proc>();
-            let mut mib = [
-                libc::CTL_KERN,
-                libc::KERN_PROC,
-                libc::KERN_PROC_PID,
-                expected.pid as i32,
-            ];
-            let res = unsafe {
-                libc::sysctl(
-                    mib.as_mut_ptr(),
-                    4,
-                    &mut kinfo as *mut _ as *mut libc::c_void,
-                    &mut size,
-                    std::ptr::null_mut(),
-                    0,
-                )
-            };
-            if res == 0 && size > 0 && kinfo.kp_proc.p_stat == libc::SZOMB as libc::c_char {
-                return Presence::Exited;
+            match bsd_info(expected.pid) {
+                Ok(info) if info.pbi_status == libc::SZOMB => return Presence::Exited,
+                Err(Some(libc::ESRCH)) => return Presence::Exited,
+                _ => {}
             }
         }
 

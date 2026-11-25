@@ -1475,7 +1475,8 @@ fn bounded_commands_reject_truncation_and_timeouts_instead_of_using_partial_outp
         assert!(
             error
                 .to_string()
-                .contains(if timeout { "deadline" } else { "limit" })
+                .contains(if timeout { "deadline" } else { "limit" }),
+            "timeout={timeout}: {error:#}"
         );
     }
 }

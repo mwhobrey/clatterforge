@@ -43,7 +43,7 @@ pub fn run(spec_path: &std::path::Path, token: &str, verify: bool) -> Result<i32
         thread::sleep(Duration::from_millis(10));
     }
     ensure!(
-        std::env::current_dir()? == spec.workspace,
+        std::env::current_dir()?.canonicalize()? == spec.workspace.canonicalize()?,
         "fixture cwd differs from assigned workspace"
     );
     let output = spec.workspace.join(&spec.output_file);
