@@ -11,7 +11,7 @@ import tomllib
 
 ROOT_FILES = {'.coderabbit.yaml', '.gitattributes', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'LICENSE', 'NOTICE',
               'THIRD_PARTY_NOTICES.md'}
-SOURCE_ROOTS = ('.github/', 'src/', 'edge/', 'protocol/', 'gui/', 'tests/', 'scripts/', 'licenses/', 'examples/')
+SOURCE_ROOTS = ('.github/', 'src/', 'edge/', 'protocol/', 'gui/', 'tests/', 'scripts/', 'licenses/', 'examples/', 'site/')
 PUBLIC_DOCS = 'docs/public/tree/'
 MANIFESTS = ('Cargo.toml', 'edge/Cargo.toml', 'protocol/Cargo.toml', 'gui/Cargo.toml',
              'gui/src-tauri/Cargo.toml')

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clatterforge</title>
+<meta name="description" content="A local-first forge for supervised coding agents: approve the scope, let local workers do the coding, review the evidence.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c2410c'/%3E%3Cpath d='M9 22h14M11 22V12h10v10M14 12V8h4v4' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="wrap top">
+  <span class="mark">Clatterforge</span>
+  <nav><a href="#how">How it works</a><a href="#safety">Safety</a><a href="#status">Status</a><a href="{{REPO}}">Source</a></nav>
+</header>
+
+<main>
+<section class="wrap hero">
+  <p class="eyebrow">Local-first · Apache-2.0 · Alpha</p>
+  <h1>Coding agents on a short, well-documented leash.</h1>
+  <p class="lede">Give Clatterforge an objective and approve its scope. Local workers (Cursor and Codex CLIs, routed by a local model) write the change in an isolated Git worktree. You review the diff and the verification evidence. Nothing lands in your checkout until you integrate it.</p>
+  <p class="actions">
+    <a class="button primary" href="{{REPO}}/releases/latest">Download for Windows</a>
+    <a class="button" href="{{REPO}}#readme">Build from source</a>
+  </p>
+</section>
+
+<section id="how" class="wrap">
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li><strong>Objective.</strong> Describe the change. The forge captures repository context and the exact base commit.</li>
+    <li><strong>Approval.</strong> You approve one assignment: its scope, worker, verifier and limits. The approval binds to that revision; any change needs a new one.</li>
+    <li><strong>Supervised run.</strong> Workers run as owned process trees with timeouts, cancellation and a global stop. A crash never replays work; it leaves evidence.</li>
+    <li><strong>Review.</strong> You get a candidate patch, logs and an independent verifier result. Agent claims are recorded, never trusted as proof.</li>
+    <li><strong>Integration.</strong> Applying an accepted candidate to your checkout is a separate, explicit step.</li>
+  </ol>
+</section>
+
+<section id="safety" class="wrap">
+  <h2>Safety model</h2>
+  <div class="grid">
+    <article><h3>Worktrees isolate Git, not processes</h3><p>Each run gets its own worktree. That keeps your checkout clean; it does not sandbox the agent, and the docs say so.</p></article>
+    <article><h3>Optional verifier sandbox</h3><p>Verifiers can run in a digest-pinned Docker image or a Windows AppContainer, with isolated, network or trusted-path levels capped per preset.</p></article>
+    <article><h3>Environment allowlist</h3><p>Workers see platform and profile variables plus the names a preset lists. Tokens and keys in your shell stay out.</p></article>
+    <article><h3>One place to change settings</h3><p>Only the main forge can change policy. Sparks, the edge clients on other machines, can't widen their repository scope or raise sandbox levels.</p></article>
+  </div>
+  <p class="note">The coding CLIs themselves still run with your account, profile and network. Read the <a href="{{REPO}}/blob/main/SECURITY.md">security boundaries</a> and the <a href="{{REPO}}/blob/main/docs/runbook/sandbox.md">sandbox runbook</a> before pointing it at anything you care about.</p>
+</section>
+
+<section id="status" class="wrap">
+  <h2>Status</h2>
+  <ul class="status">
+    <li><span class="pill ok">Available</span> Windows main forge: per-user installer with signed self-update, desktop app, HTTP and MCP interfaces.</li>
+    <li><span class="pill ok">Available</span> Linux Sparks (<code>clatterforge-edge</code>) and the web client.</li>
+    <li><span class="pill wip">In progress</span> Linux and macOS main forge and installers, code signing, general onboarding.</li>
+  </ul>
+  <p>Start with the <a href="{{REPO}}/blob/main/docs/FIRST_AGENT.md">first-agent guide</a>, the <a href="{{REPO}}/blob/main/docs/ARCHITECTURE.md">architecture</a> and the <a href="{{REPO}}/blob/main/docs/runbook/00_INDEX.md">runbook</a>. Bugs and ideas go to <a href="{{REPO}}/issues">issues</a>; read <a href="{{REPO}}/blob/main/CONTRIBUTING.md">contributing</a> first.</p>
+</section>
+</main>
+
+<footer class="wrap foot">
+  <p>Clatterforge is licensed under Apache-2.0. Dependencies keep their own terms (see <a href="{{REPO}}/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a>). Models and coding CLIs are installed and licensed separately.</p>
+</footer>
+</body>
+</html>
