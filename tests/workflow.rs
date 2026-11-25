@@ -4692,3 +4692,147 @@ fn rejected_review_comments_are_anchored_and_handed_to_the_repair_round() {
         "the repair stage objective carries the anchored comments: {objective}"
     );
 }
+
+#[test]
+fn a_desktop_chat_plan_is_bound_by_approval_and_handed_to_supervised_stages() {
+    let model = Model::new(vec![
+        dispatch("worker-a", "WORK_A"),
+        dispatch("worker-b", "WORK_B"),
+        json!({"action":"finish","summary":"done"}),
+    ]);
+    let f = fixture(&model, 3);
+    let mut workflows = Workflows::open(&f.state).unwrap();
+    let w = workflows
+        .create(
+            "fixture",
+            "Fix a and b following the operator plan".into(),
+            "Both files pass the protected verifier".into(),
+        )
+        .unwrap();
+
+    let pack = workflows.context_pack(&w.id).unwrap();
+    assert!(pack.len() <= clatterforge::workflow::MAX_CONTEXT_PACK_BYTES);
+    for expected in [
+        "Fix a and b following the operator plan",
+        "Both files pass the protected verifier",
+        "### a.txt",
+        "wrong-a",
+        "workflow-plan-import",
+    ] {
+        assert!(
+            pack.contains(expected),
+            "context pack lacks {expected:?}:\n{pack}"
+        );
+    }
+    assert!(
+        !pack.contains("Protected contract"),
+        "protected files are not excerpted"
+    );
+
+    let original_digest = w.assignment.digest().unwrap();
+    let plan =
+        "1. worker-a fixes a.txt\n2. worker-b fixes b.txt\nRisk: keep contract.txt untouched";
+    let planned = workflows
+        .import_plan(&w.id, w.revision, plan, "mike", "desktop_chat")
+        .unwrap();
+    let imported = planned.assignment.operator_plan.clone().unwrap();
+    assert_eq!(imported.digest, clatterforge::digest(plan.as_bytes()));
+    assert_eq!(imported.source, "desktop_chat");
+    let digest = planned.assignment.digest().unwrap();
+    assert_ne!(
+        digest, original_digest,
+        "the plan is part of the approved assignment"
+    );
+    assert!(
+        workflows
+            .approve(&w.id, planned.revision, &original_digest, "mike")
+            .is_err(),
+        "approval must bind to the assignment that includes the plan"
+    );
+    let approved = workflows
+        .approve(&w.id, planned.revision, &digest, "mike")
+        .unwrap();
+    assert!(
+        workflows
+            .import_plan(
+                &w.id,
+                approved.revision,
+                "late change",
+                "mike",
+                "desktop_chat"
+            )
+            .is_err(),
+        "a plan cannot change after approval"
+    );
+
+    let done = workflows.run(&w.id, approved.revision).unwrap();
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{done:?}");
+    assert!(
+        model
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|r| r.to_string().contains("worker-b fixes b.txt")),
+        "the planner receives the operator plan"
+    );
+    let agents = Agents::open(&f.state).unwrap();
+    for step in &done.steps {
+        let objective = agents
+            .task(&step.task_id)
+            .unwrap()
+            .assignment
+            .spec
+            .objective;
+        assert!(
+            objective.contains("Operator-supplied plan")
+                && objective.contains("worker-a fixes a.txt"),
+            "stage objective lacks the plan: {objective}"
+        );
+    }
+    let detail = TaskService::open(&f.state)
+        .unwrap()
+        .detail(&w.id, None)
+        .unwrap();
+    let provenance = &detail.workflow.unwrap()["operator_plan"];
+    assert_eq!(provenance["supplied_by"], "operator");
+    assert_eq!(provenance["stage"], "plan");
+    assert_eq!(provenance["digest"], imported.digest);
+}
+
+#[test]
+fn plan_imports_are_bounded_and_labelled() {
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut workflows = Workflows::open(&f.state).unwrap();
+    let w = workflows
+        .create("fixture", "Bounded plan".into(), "Verifier passes".into())
+        .unwrap();
+    let too_big = "x".repeat(clatterforge::workflow::MAX_OPERATOR_PLAN_BYTES + 1);
+    for (text, by, source, why) in [
+        (too_big.as_str(), "mike", "desktop_chat", "oversized plan"),
+        ("   ", "mike", "desktop_chat", "empty plan"),
+        ("a plan", "", "desktop_chat", "missing operator"),
+        (
+            "a plan",
+            "mike",
+            "chat app; rm -rf",
+            "free-form source label",
+        ),
+    ] {
+        assert!(
+            workflows
+                .import_plan(&w.id, w.revision, text, by, source)
+                .is_err(),
+            "accepted an import with {why}"
+        );
+    }
+    let labelled = workflows
+        .import_plan(&w.id, w.revision, "a plan", "mike", "")
+        .unwrap();
+    assert_eq!(
+        labelled.assignment.operator_plan.unwrap().source,
+        "desktop_chat",
+        "an empty source defaults to desktop_chat"
+    );
+}

@@ -276,6 +276,42 @@ pub struct Assignment {
     pub objective: String,
     pub acceptance: String,
     pub context: Value,
+    /// A plan the operator wrote elsewhere (for example in a desktop chat app) and imported
+    /// before approval. Part of the assignment, so approval binds to its digest. Absent
+    /// plans are not serialized, which keeps existing assignment digests unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operator_plan: Option<OperatorPlan>,
+}
+
+/// An operator-supplied planning stage. Reviewer/operator input, not host evidence:
+/// implementation still runs through supervised workers and the independent verifier.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OperatorPlan {
+    pub text: String,
+    /// SHA-256 of `text`.
+    pub digest: String,
+    pub imported_by: String,
+    pub imported_at: u64,
+    /// Where the operator says the plan came from, e.g. `desktop_chat`. Descriptive only.
+    pub source: String,
+}
+
+pub const MAX_OPERATOR_PLAN_BYTES: usize = 16 * 1024;
+/// Upper bound on an exported context pack, sized for a chat window.
+pub const MAX_CONTEXT_PACK_BYTES: usize = 32 * 1024;
+const PACK_FILE_LIMIT: usize = 12;
+const PACK_EXCERPT_BYTES: usize = 3 * 1024;
+const PACK_EXCERPT_LINES: usize = 120;
+
+/// Stage-objective text for an imported plan, bounded so it cannot crowd out the objective.
+fn operator_plan_brief(plan: Option<&OperatorPlan>) -> Option<String> {
+    let plan = plan?;
+    let text: String = plan.text.chars().take(8 * 1024).collect();
+    Some(format!(
+        "\n\nOperator-supplied plan (digest {}; follow it where it fits the approved scope and \
+         objective, and report where it does not):\n{text}",
+        &plan.digest[..12.min(plan.digest.len())]
+    ))
 }
 impl Assignment {
     pub fn digest(&self) -> Result<String> {
@@ -2652,6 +2688,7 @@ impl Workflows {
                 profile,
                 objective,
                 acceptance,
+                operator_plan: None,
             },
             approval: None,
             review: None,
@@ -2706,6 +2743,187 @@ impl Workflows {
             Ok(())
         })
     }
+    /// Imports an operator-written plan (for example from a desktop chat) into a workflow
+    /// that is still awaiting approval. It becomes part of the assignment, so the approval
+    /// that follows binds to its digest; importing again replaces it.
+    pub fn import_plan(
+        &mut self,
+        id: &str,
+        revision: u64,
+        text: &str,
+        by: &str,
+        source: &str,
+    ) -> Result<Workflow> {
+        let text = text.trim();
+        ensure!(!by.trim().is_empty(), "operator identifier required");
+        ensure!(!text.is_empty(), "the plan is empty");
+        ensure!(
+            text.len() <= MAX_OPERATOR_PLAN_BYTES,
+            "the plan is {} bytes; at most {MAX_OPERATOR_PLAN_BYTES}",
+            text.len()
+        );
+        let source = match source.trim() {
+            "" => "desktop_chat",
+            other => other,
+        };
+        ensure!(
+            source.len() <= 64
+                && source
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'),
+            "plan source must be a short label such as desktop_chat"
+        );
+        let plan = OperatorPlan {
+            text: text.to_string(),
+            digest: crate::digest(text.as_bytes()),
+            imported_by: by.trim().to_string(),
+            imported_at: now(),
+            source: source.to_string(),
+        };
+        self.change(id, revision, "workflow_plan_imported", |w| {
+            ensure!(
+                w.status == AgentStatus::AwaitingApproval,
+                "a plan can only be imported while the workflow awaits approval"
+            );
+            w.assignment.operator_plan = Some(plan);
+            Ok(())
+        })
+    }
+
+    /// A copyable, bounded briefing for planning outside the host (for example in a desktop
+    /// chat app): objective, acceptance, approved scope and verifier, excerpts of scoped
+    /// files at the base commit, and prior stage results. Read-only.
+    pub fn context_pack(&self, id: &str) -> Result<String> {
+        let w = self.get(id)?;
+        let profile = &w.assignment.profile;
+        let repo = &profile.repository;
+        let mut pack = format!(
+            "# Planning brief for workflow {id}\n\n\
+             Write a plan only: ordered steps, the files each step changes, and risks to \
+             check. The host runs every step through supervised coding agents limited to the \
+             approved files below, then an independent verifier decides. Paste the plan back \
+             with `workflow-plan-import`.\n\n\
+             - Repository: {}\n- Base commit: {}\n- Assignment digest: {}\n- Status: {}\n\n\
+             ## Objective\n\n{}\n\n## Acceptance\n\n{}\n\n## Constraints\n\n\
+             - At most {} worker stages.\n",
+            repo.identity,
+            repo.base,
+            w.assignment.digest()?,
+            status(&w.status),
+            w.assignment.objective.trim(),
+            w.assignment.acceptance.trim(),
+            profile.max_steps,
+        );
+        let scope = profile.scope();
+        pack.push_str(&format!(
+            "- Approved files ({}): {}\n",
+            scope.len(),
+            scope.join(", ")
+        ));
+        for worker in &profile.workers {
+            let preset = &worker.preset;
+            pack.push_str(&format!(
+                "- Worker `{}` ({}): verifier `{}` with {} protected verification file(s).\n",
+                preset.name,
+                worker.purpose,
+                preset
+                    .verify_executable
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                preset.verification_files.len()
+            ));
+        }
+        if let Some(plan) = &w.assignment.operator_plan {
+            pack.push_str(&format!(
+                "- An operator plan is already imported (digest {}); a new import replaces it.\n",
+                plan.digest
+            ));
+        }
+
+        pack.push_str("\n## Scoped files at the base commit\n");
+        for path in scope.iter().take(PACK_FILE_LIMIT) {
+            let excerpt = match git(&repo.checkout, &["show", &format!("{}:{path}", repo.base)]) {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    let mut kept = String::new();
+                    let mut truncated = false;
+                    for (n, line) in text.lines().enumerate() {
+                        if n >= PACK_EXCERPT_LINES
+                            || kept.len() + line.len() + 1 > PACK_EXCERPT_BYTES
+                        {
+                            truncated = true;
+                            break;
+                        }
+                        kept.push_str(line);
+                        kept.push('\n');
+                    }
+                    if truncated {
+                        kept.push_str("... (truncated)\n");
+                    }
+                    kept
+                }
+                Err(_) => "(not present at the base commit)\n".to_string(),
+            };
+            let section = format!("\n### {path}\n\n```\n{excerpt}```\n");
+            if pack.len() + section.len() > MAX_CONTEXT_PACK_BYTES - 2048 {
+                pack.push_str("\n(more scoped files omitted to keep the brief bounded)\n");
+                break;
+            }
+            pack.push_str(&section);
+        }
+        if scope.len() > PACK_FILE_LIMIT {
+            pack.push_str(&format!(
+                "\n({} more approved file(s) not excerpted)\n",
+                scope.len() - PACK_FILE_LIMIT
+            ));
+        }
+
+        if !w.steps.is_empty() || w.review.is_some() {
+            pack.push_str("\n## Prior stage results\n\n");
+            for (n, step) in w.steps.iter().enumerate() {
+                let result = step.result.as_ref();
+                let field = |key: &str| {
+                    result
+                        .and_then(|r| r.get(key))
+                        .and_then(Value::as_str)
+                        .unwrap_or("-")
+                        .to_string()
+                };
+                pack.push_str(&format!(
+                    "- Stage {} `{}`: status {}, verification {}\n",
+                    n + 1,
+                    step.worker,
+                    field("status"),
+                    field("verification_outcome"),
+                ));
+            }
+            if let Some(review) = &w.review {
+                pack.push_str(&format!(
+                    "- Review: {} by {}\n",
+                    if review.accepted {
+                        "accepted"
+                    } else {
+                        "rejected"
+                    },
+                    review.reviewer
+                ));
+                for c in &review.comments {
+                    pack.push_str(&format!("  - {}:{}: {}\n", c.path, c.line, c.body));
+                }
+            }
+        }
+        if pack.len() > MAX_CONTEXT_PACK_BYTES {
+            let mut cut = MAX_CONTEXT_PACK_BYTES;
+            while !pack.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            pack.truncate(cut);
+            pack.push_str("\n... (brief truncated)\n");
+        }
+        Ok(pack)
+    }
+
     /// Revision-tolerant: see [`crate::cancel_revision`].
     pub fn cancel(&mut self, id: &str, revision: u64) -> Result<Workflow> {
         const HISTORY: crate::CancelHistory = crate::CancelHistory {
@@ -3122,6 +3340,7 @@ impl Workflows {
                 "repository":w.assignment.context,
                 "operator_guidance":w.resume_guidance,
                 "review_comments":w.resume_review_comments,
+                "operator_plan":w.assignment.operator_plan.as_ref().map(|p|json!({"source":p.source,"digest":p.digest,"imported_by":p.imported_by,"text":p.text})),
                 "candidate_checkpoint":w.steps.last().and_then(|s|s.checkpoint.as_ref()),
                 "git_page":git_page,"remaining_git_reads":4usize.saturating_sub(w.git_reads.len()),
                 "approved_workers":catalog,"routing_recommendation":recommendation,"remaining_steps":w.effective_max_steps().saturating_sub(w.steps.len()),
@@ -3322,6 +3541,9 @@ impl Workflows {
                     let effort = complexity.recommended_effort();
                     let resolved_worker = preset.name.clone();
                     let mut dispatch_objective = objective;
+                    if let Some(brief) = operator_plan_brief(w.assignment.operator_plan.as_ref()) {
+                        dispatch_objective.push_str(&brief);
+                    }
                     if w.steps.len() == active_cursor {
                         if let Some(guidance) = w.resume_guidance.as_deref() {
                             dispatch_objective
@@ -3341,7 +3563,7 @@ impl Workflows {
                                 .clone()
                                 .context("missing prior evidence")?,
                             context: serde_json::to_string(
-                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"previous_stage":previous.result,"routing_rationale":rationale}),
+                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"operator_plan_digest":w.assignment.operator_plan.as_ref().map(|p|&p.digest),"previous_stage":previous.result,"routing_rationale":rationale}),
                             )?,
                             files: if shared {
                                 BTreeMap::new()
@@ -3354,7 +3576,7 @@ impl Workflows {
                             source_task: w.id.clone(),
                             evidence_digest: w.assignment.digest()?,
                             context: serde_json::to_string(
-                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"routing_rationale":rationale}),
+                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"operator_plan_digest":w.assignment.operator_plan.as_ref().map(|p|&p.digest),"routing_rationale":rationale}),
                             )?,
                             files: BTreeMap::new(),
                         })
@@ -4131,7 +4353,7 @@ impl Workflows {
             None
         };
         d.workflow = Some(
-            json!({"phase":phase,"planner_progress":planner_progress,"planner_model":w.assignment.profile.inference.target(&w.assignment.profile.inference.default_target)?.model,"decisions":w.decisions,"git_reads":w.git_reads,"steps":w.steps.iter().map(|s|json!({"worker":s.worker,"task_id":s.task_id,"evidence_digest":s.evidence_digest,"checkpoint":s.checkpoint,"result":s.result})).collect::<Vec<_>>(),"archived_steps":w.archived_steps,"resume_guidance":w.resume_guidance,"agentlets":w.assignment.profile.workers.iter().filter_map(|worker|worker.preset.agentlet.as_ref().map(|a|json!({"worker":worker.preset.name,"definition":a}))).collect::<Vec<_>>(),"pending_agentlet_gates":pending_agentlet_gates(&w),"events":self.events(id)?,"summary":w.summary}),
+            json!({"phase":phase,"planner_progress":planner_progress,"planner_model":w.assignment.profile.inference.target(&w.assignment.profile.inference.default_target)?.model,"decisions":w.decisions,"git_reads":w.git_reads,"steps":w.steps.iter().map(|s|json!({"worker":s.worker,"task_id":s.task_id,"evidence_digest":s.evidence_digest,"checkpoint":s.checkpoint,"result":s.result})).collect::<Vec<_>>(),"archived_steps":w.archived_steps,"resume_guidance":w.resume_guidance,"operator_plan":w.assignment.operator_plan.as_ref().map(|p|json!({"stage":"plan","supplied_by":"operator","source":p.source,"digest":p.digest,"imported_by":p.imported_by,"imported_at":p.imported_at,"bytes":p.text.len()})),"agentlets":w.assignment.profile.workers.iter().filter_map(|worker|worker.preset.agentlet.as_ref().map(|a|json!({"worker":worker.preset.name,"definition":a}))).collect::<Vec<_>>(),"pending_agentlet_gates":pending_agentlet_gates(&w),"events":self.events(id)?,"summary":w.summary}),
         );
         Ok(d)
     }
@@ -4825,6 +5047,7 @@ mod tests {
                 objective: "Fix bug".into(),
                 acceptance: "Tests pass".into(),
                 context: json!({}),
+                operator_plan: None,
             },
             approval: None,
             review: None,
@@ -5290,6 +5513,7 @@ mod tests {
                 objective: "Implement normal helper".into(),
                 acceptance: "Tests pass".into(),
                 context: json!({}),
+                operator_plan: None,
             },
             approval: None,
             review: None,

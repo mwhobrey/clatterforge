@@ -1520,6 +1520,78 @@ async fn post_retry(
 }
 
 #[derive(Deserialize)]
+struct PlanImportBody {
+    revision: u64,
+    text: String,
+    #[serde(default)]
+    by: String,
+    #[serde(default)]
+    source: String,
+}
+
+/// `GET /api/tasks/{id}/context-pack`: the workflow's bounded planning brief as text.
+async fn get_context_pack(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    if let Err(err) = authenticate(&headers, &state, false).await {
+        return err.into_response();
+    }
+    let root = state.root.clone();
+    match tokio::task::spawn_blocking(move || {
+        crate::workflow::Workflows::open(&root)?.context_pack(&id)
+    })
+    .await
+    {
+        Ok(Ok(pack)) => (
+            [(
+                axum::http::header::CONTENT_TYPE,
+                "text/markdown; charset=utf-8",
+            )],
+            pack,
+        )
+            .into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
+/// `POST /api/tasks/{id}/plan`: import an operator plan into a workflow awaiting approval.
+async fn post_plan(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<PlanImportBody>,
+) -> Response {
+    let actor = match authenticate(&headers, &state, true).await {
+        Ok(actor) => actor,
+        Err(err) => return err.into_response(),
+    };
+    let by = match actor {
+        Actor::Session(principal) => principal,
+        Actor::Bearer => body.by,
+    };
+    let root = state.root.clone();
+    match tokio::task::spawn_blocking(move || {
+        crate::workflow::Workflows::open(&root)?.import_plan(
+            &id,
+            body.revision,
+            &body.text,
+            &by,
+            &body.source,
+        )?;
+        TaskService::open(&root)?.detail(&id, None)
+    })
+    .await
+    {
+        Ok(Ok(detail)) => Json(detail).into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
+#[derive(Deserialize)]
 struct DependBody {
     on: String,
 }
@@ -2599,6 +2671,8 @@ fn build_router(state: Arc<ServeState>, ui_assets: Option<PathBuf>) -> Result<Ro
         .route("/api/tasks/{id}/reconcile", post(post_reconcile))
         .route("/api/tasks/{id}/review", post(post_review))
         .route("/api/tasks/{id}/retry", post(post_retry))
+        .route("/api/tasks/{id}/context-pack", get(get_context_pack))
+        .route("/api/tasks/{id}/plan", post(post_plan))
         .route(
             "/api/tasks/{id}/integration/prepare",
             post(post_integration_prepare),

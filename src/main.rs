@@ -144,6 +144,30 @@ enum Commands {
     WorkflowShow {
         task: String,
     },
+    /// Print a bounded planning brief for a workflow, to paste into a desktop chat app.
+    #[command(name = "workflow-plan-export")]
+    WorkflowPlanExport {
+        task: String,
+        /// Write the brief to this file instead of stdout.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Import an operator-written plan into a workflow awaiting approval. Approval then
+    /// binds to the plan's digest; supervised workers and the verifier still do the work.
+    #[command(name = "workflow-plan-import")]
+    WorkflowPlanImport {
+        task: String,
+        #[arg(long)]
+        revision: u64,
+        /// File holding the plan text (UTF-8, at most 16 KiB).
+        #[arg(long)]
+        file: PathBuf,
+        #[arg(long)]
+        by: String,
+        /// Where the plan came from, recorded as provenance.
+        #[arg(long, default_value = "desktop_chat")]
+        source: String,
+    },
     /// Automatically inspect a repository, probe models/CLIs, and onboard a new project profile.
     Onboard {
         /// Target project repository path (default: current directory)
@@ -2968,6 +2992,27 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             print(&profile)?;
         }
         Commands::WorkflowShow { task } => print(&Workflows::open(&cli.state)?.get(task)?)?,
+        Commands::WorkflowPlanExport { task, out } => {
+            let pack = Workflows::open(&cli.state)?.context_pack(task)?;
+            match out {
+                Some(path) => {
+                    std::fs::write(path, &pack)?;
+                    eprintln!("wrote {} bytes to {}", pack.len(), path.display());
+                }
+                None => print!("{pack}"),
+            }
+        }
+        Commands::WorkflowPlanImport {
+            task,
+            revision,
+            file,
+            by,
+            source,
+        } => {
+            let text = std::fs::read_to_string(file)
+                .with_context(|| format!("read plan file {}", file.display()))?;
+            print(&Workflows::open(&cli.state)?.import_plan(task, *revision, &text, by, source)?)?
+        }
         Commands::Onboard {
             repo,
             name,
