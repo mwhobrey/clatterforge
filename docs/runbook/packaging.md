@@ -17,6 +17,8 @@ scripts/release/build-installer.ps1 -Notes "What changed" # release build with s
 
 The script builds the release backend and stages it as the sidecar, then runs `cargo tauri build --bundles nsis` with release-only settings injected through a config override (sidecar, `ui/` resource, update artifacts, update endpoint). None of those live in the committed `tauri.conf.json`, so ordinary development and CI builds never need them. Output lands in `dist/installer/<version>/`.
 
+The backend is built with the static C runtime (`-C target-feature=+crt-static`), as Tauri already does for the desktop app, and the script refuses a backend that still imports `VCRUNTIME140.dll`. Found November 25, 2026 testing the first CI-built installer in Windows Sandbox: a clean Windows install has no Visual C++ Redistributable, so a dynamically linked sidecar failed to load (`0xC0000135`) and the app never started its backend. Development machines usually have the redistributable, which hides this. Windows Sandbox is a quick clean-machine check for the backend; its WebView2 runtime is registered but unusable by the sandbox account, so the desktop window itself shows a WebView2 error there.
+
 ## Signed updates
 
 The installed app checks for an update at startup, asks before installing, then downloads it, stops its backend, installs in passive mode and restarts on the new version. Every update must verify against the public key compiled into the app; anything else is refused.
