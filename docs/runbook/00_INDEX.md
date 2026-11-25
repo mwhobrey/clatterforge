@@ -8,6 +8,7 @@
 - [Source integration](integration.md)
 - [Verifier sandbox](sandbox.md)
 - [Managed host](managed-host.md)
+- [Packaging and updates](packaging.md)
 - [Windows CLI adapters](windows-cli.md)
 - [Git workflow](git.md)
 - [Local inference](../INFERENCE.md)

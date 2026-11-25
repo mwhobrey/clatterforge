@@ -40,6 +40,22 @@ fn state_dir_in(base: &std::path::Path) -> PathBuf {
     }
 }
 
+/// State for a bundle layout (installed or portable): an explicit `CLATTERFORGE_STATE`, else
+/// state that already sits beside the executable (portable bundles), else the per-user data
+/// folder, so installing, updating or uninstalling the app never touches it (ADR 0018).
+fn bundle_state_dir(exe_dir: &std::path::Path) -> PathBuf {
+    let beside = state_dir_in(exe_dir);
+    let explicit = std::env::var_os("CLATTERFORGE_STATE").is_some()
+        || std::env::var_os("CONDUCTOR_STATE").is_some();
+    if explicit || beside.exists() {
+        return beside;
+    }
+    match std::env::var_os("LOCALAPPDATA") {
+        Some(local) => PathBuf::from(local).join("Clatterforge").join("state"),
+        None => beside,
+    }
+}
+
 /// Resolves the backend CLI executable and state directory (`.clatterforge`, or a legacy `.conductor`).
 ///
 /// Supports two layouts:
@@ -61,7 +77,7 @@ fn resolve_backend_and_state() -> Result<(PathBuf, PathBuf)> {
         ] {
             let bin = exe_dir.join(candidate);
             if bin.is_file() {
-                return Ok((bin, state_dir_in(exe_dir)));
+                return Ok((bin, bundle_state_dir(exe_dir)));
             }
         }
     }
@@ -323,9 +339,73 @@ fn get_api_config(config: State<ApiConfig>) -> std::result::Result<ApiConfig, St
     })
 }
 
+/// True when this build carries both an update public key and an endpoint. Release builds
+/// get them from `scripts/release/build-installer.ps1`; development builds never check.
+fn updates_configured(app: &tauri::AppHandle) -> bool {
+    app.config()
+        .plugins
+        .0
+        .get("updater")
+        .is_some_and(|updater| {
+            updater["pubkey"]
+                .as_str()
+                .is_some_and(|key| !key.trim().is_empty())
+                && updater["endpoints"]
+                    .as_array()
+                    .is_some_and(|endpoints| !endpoints.is_empty())
+        })
+}
+
+/// Checks the signed release manifest, asks before installing, then stops the backend so
+/// its executable can be replaced, installs and restarts on the new version. Anything that
+/// fails to verify against the embedded public key is refused by the updater itself.
+async fn check_for_update(app: tauri::AppHandle) -> Result<()> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    use tauri_plugin_updater::UpdaterExt;
+
+    if !updates_configured(&app) {
+        return Ok(());
+    }
+    let Some(update) = app.updater()?.check().await? else {
+        return Ok(());
+    };
+    let (answer_tx, answer_rx) = std::sync::mpsc::channel();
+    app.dialog()
+        .message(format!(
+            "Clatterforge {} is available (this is {}). Install it now? The app restarts on \
+             the new version; your forge state is kept.",
+            update.version, update.current_version
+        ))
+        .title("Update available")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Install and restart".into(),
+            "Later".into(),
+        ))
+        .show(move |accepted| {
+            let _ = answer_tx.send(accepted);
+        });
+    let accepted = tauri::async_runtime::spawn_blocking(move || answer_rx.recv().unwrap_or(false))
+        .await
+        .unwrap_or(false);
+    if !accepted {
+        return Ok(());
+    }
+    let bytes = update.download(|_, _| {}, || {}).await?;
+    if let Some(state) = app.try_state::<ApiProcess>()
+        && let Some(mut child) = state.0.lock().unwrap().take()
+    {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    update.install(bytes)?;
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -336,6 +416,12 @@ pub fn run() {
             }
             let config = spawn_api(app.handle())?;
             app.manage(config);
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = check_for_update(handle).await {
+                    log::warn!("update check failed: {error:#}");
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_api_config])
