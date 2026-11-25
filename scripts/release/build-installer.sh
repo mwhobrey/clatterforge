@@ -120,6 +120,16 @@ if [ "$os_name" = Darwin ]; then
         fi
     fi
     cp "$dmg" "$out_dir/"
+    if [ -n "${APPLE_SIGNING_IDENTITY:-}" ] && [ $skip_notarize -eq 0 ]; then
+        # The bundler notarizes only the app. Gatekeeper rejects a downloaded disk image that is
+        # signed but not notarized, so submit and staple the .dmg itself.
+        out_dmg=$out_dir/$(basename "$dmg")
+        xcrun notarytool submit "$out_dmg" --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" --wait || fail 'dmg notarization failed'
+        xcrun stapler staple "$out_dmg" || fail 'could not staple the dmg'
+        spctl --assess --type open --context context:primary-signature "$out_dmg" \
+            || fail 'Gatekeeper rejects the dmg'
+    fi
     # The bundler names the update archive after the app only, so two CPUs would collide.
     artifact=$out_dir/Clatterforge_${version}_${arch_label}.app.tar.gz
     if [ $skip_updater -eq 0 ]; then
