@@ -877,9 +877,24 @@ fn cancelling_a_hung_agent_process_stops_it_and_lands_at_cancelled() {
     // same discipline the rest of this codebase's concurrency tests use
     // (a real second thread/process, not a simulated flag flip).
     std::thread::sleep(std::time::Duration::from_millis(300));
+    // The runner keeps advancing the revision while it starts the agent, so a
+    // cancel against a just-read revision can be refused as stale: re-read and
+    // retry, as an operator would.
     let mut canceller = Agents::open(&state).unwrap();
-    let live = canceller.task(&approved.id).unwrap();
-    canceller.cancel(&approved.id, live.revision).unwrap();
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let live = canceller.task(&approved.id).unwrap();
+        match canceller.cancel(&approved.id, live.revision) {
+            Ok(_) => break,
+            Err(error)
+                if error.to_string().contains("revision conflict")
+                    && std::time::Instant::now() < until =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(error) => panic!("{error:#}"),
+        }
+    }
 
     let done = runner.join().unwrap();
     assert_eq!(done.status, AgentStatus::Cancelled, "{done:?}");

@@ -9,6 +9,7 @@ example names: `example.invalid`/`example.com`/`.test` emails, `C:/fixtures/...`
 Usage: python scripts/check-privacy.py [--history] [--root PATH]
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -70,6 +71,13 @@ def tracked_files(root):
             continue  # binary assets
 
 
+def public_commit_emails():
+    """Maintainer addresses deliberately public in commit metadata (for example GitHub's merge
+    commits). Supplied by the environment, never committed, and never accepted in file content."""
+    raw = os.environ.get('PRIVACY_PUBLIC_COMMIT_EMAILS', '')
+    return {email.strip().casefold() for email in raw.split(',') if email.strip()}
+
+
 def history_identities(root):
     out = subprocess.check_output(
         ['git', '-C', str(root), 'log', '--all', '--format=%an <%ae>%n%cn <%ce>']).decode()
@@ -87,7 +95,13 @@ def main():
         for kind, match in findings_in_text(text):
             problems.append(f'{name}: {kind}: {match}')
     if args.history:
+        allowed = public_commit_emails()
         for identity in history_identities(args.root):
+            # Compare the complete email field, not the matched substring: the email
+            # pattern can start mid-field (`private!alice@...`), which must not pass.
+            field = identity.rpartition('<')[2].rstrip('>').strip().casefold()
+            if field in allowed:
+                continue
             for kind, match in findings_in_text(identity):
                 if kind == 'email':
                     problems.append(f'commit metadata: {kind}: {match}')

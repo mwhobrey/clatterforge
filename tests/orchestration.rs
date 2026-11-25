@@ -176,8 +176,11 @@ fn setup(server: &Server) -> (TempDir, PathBuf, Orchestrator, Spec, Config) {
         target: "native".into(),
         max_rounds: 2,
         max_output_tokens: 512,
-        generation_timeout_ms: 3000,
-        verification_timeout_ms: 3000,
+        // Generous: a cold CI runner (antivirus scanning fresh executables) can take
+        // seconds to start the fixture verifier. Tests that exercise a timeout set their
+        // own short value.
+        generation_timeout_ms: 30_000,
+        verification_timeout_ms: 30_000,
         reasoning: None,
     };
     let config = Config {

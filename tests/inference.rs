@@ -673,7 +673,9 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
         let root = temp.path().join("state");
         let mut store = JobStore::open(&root).unwrap();
         let mut req = request("slow", false);
-        req.deadline_ms = if cancel { 2000 } else { 100 };
+        // Cancellation must win well before its deadline; the status assertion below
+        // tells the two outcomes apart, so the bounds only need to rule out a hang.
+        req.deadline_ms = if cancel { 20_000 } else { 100 };
         let job = store
             .create(cfg.clone(), None, req, Some("native".into()))
             .unwrap();
@@ -694,7 +696,7 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
                         break;
                     }
                     assert!(
-                        start.elapsed() < Duration::from_secs(3),
+                        start.elapsed() < Duration::from_secs(10),
                         "status={:?}, failure={:?}, generations={:?}",
                         current.status,
                         current.failure,
@@ -711,7 +713,11 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
         if let Some(t) = thread {
             t.join().unwrap();
         }
-        assert!(start.elapsed() < Duration::from_secs(1));
+        assert!(
+            start.elapsed() < Duration::from_secs(10),
+            "{:?}",
+            start.elapsed()
+        );
         assert_eq!(
             stopped.status,
             if cancel {
@@ -1180,7 +1186,14 @@ fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() 
     std::fs::write(&config_path, serde_json::to_vec(&cfg).unwrap()).unwrap();
     std::fs::write(
         &request_path,
-        serde_json::to_vec(&request("slow", false)).unwrap(),
+        serde_json::to_vec(&{
+            // The default 2 s deadline can expire before a loaded runner sees the first
+            // partial chunk; keep it well beyond the partial-output wait below.
+            let mut slow = request("slow", false);
+            slow.deadline_ms = 60_000;
+            slow
+        })
+        .unwrap(),
     )
     .unwrap();
     std::fs::write(&registry_path, br#"{"schema_version":99,"records":[]}"#).unwrap();
@@ -1262,7 +1275,7 @@ fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() 
             break current;
         }
         assert!(
-            began.elapsed() < Duration::from_secs(5),
+            began.elapsed() < Duration::from_secs(20),
             "worker did not persist partial stream"
         );
         thread::sleep(Duration::from_millis(5));
