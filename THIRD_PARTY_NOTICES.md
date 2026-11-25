@@ -26,7 +26,6 @@ Declared metadata alone is not a complete notice. This source repository does no
 | Package | Version | Declared license | License texts |
 |---|---|---|---|
 | [adler2](https://crates.io/crates/adler2/2.0.1) | 2.0.1 | 0BSD OR MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [861399f8c21c042b](#license-861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17), [8ada45cd9f843acf](#license-8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb) |
-| [ahash](https://crates.io/crates/ahash/0.8.12) | 0.8.12 | MIT OR Apache-2.0 | [0444c6991eead682](#license-0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [aho-corasick](https://crates.io/crates/aho-corasick/1.1.5) | 1.1.5 | Unlicense OR MIT | [01c266bced4a434d](#license-01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f), [0f96a83840e146e4](#license-0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f) |
 | [alloc-no-stdlib](https://crates.io/crates/alloc-no-stdlib/3.0.0) | 3.0.0 | BSD-3-Clause | [c0c56f26d9c051ca](#license-c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae) |
 | [alloc-stdlib](https://crates.io/crates/alloc-stdlib/0.3.0) | 0.3.0 | BSD-3-Clause | [c0c56f26d9c051ca](#license-c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae) |
@@ -51,6 +50,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [bitflags](https://crates.io/crates/bitflags/1.3.2) | 1.3.2 | MIT/Apache-2.0 | [6485b8ed310d3f03](#license-6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [bitflags](https://crates.io/crates/bitflags/2.13.2) | 2.13.2 | MIT OR Apache-2.0 | [6485b8ed310d3f03](#license-6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [block-buffer](https://crates.io/crates/block-buffer/0.10.4) | 0.10.4 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [d5c22aa3118d240e](#license-d5c22aa3118d240e877ad41c5d9fa232f9c77d757d4aac0c2f943afc0a95e0ef) |
+| [block-buffer](https://crates.io/crates/block-buffer/0.12.1) | 0.12.1 | MIT OR Apache-2.0 | [98181e7249d0c017](#license-98181e7249d0c01737645ec982499ce99a0f07eb8f7d625b8840d799d10dbc01), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
 | [brotli](https://crates.io/crates/brotli/9.0.0) | 9.0.0 | BSD-3-Clause AND MIT | [3d180008e36922a4](#license-3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94), [c0c56f26d9c051ca](#license-c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae) |
 | [brotli-decompressor](https://crates.io/crates/brotli-decompressor/6.0.1) | 6.0.1 | BSD-3-Clause/MIT | [c0c56f26d9c051ca](#license-c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae) |
 | [bs58](https://crates.io/crates/bs58/0.5.1) | 0.5.1 | MIT/Apache-2.0 | [42d3bf7e7d4d49d7](#license-42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
@@ -79,6 +79,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [clap_derive](https://crates.io/crates/clap_derive/4.6.7) | 4.6.7 | MIT OR Apache-2.0 | [05c58f1374a0ba16](#license-05c58f1374a0ba16711c4f60552df215d72078d374bbd245ad438388c87c3573), [6efb0476a1cc0850](#license-6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6) |
 | [clap_lex](https://crates.io/crates/clap_lex/1.1.1) | 1.1.1 | MIT OR Apache-2.0 | [05c58f1374a0ba16](#license-05c58f1374a0ba16711c4f60552df215d72078d374bbd245ad438388c87c3573), [6efb0476a1cc0850](#license-6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6) |
 | [colorchoice](https://crates.io/crates/colorchoice/1.0.5) | 1.0.5 | MIT OR Apache-2.0 | [6efb0476a1cc0850](#license-6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6), [b40930bbcf80744c](#license-b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1) |
+| [const-oid](https://crates.io/crates/const-oid/0.10.3) | 0.10.3 | Apache-2.0 OR MIT | [73b9dc2e79c73089](#license-73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
 | [const-serialize](https://crates.io/crates/const-serialize/0.7.2) | 0.7.2 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [const-serialize](https://crates.io/crates/const-serialize/0.8.0-alpha.0) | 0.8.0-alpha.0 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [const-serialize-macro](https://crates.io/crates/const-serialize-macro/0.7.2) | 0.7.2 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
@@ -86,16 +87,18 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [const-str](https://crates.io/crates/const-str/0.7.1) | 0.7.1 | MIT | [6a251363a56a7336](#license-6a251363a56a733694535344d95f4b5c8bed1a5dbe378d512e18367d11146453) |
 | [const_format](https://crates.io/crates/const_format/0.2.36) | 0.2.36 | Zlib | [b1d2c1ce3c16c587](#license-b1d2c1ce3c16c58734f9e1f9e2db8e5d18ca7bc4bcfc0a61a0a7615fc92a2464) |
 | [const_format_proc_macros](https://crates.io/crates/const_format_proc_macros/0.2.34) | 0.2.34 | Zlib | [b1d2c1ce3c16c587](#license-b1d2c1ce3c16c58734f9e1f9e2db8e5d18ca7bc4bcfc0a61a0a7615fc92a2464) |
+| [constant_time_eq](https://crates.io/crates/constant_time_eq/0.6.1) | 0.6.1 | CC0-1.0 OR MIT-0 OR Apache-2.0 | [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a), [9a3aeb3f63659c4c](#license-9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d), [a2010f343487d3f7](#license-a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499) |
 | [content_disposition](https://crates.io/crates/content_disposition/0.4.0) | 0.4.0 | MIT OR 0BSD | [e81e2e6cad63fda4](#license-e81e2e6cad63fda42ebe09a98294d920ae6f2b4b1e857d5bf72f40d88e764fe6) |
 | [convert_case](https://crates.io/crates/convert_case/0.10.0) | 0.10.0 | MIT | [e100f7104b0df01d](#license-e100f7104b0df01d9ca81432d47c21ec30c86ab8b3d706f6c5c61f5a3c0a661c) |
 | [convert_case](https://crates.io/crates/convert_case/0.8.0) | 0.8.0 | MIT | [e100f7104b0df01d](#license-e100f7104b0df01d9ca81432d47c21ec30c86ab8b3d706f6c5c61f5a3c0a661c) |
-| [cookie](https://crates.io/crates/cookie/0.18.2) | 0.18.2 | MIT OR Apache-2.0 | [2773e20df8f4c52a](#license-2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad), [f28420c1906af38b](#license-f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea) |
+| [cookie](https://crates.io/crates/cookie/0.18.3) | 0.18.3 | MIT OR Apache-2.0 | [2773e20df8f4c52a](#license-2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad), [f28420c1906af38b](#license-f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea) |
 | [cpufeatures](https://crates.io/crates/cpufeatures/0.2.17) | 0.2.17 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [ae9baa7beea91027](#license-ae9baa7beea910273c2f384c2a6b721fb7bd02bda3436074a1072e4ee689f985) |
 | [cpufeatures](https://crates.io/crates/cpufeatures/0.3.1) | 0.3.1 | MIT OR Apache-2.0 | [73b9dc2e79c73089](#license-73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
 | [crc32fast](https://crates.io/crates/crc32fast/1.5.3) | 1.5.3 | MIT OR Apache-2.0 | [61d383b05b87d78f](#license-61d383b05b87d78f94d2937e2580cce47226d17823c0430fbcad09596537efcf), [b40930bbcf80744c](#license-b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1) |
 | [crossbeam-channel](https://crates.io/crates/crossbeam-channel/0.5.17) | 0.5.17 | MIT OR Apache-2.0 | [5734ed989dfca1f6](#license-5734ed989dfca1f625b40281ee9f4530f91b2411ec01cb748223e7eb87e201ab), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [b16db96b93b1d7cf](#license-b16db96b93b1d7cf7bea533f572091ec6bca3234fbe0a83038be772ff391a44c) |
 | [crossbeam-utils](https://crates.io/crates/crossbeam-utils/0.8.23) | 0.8.23 | MIT OR Apache-2.0 | [5734ed989dfca1f6](#license-5734ed989dfca1f625b40281ee9f4530f91b2411ec01cb748223e7eb87e201ab), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [crypto-common](https://crates.io/crates/crypto-common/0.1.7) | 0.1.7 | MIT OR Apache-2.0 | [3521672491a34794](#license-3521672491a3479422d5fe1aca6645dd2984090f85da6e5205abfb18fb7a6897), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
+| [crypto-common](https://crates.io/crates/crypto-common/0.2.2) | 0.2.2 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [d2e7ec5355c96eea](#license-d2e7ec5355c96eeade56b09187ceb48a6a30299da3ce7531a66d3d11405ab963) |
 | [cssparser](https://crates.io/crates/cssparser/0.37.0) | 0.37.0 | MPL-2.0 | [1f256ecad1928805](#license-1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5) |
 | [cssparser-macros](https://crates.io/crates/cssparser-macros/0.7.1) | 0.7.1 | MPL-2.0 | [1f256ecad1928805](#license-1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5) |
 | [ctor](https://crates.io/crates/ctor/1.0.13) | 1.0.13 | Apache-2.0 OR MIT | [a8ad31b1c3f40dca](#license-a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae), [fd80a26fbb3f644a](#license-fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc) |
@@ -112,6 +115,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [derive_more](https://crates.io/crates/derive_more/2.1.1) | 2.1.1 | MIT | [8a35369f3ca263b3](#license-8a35369f3ca263b3c62fbb5032947e53b6bfebc6c8a4d1bb982de1c069f6fba5) |
 | [derive_more-impl](https://crates.io/crates/derive_more-impl/2.1.1) | 2.1.1 | MIT | [8a35369f3ca263b3](#license-8a35369f3ca263b3c62fbb5032947e53b6bfebc6c8a4d1bb982de1c069f6fba5) |
 | [digest](https://crates.io/crates/digest/0.10.7) | 0.10.7 | MIT OR Apache-2.0 | [9e0dfd2dd4173a53](#license-9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
+| [digest](https://crates.io/crates/digest/0.11.3) | 0.11.3 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [af59cea35d7f5e27](#license-af59cea35d7f5e2777a713b8d155d65efa2c339eb43f3c14e868c6ac8506edad) |
 | [dioxus](https://crates.io/crates/dioxus/0.7.10) | 0.7.10 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [dioxus-asset-resolver](https://crates.io/crates/dioxus-asset-resolver/0.7.10) | 0.7.10 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [dioxus-cli-config](https://crates.io/crates/dioxus-cli-config/0.7.10) | 0.7.10 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
@@ -164,7 +168,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [flate2](https://crates.io/crates/flate2/1.1.10) | 1.1.10 | MIT OR Apache-2.0 | [025436edff4cfcdd](#license-025436edff4cfcdde17a5811fdea78892d8482efd1abdec5a17872d07a4f2112), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [fnv](https://crates.io/crates/fnv/1.0.7) | 1.0.7 | Apache-2.0 / MIT | [65fdb6c76cd61612](#license-65fdb6c76cd61612070c066eec9ecdb30ee74fb27859d0d9af58b9f499fd0c3e), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [foldhash](https://crates.io/crates/foldhash/0.2.0) | 0.2.0 | Zlib | [1d4c38d56650edc2](#license-1d4c38d56650edc2c673cadbec74bec14db1fe8f2f10f4e3477dcbb49563be40) |
-| [form_urlencoded](https://crates.io/crates/form_urlencoded/1.2.2) | 1.2.2 | MIT OR Apache-2.0 | [20c7855c364d57ea](#license-20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
+| [form_urlencoded](https://crates.io/crates/form_urlencoded/1.2.3) | 1.2.3 | MIT OR Apache-2.0 | [20c7855c364d57ea](#license-20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [futures](https://crates.io/crates/futures/0.3.34) | 0.3.34 | MIT OR Apache-2.0 | [275c491d6d116055](#license-275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427), [6652c868f35dfe5e](#license-6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd) |
 | [futures-channel](https://crates.io/crates/futures-channel/0.3.34) | 0.3.34 | MIT OR Apache-2.0 | [275c491d6d116055](#license-275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427), [6652c868f35dfe5e](#license-6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd) |
 | [futures-core](https://crates.io/crates/futures-core/0.3.34) | 0.3.34 | MIT OR Apache-2.0 | [275c491d6d116055](#license-275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427), [6652c868f35dfe5e](#license-6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd) |
@@ -185,9 +189,8 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [gloo-utils](https://crates.io/crates/gloo-utils/0.2.0) | 0.2.0 | MIT OR Apache-2.0 | [5a6f5443ea473f13](#license-5a6f5443ea473f130adbdcf84254761d1292bc79759b5253915d4b5e7afbef66), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [half](https://crates.io/crates/half/2.7.1) | 2.7.1 | MIT OR Apache-2.0 | [508a77d2e7b51d98](#license-508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1), [a6cba85bc92e0cff](#license-a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9) |
 | [hashbrown](https://crates.io/crates/hashbrown/0.12.3) | 0.12.3 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [ff8f68cb076caf8c](#license-ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2) |
-| [hashbrown](https://crates.io/crates/hashbrown/0.14.5) | 0.14.5 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [ff8f68cb076caf8c](#license-ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2) |
 | [hashbrown](https://crates.io/crates/hashbrown/0.17.1) | 0.17.1 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [ff8f68cb076caf8c](#license-ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2) |
-| [hashlink](https://crates.io/crates/hashlink/0.9.1) | 0.9.1 | MIT OR Apache-2.0 | [8173d5c29b4f956d](#license-8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90), [f1fa5f9e9d8f7827](#license-f1fa5f9e9d8f7827ae2235e742dd00bdf6106d4c5753df928e521d7541b7f9b6) |
+| [hashlink](https://crates.io/crates/hashlink/0.12.2) | 0.12.2 | MIT OR Apache-2.0 | [8173d5c29b4f956d](#license-8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90), [f1fa5f9e9d8f7827](#license-f1fa5f9e9d8f7827ae2235e742dd00bdf6106d4c5753df928e521d7541b7f9b6) |
 | [headers](https://crates.io/crates/headers/0.4.2) | 0.4.2 | MIT | [8f2eee700f56dd8b](#license-8f2eee700f56dd8b381d92dc5b136befe09f90e186f2c1c8414a70c4c7534550) |
 | [headers-core](https://crates.io/crates/headers-core/0.3.0) | 0.3.0 | MIT | [35c1e894c0a004fa](#license-35c1e894c0a004fa534de1d22e5fc4ab65cb33b2a4300af7c6f9d20282871aed) |
 | [heck](https://crates.io/crates/heck/0.5.0) | 0.5.0 | MIT OR Apache-2.0 | [7b63ecd5f1902af1](#license-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
@@ -199,6 +202,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [http-range-header](https://crates.io/crates/http-range-header/0.4.2) | 0.4.2 | MIT | [ed72515b08d7ce8a](#license-ed72515b08d7ce8a497e7cb8418a0c93f5b0a119349db4f3b8a0dcf6cb76951a) |
 | [httparse](https://crates.io/crates/httparse/1.10.1) | 1.10.1 | MIT OR Apache-2.0 | [1626f2c950cee975](#license-1626f2c950cee975b5809748e288468141d09aa420314c7c9b35e6e62b772b2d), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [httpdate](https://crates.io/crates/httpdate/1.0.3) | 1.0.3 | MIT OR Apache-2.0 | [4d10fe5f3aa176b0](#license-4d10fe5f3aa176b05b229a248866bad70b834c173f1252a814ff4748d8a13837), [934887691e05d69d](#license-934887691e05d69d7c86ad3f2c360980fa30c15b035e351f3c9865e99da4debc) |
+| [hybrid-array](https://crates.io/crates/hybrid-array/0.4.15) | 0.4.15 | MIT OR Apache-2.0 | [70c9d40f1f9545c3](#license-70c9d40f1f9545c3f133b8a67206e89da850f6468eed072281bb3701514114a9), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
 | [hyper](https://crates.io/crates/hyper/1.12.0) | 1.12.0 | MIT | [2d01890414494742](#license-2d01890414494742ba4a509fcec8efa40f6d8be22cbd72be7cff08d6fda4ec89) |
 | [hyper-rustls](https://crates.io/crates/hyper-rustls/0.27.10) | 0.27.10 | Apache-2.0 OR ISC OR MIT | [709e3175b4212f7b](#license-709e3175b4212f7b13aa93971c9f62ff8c69ec45ad8c6532a7e0c41d7a7d6f8c), [7cfafc877eccc46c](#license-7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [hyper-util](https://crates.io/crates/hyper-util/0.1.21) | 0.1.21 | MIT | [9e0a97848ea543ae](#license-9e0a97848ea543aef745c98e84fde696a9a3e0735538f6daefdd3cb1942effc1) |
@@ -245,7 +249,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [lazy_static](https://crates.io/crates/lazy_static/1.5.1) | 1.5.1 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [libc](https://crates.io/crates/libc/0.2.190) | 0.2.190 | MIT OR Apache-2.0 | [123a331b5dbf04c3](#license-123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [libc](https://crates.io/crates/libc/0.2.191) | 0.2.191 | MIT OR Apache-2.0 | [123a331b5dbf04c3](#license-123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
-| [libsqlite3-sys](https://crates.io/crates/libsqlite3-sys/0.30.1) | 0.30.1 | MIT | [f59ba65550f2a5ad](#license-f59ba65550f2a5adff98ec6478d783402c8e0a3eb515025c0b3438f3d30dc39e) |
+| [libsqlite3-sys](https://crates.io/crates/libsqlite3-sys/0.40.0) | 0.40.0 | MIT | [c10c1f2733754647](#license-c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f) |
 | [linux-raw-sys](https://crates.io/crates/linux-raw-sys/0.12.1) | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [3290ae0fbc9ddb77](#license-3290ae0fbc9ddb77d2239121d710f0bb9d31b3b4744e6d97fe01e652b4c1870b), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [a6c48161a09acc75](#license-a6c48161a09acc75a0e25503bab66a731eb5fba5392ed4bb4743e4ba5085327a) |
 | [litemap](https://crates.io/crates/litemap/0.8.3) | 0.8.3 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [lock_api](https://crates.io/crates/lock_api/0.4.14) | 0.4.14 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [c9a75f18b9ab2927](#license-c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5) |
@@ -262,6 +266,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [memchr](https://crates.io/crates/memchr/2.8.3) | 2.8.3 | Unlicense OR MIT | [01c266bced4a434d](#license-01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f), [0f96a83840e146e4](#license-0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f) |
 | [mime](https://crates.io/crates/mime/0.3.17) | 0.3.17 | MIT OR Apache-2.0 | [8b87502eddb2d7fa](#license-8b87502eddb2d7fa23d54ed2caf5681ab5fbbdc8eb553e8ade710240842f9097), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [mime_guess](https://crates.io/crates/mime_guess/2.0.5) | 2.0.5 | MIT | [14373973f98d640e](#license-14373973f98d640ebefcf8161adb9363188fedc7695bdc5604003b17288c4e1f) |
+| [minisign-verify](https://crates.io/crates/minisign-verify/0.3.0) | 0.3.0 | MIT | [42c8695fbc468866](#license-42c8695fbc468866d9756be99af0ba4e37d733f8daa3c8827c8d80b8bec1b2f9) |
 | [miniz_oxide](https://crates.io/crates/miniz_oxide/0.8.9) | 0.8.9 | MIT OR Zlib OR Apache-2.0 | [0a54e647fe541046](#license-0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39), [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [4108245a1f2df9d4](#license-4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b), [799e9ca9d179295e](#license-799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d) |
 | [miniz_oxide](https://crates.io/crates/miniz_oxide/0.9.1) | 0.9.1 | MIT OR Zlib OR Apache-2.0 | [0a54e647fe541046](#license-0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39), [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [4108245a1f2df9d4](#license-4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b), [799e9ca9d179295e](#license-799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d) |
 | [mio](https://crates.io/crates/mio/1.2.4) | 1.2.4 | MIT | [07919255c7e04793](#license-07919255c7e04793d8ea760d6c2ce32d19f9ff02bdbdde3ce90b1e1880929a9b) |
@@ -310,17 +315,21 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [regex-syntax](https://crates.io/crates/regex-syntax/0.8.11) | 0.8.11 | MIT OR Apache-2.0 | [6485b8ed310d3f03](#license-6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [reqwest](https://crates.io/crates/reqwest/0.12.28) | 0.12.28 | MIT OR Apache-2.0 | [34f17d9067385431](#license-34f17d90673854314276164d17a4861400d4528066eb458a003fdb15ef98fbbe), [751963a8b88c0e3a](#license-751963a8b88c0e3a9f27e98933079fbcf09b9998b2c13ac49c2e4d58444520d6) |
 | [reqwest](https://crates.io/crates/reqwest/0.13.5) | 0.13.5 | MIT OR Apache-2.0 | [751963a8b88c0e3a](#license-751963a8b88c0e3a9f27e98933079fbcf09b9998b2c13ac49c2e4d58444520d6), [917c0fe02296eec6](#license-917c0fe02296eec634820b2758519e39278716bb0104f055cfee771bd7a4c534) |
+| [rfd](https://crates.io/crates/rfd/0.17.2) | 0.17.2 | MIT | [65fc947f4bac882a](#license-65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071) |
 | [ring](https://crates.io/crates/ring/0.17.14) | 0.17.14 | Apache-2.0 AND ISC | [005fc765ddc5115d](#license-005fc765ddc5115da796cca915baa9557abae13ff35e0a47c47affc56f6c414d), [b3d734001a94efff](#license-b3d734001a94efff3579978d953391aa7115f877657d25eb54037a43875d078a), [f025ccfb7dfb6bdf](#license-f025ccfb7dfb6bdfedc75ca0f67acc69e6fb4998143d834f7c2f38a29989680f) |
-| [rmcp](https://crates.io/crates/rmcp/3.7.0) | 3.7.0 | Apache-2.0 | [0382b0057770ca05](#license-0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a) |
-| [rmcp-macros](https://crates.io/crates/rmcp-macros/3.7.0) | 3.7.0 | Apache-2.0 | [0382b0057770ca05](#license-0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a) |
-| [rusqlite](https://crates.io/crates/rusqlite/0.32.1) | 0.32.1 | MIT | [f59ba65550f2a5ad](#license-f59ba65550f2a5adff98ec6478d783402c8e0a3eb515025c0b3438f3d30dc39e) |
+| [rmcp](https://crates.io/crates/rmcp/3.11.0) | 3.11.0 | Apache-2.0 | [0382b0057770ca05](#license-0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a) |
+| [rmcp-macros](https://crates.io/crates/rmcp-macros/3.11.0) | 3.11.0 | Apache-2.0 | [0382b0057770ca05](#license-0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a) |
+| [rusqlite](https://crates.io/crates/rusqlite/0.43.0) | 0.43.0 | MIT | [c10c1f2733754647](#license-c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f) |
 | [rustc-hash](https://crates.io/crates/rustc-hash/1.1.0) | 1.1.0 | Apache-2.0/MIT | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [rustc-hash](https://crates.io/crates/rustc-hash/2.1.3) | 2.1.3 | Apache-2.0 OR MIT | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [rustc_version](https://crates.io/crates/rustc_version/0.4.1) | 0.4.1 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [c9a75f18b9ab2927](#license-c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5) |
 | [rustix](https://crates.io/crates/rustix/1.1.5) | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [377c2e7c53250cc5](#license-377c2e7c53250cc5905c0b0532d35973392af16ffb9596a41d99d202cf3617c9), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [a6c48161a09acc75](#license-a6c48161a09acc75a0e25503bab66a731eb5fba5392ed4bb4743e4ba5085327a) |
 | [rustls](https://crates.io/crates/rustls/0.23.46) | 0.23.46 | Apache-2.0 OR ISC OR MIT | [709e3175b4212f7b](#license-709e3175b4212f7b13aa93971c9f62ff8c69ec45ad8c6532a7e0c41d7a7d6f8c), [7cfafc877eccc46c](#license-7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [rustls-pki-types](https://crates.io/crates/rustls-pki-types/1.15.1) | 1.15.1 | MIT OR Apache-2.0 | [45fd05c4865e7c35](#license-45fd05c4865e7c350b98ad7ac50e1b15462d49af4a91e9b0c9dd933dc9a69742), [9117d922e6671255](#license-9117d922e667125508dde62b02c1f57ed22f5ad21eb536aa2e2d99e1c796e639) |
+| [rustls-pki-types](https://crates.io/crates/rustls-pki-types/1.16.0) | 1.16.0 | MIT OR Apache-2.0 | [45fd05c4865e7c35](#license-45fd05c4865e7c350b98ad7ac50e1b15462d49af4a91e9b0c9dd933dc9a69742), [9117d922e6671255](#license-9117d922e667125508dde62b02c1f57ed22f5ad21eb536aa2e2d99e1c796e639) |
+| [rustls-platform-verifier](https://crates.io/crates/rustls-platform-verifier/0.7.1) | 0.7.1 | MIT OR Apache-2.0 | [1c7cf76689c837a6](#license-1c7cf76689c837a68ed8d704994e52a0f2940c087958f860d17f3186afbdcc0c), [c71d239df91726fc](#license-c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4) |
 | [rustls-webpki](https://crates.io/crates/rustls-webpki/0.103.16) | 0.103.16 | ISC | [5b698ca13897be3a](#license-5b698ca13897be3afdb7174256fa1574f8c6892b8bea1a66dd6469d3fe27885a) |
+| [rustls-webpki](https://crates.io/crates/rustls-webpki/0.103.17) | 0.103.17 | ISC | [5b698ca13897be3a](#license-5b698ca13897be3afdb7174256fa1574f8c6892b8bea1a66dd6469d3fe27885a) |
 | [rustversion](https://crates.io/crates/rustversion/1.0.23) | 1.0.23 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [ryu](https://crates.io/crates/ryu/1.0.23) | 1.0.23 | Apache-2.0 OR BSL-1.0 | [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a), [c9bff75738922193](#license-c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566) |
 | [same-file](https://crates.io/crates/same-file/1.0.6) | 1.0.6 | Unlicense/MIT | [01c266bced4a434d](#license-01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f), [cb3c929a05e6cbc9](#license-cb3c929a05e6cbc9de9ab06a4c57eeb60ca8c724bef6c138c87d3a577e27aa14) |
@@ -353,6 +362,7 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [servo_arc](https://crates.io/crates/servo_arc/0.4.3) | 0.4.3 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [sha1](https://crates.io/crates/sha1/0.10.7) | 0.10.7 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [b4eb00df6e2a4d22](#license-b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1) |
 | [sha2](https://crates.io/crates/sha2/0.10.9) | 0.10.9 | MIT OR Apache-2.0 | [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5), [b4eb00df6e2a4d22](#license-b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1) |
+| [sha2](https://crates.io/crates/sha2/0.11.1) | 0.11.1 | MIT OR Apache-2.0 | [831e0f43ad0bf014](#license-831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25), [a9040321c3712d8f](#license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5) |
 | [sharded-slab](https://crates.io/crates/sharded-slab/0.1.7) | 0.1.7 | MIT | [eafbfa606bc005ed](#license-eafbfa606bc005ed7fd2f623d65af17ffe4ef7c017221ac14405bf4140771ea9) |
 | [shlex](https://crates.io/crates/shlex/2.0.1) | 2.0.1 | MIT OR Apache-2.0 | [4455bf75a9115410](#license-4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1), [553fffcd9b1cb158](#license-553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583) |
 | [signal-hook-registry](https://crates.io/crates/signal-hook-registry/1.4.8) | 1.4.8 | MIT OR Apache-2.0 | [503558bfefe66ca1](#license-503558bfefe66ca15e4e3f7955b3cb0ec87fd52f29bf24b336af7bd00e946d5c), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
@@ -386,7 +396,10 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [tauri-codegen](https://crates.io/crates/tauri-codegen/2.7.4) | 2.7.4 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-macros](https://crates.io/crates/tauri-macros/2.7.4) | 2.7.4 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-plugin](https://crates.io/crates/tauri-plugin/2.7.2) | 2.7.2 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [5e834fe9788c5242](#license-5e834fe9788c524210deda859c46a550ffa5aa0cba9ea0572f0d81120e97c008), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
+| [tauri-plugin-dialog](https://crates.io/crates/tauri-plugin-dialog/2.8.4) | 2.8.4 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9c1db6b7e7eb83e1](#license-9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
+| [tauri-plugin-fs](https://crates.io/crates/tauri-plugin-fs/2.7.1) | 2.7.1 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9c1db6b7e7eb83e1](#license-9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-plugin-log](https://crates.io/crates/tauri-plugin-log/2.10.1) | 2.10.1 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9c1db6b7e7eb83e1](#license-9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
+| [tauri-plugin-updater](https://crates.io/crates/tauri-plugin-updater/2.14.1) | 2.14.1 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9c1db6b7e7eb83e1](#license-9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-runtime](https://crates.io/crates/tauri-runtime/2.12.2) | 2.12.2 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-runtime-wry](https://crates.io/crates/tauri-runtime-wry/2.12.3) | 2.12.3 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
 | [tauri-utils](https://crates.io/crates/tauri-utils/2.10.2) | 2.10.2 | Apache-2.0 OR MIT | [0d542e0c8804e39a](#license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594), [9dd42ea92cff2ede](#license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d) |
@@ -426,15 +439,18 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [tracing-wasm](https://crates.io/crates/tracing-wasm/0.2.1) | 0.2.1 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [c8a0ba6fae6e71dc](#license-c8a0ba6fae6e71dceb5712a31fa4ae4de31b996c638bb458e66e1d81713d699b) |
 | [tray-icon](https://crates.io/crates/tray-icon/0.25.1) | 0.25.1 | MIT OR Apache-2.0 | [2ab5537b8c0cb1d4](#license-2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a), [44181d1db740d984](#license-44181d1db740d9841dbe6d7fa1963a23067f335567127fc15a9d050476af71a6), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [try-lock](https://crates.io/crates/try-lock/0.2.5) | 0.2.5 | MIT | [8b62775bacdfa5ae](#license-8b62775bacdfa5ae8390519b7cdf7ab7d6c53f008981f1b9abd6135ef745b67e) |
+| [typed-path](https://crates.io/crates/typed-path/0.13.0) | 0.13.0 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [typeid](https://crates.io/crates/typeid/1.0.3) | 1.0.3 | MIT OR Apache-2.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a) |
 | [typenum](https://crates.io/crates/typenum/1.20.1) | 1.20.1 | MIT OR Apache-2.0 | [36bb253818ac1376](#license-36bb253818ac13761081556ff5c457d626da9df1eb4f56194d9ad3926c418a68), [3c97f5b6ad4e73ad](#license-3c97f5b6ad4e73ad22dc0d1e0c7120579a350df57095120017ddfe5a8669604e), [a825bd853ab71619](#license-a825bd853ab71619a4923d7b4311221427848070ff44d990da39b0b274c1683f) |
 | [unicase](https://crates.io/crates/unicase/2.10.0) | 2.10.0 | MIT OR Apache-2.0 | [2d01890414494742](#license-2d01890414494742ba4a509fcec8efa40f6d8be22cbd72be7cff08d6fda4ec89), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
+| [unicode-general-category](https://crates.io/crates/unicode-general-category/1.1.0) | 1.1.0 | Apache-2.0 | [b40930bbcf80744c](#license-b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1) |
 | [unicode-ident](https://crates.io/crates/unicode-ident/1.0.26) | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a), [f7db81051789b729](#license-f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1) |
 | [unicode-ident](https://crates.io/crates/unicode-ident/1.0.27) | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3), [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a), [f7db81051789b729](#license-f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1) |
+| [unicode-normalization](https://crates.io/crates/unicode-normalization/0.1.26) | 0.1.26 | (MIT OR Apache-2.0) AND Unicode-3.0 | [23860c2a7b5d96b2](#license-23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d), [7b63ecd5f1902af1](#license-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [f7db81051789b729](#license-f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1) |
 | [unicode-segmentation](https://crates.io/crates/unicode-segmentation/1.13.3) | 1.13.3 | MIT OR Apache-2.0 | [23860c2a7b5d96b2](#license-23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d), [7b63ecd5f1902af1](#license-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [unicode-xid](https://crates.io/crates/unicode-xid/0.2.6) | 0.2.6 | MIT OR Apache-2.0 | [23860c2a7b5d96b2](#license-23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d), [7b63ecd5f1902af1](#license-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0), [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2) |
 | [untrusted](https://crates.io/crates/untrusted/0.9.0) | 0.9.0 | ISC | [7abd9b6960dcf7d4](#license-7abd9b6960dcf7d4d0a48606a5b71bfe37d472db68d70637f3a58a56785f1621) |
-| [url](https://crates.io/crates/url/2.5.8) | 2.5.8 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [b38f11f6096706e6](#license-b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5) |
+| [url](https://crates.io/crates/url/2.5.9) | 2.5.9 | MIT OR Apache-2.0 | [a60eea8175145316](#license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2), [b38f11f6096706e6](#license-b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5) |
 | [urlpattern](https://crates.io/crates/urlpattern/0.6.0) | 0.6.0 | MIT | [5cf1c9dc617e4cad](#license-5cf1c9dc617e4cad7fa03181ff893601ad5243aa3be527ef39034e1cd6377676) |
 | [utf8_iter](https://crates.io/crates/utf8_iter/1.0.4) | 1.0.4 | Apache-2.0 OR MIT | [3fa4ca83dcc92378](#license-3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c), [c30152c94a6d75e0](#license-c30152c94a6d75e021adbc52b3a52470366a46edb917e17deae3259251af244c), [cfc7749b96f63bd3](#license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30) |
 | [utf8parse](https://crates.io/crates/utf8parse/0.2.2) | 0.2.2 | Apache-2.0 OR MIT | [62c7a1e35f564068](#license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a), [e4c9b06fa850cb9b](#license-e4c9b06fa850cb9b540a5e400e9f6394cf15efcf4098144de477d1d3dae10150) |
@@ -471,14 +487,12 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [windows-interface](https://crates.io/crates/windows-interface/0.59.3) | 0.59.3 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-link](https://crates.io/crates/windows-link/0.2.1) | 0.2.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-numerics](https://crates.io/crates/windows-numerics/0.3.1) | 0.3.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
+| [windows-registry](https://crates.io/crates/windows-registry/0.6.1) | 0.6.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-result](https://crates.io/crates/windows-result/0.4.1) | 0.4.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-strings](https://crates.io/crates/windows-strings/0.5.1) | 0.5.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
-| [windows-sys](https://crates.io/crates/windows-sys/0.52.0) | 0.52.0 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-sys](https://crates.io/crates/windows-sys/0.61.2) | 0.61.2 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
-| [windows-targets](https://crates.io/crates/windows-targets/0.52.6) | 0.52.6 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-threading](https://crates.io/crates/windows-threading/0.2.1) | 0.2.1 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [windows-version](https://crates.io/crates/windows-version/0.1.7) | 0.1.7 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
-| [windows_x86_64_msvc](https://crates.io/crates/windows_x86_64_msvc/0.52.6) | 0.52.6 | MIT OR Apache-2.0 | [c16f8dcf1a368b83](#license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b), [c2cfccb812fe4821](#license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383) |
 | [winnow](https://crates.io/crates/winnow/0.7.15) | 0.7.15 | MIT | [cb5aedb296c5246d](#license-cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d) |
 | [winnow](https://crates.io/crates/winnow/1.0.4) | 1.0.4 | MIT | [cb5aedb296c5246d](#license-cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d) |
 | [winreg](https://crates.io/crates/winreg/0.56.0) | 0.56.0 | MIT | [ea021d8c6383c84d](#license-ea021d8c6383c84d19c15ce90d3b1602cf448fdcc0bf3772c98e43c7bf1bf1d1) |
@@ -487,15 +501,17 @@ Declared metadata alone is not a complete notice. This source repository does no
 | [xxhash-rust](https://crates.io/crates/xxhash-rust/0.8.19) | 0.8.19 | BSL-1.0 | [c9bff75738922193](#license-c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566) |
 | [yoke](https://crates.io/crates/yoke/0.8.3) | 0.8.3 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [yoke-derive](https://crates.io/crates/yoke-derive/0.8.4) | 0.8.4 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
-| [zerocopy](https://crates.io/crates/zerocopy/0.8.62) | 0.8.62 | BSD-2-Clause OR Apache-2.0 OR MIT | [1520f0253bb05bbf](#license-1520f0253bb05bbfc841b827fe6440172f0513b4a890f720c9de1665a07c21e8), [24fa231567ace7e0](#license-24fa231567ace7e0cdd96e5b2e649b0445d280710f7018d01ba6411e06aa641e), [83c1763356e822ad](#license-83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32) |
 | [zerocopy](https://crates.io/crates/zerocopy/0.8.63) | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | [1520f0253bb05bbf](#license-1520f0253bb05bbfc841b827fe6440172f0513b4a890f720c9de1665a07c21e8), [24fa231567ace7e0](#license-24fa231567ace7e0cdd96e5b2e649b0445d280710f7018d01ba6411e06aa641e), [83c1763356e822ad](#license-83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32) |
 | [zerocopy-derive](https://crates.io/crates/zerocopy-derive/0.8.63) | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | [1520f0253bb05bbf](#license-1520f0253bb05bbfc841b827fe6440172f0513b4a890f720c9de1665a07c21e8), [24fa231567ace7e0](#license-24fa231567ace7e0cdd96e5b2e649b0445d280710f7018d01ba6411e06aa641e), [83c1763356e822ad](#license-83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32) |
 | [zerofrom](https://crates.io/crates/zerofrom/0.1.8) | 0.1.8 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [zerofrom-derive](https://crates.io/crates/zerofrom-derive/0.1.8) | 0.1.8 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [zeroize](https://crates.io/crates/zeroize/1.9.1) | 1.9.1 | Apache-2.0 OR MIT | [8c7516d4b27b1e49](#license-8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b), [cfc7749b96f63bd3](#license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30) |
+| [zeroize](https://crates.io/crates/zeroize/1.9.2) | 1.9.2 | Apache-2.0 OR MIT | [8c7516d4b27b1e49](#license-8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b), [cfc7749b96f63bd3](#license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30) |
+| [zeroize_derive](https://crates.io/crates/zeroize_derive/1.5.0) | 1.5.0 | Apache-2.0 OR MIT | [b8c6939380a400f5](#license-b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0), [cfc7749b96f63bd3](#license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30) |
 | [zerotrie](https://crates.io/crates/zerotrie/0.2.5) | 0.2.5 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [zerovec](https://crates.io/crates/zerovec/0.11.8) | 0.11.8 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
 | [zerovec-derive](https://crates.io/crates/zerovec-derive/0.11.6) | 0.11.6 | Unicode-3.0 | [f367c1b8e1aa2624](#license-f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2) |
+| [zip](https://crates.io/crates/zip/9.8.2) | 9.8.2 | MIT | [58545fed1565e42d](#license-58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79) |
 | [zlib-rs](https://crates.io/crates/zlib-rs/0.6.8) | 0.6.8 | Zlib | [ae078f5c300de754](#license-ae078f5c300de75464ac3feafe98111bd27ce41d226d95d30adc280479517ac2) |
 | [zmij](https://crates.io/crates/zmij/1.0.23) | 1.0.23 | MIT | [23f18e03dc49df91](#license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3) |
 
@@ -854,7 +870,7 @@ Creator: Person: Daniel Thompson-Yvetot
 <a id="license-0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a"></a>
 ### 0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a
 
-Sources: rmcp 3.7.0: LICENSE from published crate; rmcp-macros 3.7.0: LICENSE from published crate
+Sources: rmcp 3.11.0: LICENSE from published crate; rmcp-macros 3.11.0: LICENSE from published crate
 
 ``````text
 The MCP project is undergoing a licensing transition from the MIT License to the Apache License, Version 2.0 ("Apache-2.0"). All new code and specification contributions to the project are licensed under Apache-2.0. Documentation contributions (excluding specifications) are licensed under CC-BY-4.0.
@@ -1073,39 +1089,6 @@ Creative Commons Attribution 4.0 International (CC-BY-4.0)
 Documentation in this project (excluding specifications) is licensed under
 CC-BY-4.0. See https://creativecommons.org/licenses/by/4.0/legalcode for
 the full license text.
-``````
-
-<a id="license-0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb"></a>
-### 0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb
-
-Sources: ahash 0.8.12: LICENSE-MIT from published crate
-
-``````text
-Copyright (c) 2018 Tom Kaitchuck
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 ``````
 
 <a id="license-05c58f1374a0ba16711c4f60552df215d72078d374bbd245ad438388c87c3573"></a>
@@ -1574,7 +1557,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"></a>
 ### 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
 
-Sources: fdeflate 0.3.7: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-APACHE-2.0; miniz_oxide 0.8.9: LICENSE-APACHE.md from published crate; miniz_oxide 0.9.1: LICENSE-APACHE.md from published crate; num-conv 0.2.2: LICENSE-Apache from published crate; pin-project 1.1.13: LICENSE-APACHE from published crate; pin-project-internal 1.1.13: LICENSE-APACHE from published crate; pin-project-lite 0.2.17: LICENSE-APACHE from published crate; raw-window-handle 0.6.2: LICENSE-APACHE.md from published crate; sync_wrapper 1.0.2: LICENSE from published crate; tauri 2.12.5: LICENSE-APACHE-2.0 from published crate; tauri-build 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-codegen 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-macros 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-plugin-log 2.10.1: LICENSE_APACHE-2.0 from published crate; tauri-runtime 2.12.2: LICENSE-APACHE-2.0 from published crate; tauri-runtime-wry 2.12.3: LICENSE-APACHE-2.0 from published crate; tauri-utils 2.10.2: LICENSE-APACHE-2.0 from published crate; time 0.3.55: LICENSE-Apache from published crate; time-core 0.1.9: LICENSE-Apache from published crate; time-macros 0.2.32: LICENSE-Apache from published crate
+Sources: fdeflate 0.3.7: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-APACHE-2.0; miniz_oxide 0.8.9: LICENSE-APACHE.md from published crate; miniz_oxide 0.9.1: LICENSE-APACHE.md from published crate; num-conv 0.2.2: LICENSE-Apache from published crate; pin-project 1.1.13: LICENSE-APACHE from published crate; pin-project-internal 1.1.13: LICENSE-APACHE from published crate; pin-project-lite 0.2.17: LICENSE-APACHE from published crate; raw-window-handle 0.6.2: LICENSE-APACHE.md from published crate; sync_wrapper 1.0.2: LICENSE from published crate; tauri 2.12.5: LICENSE-APACHE-2.0 from published crate; tauri-build 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-codegen 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-macros 2.7.4: LICENSE-APACHE-2.0 from published crate; tauri-plugin-dialog 2.8.4: LICENSE_APACHE-2.0 from published crate; tauri-plugin-fs 2.7.1: LICENSE_APACHE-2.0 from published crate; tauri-plugin-log 2.10.1: LICENSE_APACHE-2.0 from published crate; tauri-plugin-updater 2.14.1: LICENSE_APACHE-2.0 from published crate; tauri-runtime 2.12.2: LICENSE-APACHE-2.0 from published crate; tauri-runtime-wry 2.12.3: LICENSE-APACHE-2.0 from published crate; tauri-utils 2.10.2: LICENSE-APACHE-2.0 from published crate; time 0.3.55: LICENSE-Apache from published crate; time-core 0.1.9: LICENSE-Apache from published crate; time-macros 0.2.32: LICENSE-Apache from published crate
 
 ``````text
 
@@ -1975,7 +1958,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <a id="license-1520f0253bb05bbfc841b827fe6440172f0513b4a890f720c9de1665a07c21e8"></a>
 ### 1520f0253bb05bbfc841b827fe6440172f0513b4a890f720c9de1665a07c21e8
 
-Sources: zerocopy 0.8.62: LICENSE-APACHE from published crate; zerocopy 0.8.63: LICENSE-APACHE from published crate; zerocopy-derive 0.8.63: LICENSE-APACHE from published crate
+Sources: zerocopy 0.8.63: LICENSE-APACHE from published crate; zerocopy-derive 0.8.63: LICENSE-APACHE from published crate
 
 ``````text
                                  Apache License
@@ -2572,6 +2555,35 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ``````
 
+<a id="license-1c7cf76689c837a68ed8d704994e52a0f2940c087958f860d17f3186afbdcc0c"></a>
+### 1c7cf76689c837a68ed8d704994e52a0f2940c087958f860d17f3186afbdcc0c
+
+Sources: rustls-platform-verifier 0.7.1: LICENSE-MIT from published crate
+
+``````text
+MIT License
+
+Copyright (c) 2022 1Password
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+``````
+
 <a id="license-1d4c38d56650edc2c673cadbec74bec14db1fe8f2f10f4e3477dcbb49563be40"></a>
 ### 1d4c38d56650edc2c673cadbec74bec14db1fe8f2f10f4e3477dcbb49563be40
 
@@ -3082,7 +3094,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e"></a>
 ### 20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e
 
-Sources: form_urlencoded 1.2.2: LICENSE-MIT from published crate
+Sources: form_urlencoded 1.2.3: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2013-2016 The rust-url developers
@@ -3438,7 +3450,7 @@ SOFTWARE.
 <a id="license-23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d"></a>
 ### 23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d
 
-Sources: unicode-segmentation 1.13.3: COPYRIGHT from published crate; unicode-xid 0.2.6: COPYRIGHT from published crate
+Sources: unicode-normalization 0.1.26: COPYRIGHT from published crate; unicode-segmentation 1.13.3: COPYRIGHT from published crate; unicode-xid 0.2.6: COPYRIGHT from published crate
 
 ``````text
 Licensed under the Apache License, Version 2.0
@@ -3453,7 +3465,7 @@ according to those terms.
 <a id="license-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"></a>
 ### 23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3
 
-Sources: adler2 2.0.1: LICENSE-MIT from published crate; anyhow 1.0.104: LICENSE-MIT from published crate; async-trait 0.1.92: LICENSE-MIT from published crate; atomic-waker 1.1.2: LICENSE-MIT from published crate; camino 1.2.6: LICENSE-MIT from published crate; cargo-platform 0.1.9: LICENSE-MIT from published crate; cargo_metadata 0.19.2: LICENSE-MIT from published crate; displaydoc 0.2.7: LICENSE-MIT from published crate; dtoa 1.0.11: LICENSE-MIT from published crate; dyn-clone 1.0.20: LICENSE-MIT from published crate; erased-serde 0.4.10: LICENSE-MIT from published crate; fastrand 2.5.0: LICENSE-MIT from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-MIT; inventory 0.3.25: LICENSE-MIT from published crate; itoa 1.0.18: LICENSE-MIT from published crate; lazy_static 1.5.1: LICENSE-MIT from published crate; linux-raw-sys 0.12.1: LICENSE-MIT from published crate; macro-string 0.1.4: LICENSE-MIT from published crate; once_cell 1.21.4: LICENSE-MIT from published crate; pastey 0.2.3: LICENSE-MIT from published crate; pin-project 1.1.13: LICENSE-MIT from published crate; pin-project-internal 1.1.13: LICENSE-MIT from published crate; pin-project-lite 0.2.17: LICENSE-MIT from published crate; proc-macro2 1.0.107: LICENSE-MIT from published crate; quote 1.0.47: LICENSE-MIT from published crate; ref-cast 1.0.27: LICENSE-MIT from published crate; ref-cast-impl 1.0.27: LICENSE-MIT from published crate; rustc-hash 1.1.0: LICENSE-MIT from published crate; rustc-hash 2.1.3: LICENSE-MIT from published crate; rustix 1.1.5: LICENSE-MIT from published crate; rustversion 1.0.23: LICENSE-MIT from published crate; semver 1.0.28: LICENSE-MIT from published crate; send_wrapper 0.6.0: LICENSE-MIT.txt from published crate; serde 1.0.229: LICENSE-MIT from published crate; serde-untagged 0.1.9: LICENSE-MIT from published crate; serde_core 1.0.229: LICENSE-MIT from published crate; serde_derive 1.0.229: LICENSE-MIT from published crate; serde_derive_internals 0.29.1: LICENSE-MIT from published crate; serde_derive_internals 0.30.0: LICENSE-MIT from published crate; serde_json 1.0.154: LICENSE-MIT from published crate; serde_path_to_error 0.1.20: LICENSE-MIT from published crate; serde_repr 0.1.21: LICENSE-MIT from published crate; servo_arc 0.4.3: LICENSE-MIT from published crate; syn 2.0.119: LICENSE-MIT from published crate; syn 3.0.8: LICENSE-MIT from published crate; syn 3.0.9: LICENSE-MIT from published crate; thiserror 1.0.69: LICENSE-MIT from published crate; thiserror 2.0.21: LICENSE-MIT from published crate; thiserror-impl 1.0.69: LICENSE-MIT from published crate; thiserror-impl 2.0.21: LICENSE-MIT from published crate; typeid 1.0.3: LICENSE-MIT from published crate; unicode-ident 1.0.26: LICENSE-MIT from published crate; unicode-ident 1.0.27: LICENSE-MIT from published crate; wasm-streams 0.4.2: LICENSE-MIT from published crate; zmij 1.0.23: LICENSE-MIT from published crate
+Sources: adler2 2.0.1: LICENSE-MIT from published crate; anyhow 1.0.104: LICENSE-MIT from published crate; async-trait 0.1.92: LICENSE-MIT from published crate; atomic-waker 1.1.2: LICENSE-MIT from published crate; camino 1.2.6: LICENSE-MIT from published crate; cargo-platform 0.1.9: LICENSE-MIT from published crate; cargo_metadata 0.19.2: LICENSE-MIT from published crate; displaydoc 0.2.7: LICENSE-MIT from published crate; dtoa 1.0.11: LICENSE-MIT from published crate; dyn-clone 1.0.20: LICENSE-MIT from published crate; erased-serde 0.4.10: LICENSE-MIT from published crate; fastrand 2.5.0: LICENSE-MIT from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-MIT; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-MIT; inventory 0.3.25: LICENSE-MIT from published crate; itoa 1.0.18: LICENSE-MIT from published crate; lazy_static 1.5.1: LICENSE-MIT from published crate; linux-raw-sys 0.12.1: LICENSE-MIT from published crate; macro-string 0.1.4: LICENSE-MIT from published crate; once_cell 1.21.4: LICENSE-MIT from published crate; pastey 0.2.3: LICENSE-MIT from published crate; pin-project 1.1.13: LICENSE-MIT from published crate; pin-project-internal 1.1.13: LICENSE-MIT from published crate; pin-project-lite 0.2.17: LICENSE-MIT from published crate; proc-macro2 1.0.107: LICENSE-MIT from published crate; quote 1.0.47: LICENSE-MIT from published crate; ref-cast 1.0.27: LICENSE-MIT from published crate; ref-cast-impl 1.0.27: LICENSE-MIT from published crate; rustc-hash 1.1.0: LICENSE-MIT from published crate; rustc-hash 2.1.3: LICENSE-MIT from published crate; rustix 1.1.5: LICENSE-MIT from published crate; rustversion 1.0.23: LICENSE-MIT from published crate; semver 1.0.28: LICENSE-MIT from published crate; send_wrapper 0.6.0: LICENSE-MIT.txt from published crate; serde 1.0.229: LICENSE-MIT from published crate; serde-untagged 0.1.9: LICENSE-MIT from published crate; serde_core 1.0.229: LICENSE-MIT from published crate; serde_derive 1.0.229: LICENSE-MIT from published crate; serde_derive_internals 0.29.1: LICENSE-MIT from published crate; serde_derive_internals 0.30.0: LICENSE-MIT from published crate; serde_json 1.0.154: LICENSE-MIT from published crate; serde_path_to_error 0.1.20: LICENSE-MIT from published crate; serde_repr 0.1.21: LICENSE-MIT from published crate; servo_arc 0.4.3: LICENSE-MIT from published crate; syn 2.0.119: LICENSE-MIT from published crate; syn 3.0.8: LICENSE-MIT from published crate; syn 3.0.9: LICENSE-MIT from published crate; thiserror 1.0.69: LICENSE-MIT from published crate; thiserror 2.0.21: LICENSE-MIT from published crate; thiserror-impl 1.0.69: LICENSE-MIT from published crate; thiserror-impl 2.0.21: LICENSE-MIT from published crate; typed-path 0.13.0: LICENSE-MIT from published crate; typeid 1.0.3: LICENSE-MIT from published crate; unicode-ident 1.0.26: LICENSE-MIT from published crate; unicode-ident 1.0.27: LICENSE-MIT from published crate; wasm-streams 0.4.2: LICENSE-MIT from published crate; zmij 1.0.23: LICENSE-MIT from published crate
 
 ``````text
 Permission is hereby granted, free of charge, to any
@@ -3517,7 +3529,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-24fa231567ace7e0cdd96e5b2e649b0445d280710f7018d01ba6411e06aa641e"></a>
 ### 24fa231567ace7e0cdd96e5b2e649b0445d280710f7018d01ba6411e06aa641e
 
-Sources: zerocopy 0.8.62: LICENSE-MIT from published crate; zerocopy 0.8.63: LICENSE-MIT from published crate; zerocopy-derive 0.8.63: LICENSE-MIT from published crate
+Sources: zerocopy 0.8.63: LICENSE-MIT from published crate; zerocopy-derive 0.8.63: LICENSE-MIT from published crate
 
 ``````text
 Copyright 2023 The Fuchsia Authors
@@ -3845,7 +3857,7 @@ limitations under the License.
 <a id="license-2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad"></a>
 ### 2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad
 
-Sources: cookie 0.18.2: LICENSE-APACHE from published crate
+Sources: cookie 0.18.3: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -5651,6 +5663,73 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ``````
 
+<a id="license-42c8695fbc468866d9756be99af0ba4e37d733f8daa3c8827c8d80b8bec1b2f9"></a>
+### 42c8695fbc468866d9756be99af0ba4e37d733f8daa3c8827c8d80b8bec1b2f9
+
+Sources: minisign-verify 0.3.0: LICENSE from published crate
+
+``````text
+Copyright (c) 2019-2025 Frank Denis
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+--
+
+Code in the src/crypto folder is derived from the rust-crypto project:
+https://github.com/DaGenix/rust-crypto
+
+Original ISC license follows:
+
+Copyright (c) 2006-2009 Graydon Hoare
+Copyright (c) 2009-2013 Mozilla Foundation
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+``````
+
 <a id="license-42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969"></a>
 ### 42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969
 
@@ -5839,7 +5918,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-45fd05c4865e7c350b98ad7ac50e1b15462d49af4a91e9b0c9dd933dc9a69742"></a>
 ### 45fd05c4865e7c350b98ad7ac50e1b15462d49af4a91e9b0c9dd933dc9a69742
 
-Sources: rustls-pki-types 1.15.1: LICENSE-APACHE from published crate
+Sources: rustls-pki-types 1.15.1: LICENSE-APACHE from published crate; rustls-pki-types 1.16.0: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -6679,7 +6758,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79"></a>
 ### 58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79
 
-Sources: spin 0.9.9: LICENSE from published crate
+Sources: spin 0.9.9: LICENSE from published crate; zip 9.8.2: LICENSE from published crate
 
 ``````text
 The MIT License (MIT)
@@ -6761,7 +6840,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-5b698ca13897be3afdb7174256fa1574f8c6892b8bea1a66dd6469d3fe27885a"></a>
 ### 5b698ca13897be3afdb7174256fa1574f8c6892b8bea1a66dd6469d3fe27885a
 
-Sources: rustls-webpki 0.103.16: LICENSE from published crate
+Sources: rustls-webpki 0.103.16: LICENSE from published crate; rustls-webpki 0.103.17: LICENSE from published crate
 
 ``````text
 Except as otherwise noted, this project is licensed under the following
@@ -7100,7 +7179,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"></a>
 ### 62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a
 
-Sources: anyhow 1.0.104: LICENSE-APACHE from published crate; async-trait 0.1.92: LICENSE-APACHE from published crate; dtoa 1.0.11: LICENSE-APACHE from published crate; dyn-clone 1.0.20: LICENSE-APACHE from published crate; erased-serde 0.4.10: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-APACHE; inventory 0.3.25: LICENSE-APACHE from published crate; itoa 1.0.18: LICENSE-APACHE from published crate; libc 0.2.190: LICENSE-APACHE from published crate; libc 0.2.191: LICENSE-APACHE from published crate; macro-string 0.1.4: LICENSE-APACHE from published crate; pastey 0.2.3: LICENSE-APACHE from published crate; proc-macro2 1.0.107: LICENSE-APACHE from published crate; proc-macro2-diagnostics 0.10.1: LICENSE-APACHE from published crate; quote 1.0.47: LICENSE-APACHE from published crate; ref-cast 1.0.27: LICENSE-APACHE from published crate; ref-cast-impl 1.0.27: LICENSE-APACHE from published crate; rustc-hash 2.1.3: LICENSE-APACHE from published crate; rustversion 1.0.23: LICENSE-APACHE from published crate; ryu 1.0.23: LICENSE-APACHE from published crate; semver 1.0.28: LICENSE-APACHE from published crate; serde 1.0.229: LICENSE-APACHE from published crate; serde-untagged 0.1.9: LICENSE-APACHE from published crate; serde_core 1.0.229: LICENSE-APACHE from published crate; serde_derive 1.0.229: LICENSE-APACHE from published crate; serde_derive_internals 0.29.1: LICENSE-APACHE from published crate; serde_derive_internals 0.30.0: LICENSE-APACHE from published crate; serde_json 1.0.154: LICENSE-APACHE from published crate; serde_path_to_error 0.1.20: LICENSE-APACHE from published crate; serde_qs 0.15.0: LICENSE-APACHE from published crate; serde_repr 0.1.21: LICENSE-APACHE from published crate; serde_urlencoded 0.7.1: LICENSE-APACHE from published crate; syn 2.0.119: LICENSE-APACHE from published crate; syn 3.0.8: LICENSE-APACHE from published crate; syn 3.0.9: LICENSE-APACHE from published crate; thiserror 1.0.69: LICENSE-APACHE from published crate; thiserror 2.0.21: LICENSE-APACHE from published crate; thiserror-impl 1.0.69: LICENSE-APACHE from published crate; thiserror-impl 2.0.21: LICENSE-APACHE from published crate; typeid 1.0.3: LICENSE-APACHE from published crate; unicode-ident 1.0.26: LICENSE-APACHE from published crate; unicode-ident 1.0.27: LICENSE-APACHE from published crate; utf8parse 0.2.2: LICENSE-APACHE from published crate; wasm-streams 0.4.2: LICENSE-APACHE from published crate
+Sources: anyhow 1.0.104: LICENSE-APACHE from published crate; async-trait 0.1.92: LICENSE-APACHE from published crate; constant_time_eq 0.6.1: LICENSE-APACHE from published crate; dtoa 1.0.11: LICENSE-APACHE from published crate; dyn-clone 1.0.20: LICENSE-APACHE from published crate; erased-serde 0.4.10: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/DioxusLabs/dioxus/57d6794ad60b949e5bd8aa282f6f8c3dc97a365e/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/58eea846b9bae32b20cc77a17192e28e7b07fa29/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/ca585c35ee187f89444a7293e5eac7fd7115464b/LICENSE-APACHE; https://raw.githubusercontent.com/dioxuslabs/dioxus/cb27832398e8a3fa30a0fc8d6917c6d8a86fa71a/LICENSE-APACHE; inventory 0.3.25: LICENSE-APACHE from published crate; itoa 1.0.18: LICENSE-APACHE from published crate; libc 0.2.190: LICENSE-APACHE from published crate; libc 0.2.191: LICENSE-APACHE from published crate; macro-string 0.1.4: LICENSE-APACHE from published crate; pastey 0.2.3: LICENSE-APACHE from published crate; proc-macro2 1.0.107: LICENSE-APACHE from published crate; proc-macro2-diagnostics 0.10.1: LICENSE-APACHE from published crate; quote 1.0.47: LICENSE-APACHE from published crate; ref-cast 1.0.27: LICENSE-APACHE from published crate; ref-cast-impl 1.0.27: LICENSE-APACHE from published crate; rustc-hash 2.1.3: LICENSE-APACHE from published crate; rustversion 1.0.23: LICENSE-APACHE from published crate; ryu 1.0.23: LICENSE-APACHE from published crate; semver 1.0.28: LICENSE-APACHE from published crate; serde 1.0.229: LICENSE-APACHE from published crate; serde-untagged 0.1.9: LICENSE-APACHE from published crate; serde_core 1.0.229: LICENSE-APACHE from published crate; serde_derive 1.0.229: LICENSE-APACHE from published crate; serde_derive_internals 0.29.1: LICENSE-APACHE from published crate; serde_derive_internals 0.30.0: LICENSE-APACHE from published crate; serde_json 1.0.154: LICENSE-APACHE from published crate; serde_path_to_error 0.1.20: LICENSE-APACHE from published crate; serde_qs 0.15.0: LICENSE-APACHE from published crate; serde_repr 0.1.21: LICENSE-APACHE from published crate; serde_urlencoded 0.7.1: LICENSE-APACHE from published crate; syn 2.0.119: LICENSE-APACHE from published crate; syn 3.0.8: LICENSE-APACHE from published crate; syn 3.0.9: LICENSE-APACHE from published crate; thiserror 1.0.69: LICENSE-APACHE from published crate; thiserror 2.0.21: LICENSE-APACHE from published crate; thiserror-impl 1.0.69: LICENSE-APACHE from published crate; thiserror-impl 2.0.21: LICENSE-APACHE from published crate; typed-path 0.13.0: LICENSE-APACHE from published crate; typeid 1.0.3: LICENSE-APACHE from published crate; unicode-ident 1.0.26: LICENSE-APACHE from published crate; unicode-ident 1.0.27: LICENSE-APACHE from published crate; utf8parse 0.2.2: LICENSE-APACHE from published crate; wasm-streams 0.4.2: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -7374,6 +7453,35 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+``````
+
+<a id="license-65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071"></a>
+### 65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071
+
+Sources: rfd 0.17.2: LICENSE from published crate
+
+``````text
+MIT License
+
+Copyright (c) 2022 Bartłomiej Maryńczak
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ``````
 
 <a id="license-65fdb6c76cd61612070c066eec9ecdb30ee74fb27859d0d9af58b9f499fd0c3e"></a>
@@ -8233,6 +8341,39 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ``````
 
+<a id="license-70c9d40f1f9545c3f133b8a67206e89da850f6468eed072281bb3701514114a9"></a>
+### 70c9d40f1f9545c3f133b8a67206e89da850f6468eed072281bb3701514114a9
+
+Sources: hybrid-array 0.4.15: LICENSE-MIT from published crate
+
+``````text
+Copyright (c) 2022-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+``````
+
 <a id="license-7307b6cdfdb8034ee45352e8ac6da25b659bb2eaa51b8a8eaf15412f173e3fdc"></a>
 ### 7307b6cdfdb8034ee45352e8ac6da25b659bb2eaa51b8a8eaf15412f173e3fdc
 
@@ -8294,7 +8435,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa"></a>
 ### 73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa
 
-Sources: cpufeatures 0.3.1: LICENSE-MIT from published crate
+Sources: const-oid 0.10.3: LICENSE-MIT from published crate; cpufeatures 0.3.1: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2020-2026 The RustCrypto Project Developers
@@ -8666,7 +8807,7 @@ Sources: untrusted 0.9.0: LICENSE.txt from published crate
 <a id="license-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"></a>
 ### 7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0
 
-Sources: heck 0.5.0: LICENSE-MIT from published crate; unicode-segmentation 1.13.3: LICENSE-MIT from published crate; unicode-xid 0.2.6: LICENSE-MIT from published crate
+Sources: heck 0.5.0: LICENSE-MIT from published crate; unicode-normalization 0.1.26: LICENSE-MIT from published crate; unicode-segmentation 1.13.3: LICENSE-MIT from published crate; unicode-xid 0.2.6: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2015 The Rust Project Developers
@@ -8808,7 +8949,7 @@ SOFTWARE.
 <a id="license-8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"></a>
 ### 8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90
 
-Sources: bit-set 0.8.0: LICENSE-APACHE from published crate; bit-vec 0.8.0: LICENSE-APACHE from published crate; defmt 1.2.0: LICENSE-APACHE from published crate; defmt-macros 1.2.0: LICENSE-APACHE from published crate; defmt-parser 1.1.0: LICENSE-APACHE from published crate; hashlink 0.9.1: LICENSE-APACHE from published crate
+Sources: bit-set 0.8.0: LICENSE-APACHE from published crate; bit-vec 0.8.0: LICENSE-APACHE from published crate; defmt 1.2.0: LICENSE-APACHE from published crate; defmt-macros 1.2.0: LICENSE-APACHE from published crate; defmt-parser 1.1.0: LICENSE-APACHE from published crate; hashlink 0.12.2: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -9014,6 +9155,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ``````
 
+<a id="license-831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25"></a>
+### 831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25
+
+Sources: sha2 0.11.1: LICENSE-MIT from published crate
+
+``````text
+Copyright (c) 2016-2026 The RustCrypto Project Developers
+Copyright (c) 2016 Artyom Pavlov
+Copyright (c) 2009-2013 Mozilla Foundation
+Copyright (c) 2006-2009 Graydon Hoare
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+``````
+
 <a id="license-838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50"></a>
 ### 838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50
 
@@ -9051,7 +9228,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <a id="license-83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32"></a>
 ### 83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32
 
-Sources: zerocopy 0.8.62: LICENSE-BSD from published crate; zerocopy 0.8.63: LICENSE-BSD from published crate; zerocopy-derive 0.8.63: LICENSE-BSD from published crate
+Sources: zerocopy 0.8.63: LICENSE-BSD from published crate; zerocopy-derive 0.8.63: LICENSE-BSD from published crate
 
 ``````text
 Copyright 2019 The Fuchsia Authors.
@@ -10093,7 +10270,7 @@ limitations under the License.
 <a id="license-8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b"></a>
 ### 8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b
 
-Sources: zeroize 1.9.1: LICENSE-MIT from published crate
+Sources: zeroize 1.9.1: LICENSE-MIT from published crate; zeroize 1.9.2: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2018-2026 The RustCrypto Project Developers
@@ -10262,7 +10439,7 @@ published under these same licenses.
 <a id="license-9117d922e667125508dde62b02c1f57ed22f5ad21eb536aa2e2d99e1c796e639"></a>
 ### 9117d922e667125508dde62b02c1f57ed22f5ad21eb536aa2e2d99e1c796e639
 
-Sources: rustls-pki-types 1.15.1: LICENSE-MIT from published crate
+Sources: rustls-pki-types 1.15.1: LICENSE-MIT from published crate; rustls-pki-types 1.16.0: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2023 Dirkjan Ochtman <dirkjan@ochtman.nl>
@@ -10425,10 +10602,65 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ``````
 
+<a id="license-98181e7249d0c01737645ec982499ce99a0f07eb8f7d625b8840d799d10dbc01"></a>
+### 98181e7249d0c01737645ec982499ce99a0f07eb8f7d625b8840d799d10dbc01
+
+Sources: block-buffer 0.12.1: LICENSE-MIT from published crate
+
+``````text
+Copyright (c) 2018-2025 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+``````
+
+<a id="license-9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d"></a>
+### 9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d
+
+Sources: constant_time_eq 0.6.1: LICENSE-MIT0 from published crate
+
+``````text
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+``````
+
 <a id="license-9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759"></a>
 ### 9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759
 
-Sources: tauri-plugin-log 2.10.1: LICENSE.spdx from published crate
+Sources: tauri-plugin-dialog 2.8.4: LICENSE.spdx from published crate; tauri-plugin-fs 2.7.1: LICENSE.spdx from published crate; tauri-plugin-log 2.10.1: LICENSE.spdx from published crate; tauri-plugin-updater 2.14.1: LICENSE.spdx from published crate
 
 ``````text
 SPDXVersion: SPDX-2.1
@@ -10485,7 +10717,7 @@ SOFTWARE.
 <a id="license-9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"></a>
 ### 9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d
 
-Sources: https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-MIT; tauri 2.12.5: LICENSE-MIT from published crate; tauri-build 2.7.4: LICENSE-MIT from published crate; tauri-codegen 2.7.4: LICENSE-MIT from published crate; tauri-macros 2.7.4: LICENSE-MIT from published crate; tauri-plugin-log 2.10.1: LICENSE_MIT from published crate; tauri-runtime 2.12.2: LICENSE-MIT from published crate; tauri-runtime-wry 2.12.3: LICENSE-MIT from published crate; tauri-utils 2.10.2: LICENSE-MIT from published crate
+Sources: https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-MIT; tauri 2.12.5: LICENSE-MIT from published crate; tauri-build 2.7.4: LICENSE-MIT from published crate; tauri-codegen 2.7.4: LICENSE-MIT from published crate; tauri-macros 2.7.4: LICENSE-MIT from published crate; tauri-plugin-dialog 2.8.4: LICENSE_MIT from published crate; tauri-plugin-fs 2.7.1: LICENSE_MIT from published crate; tauri-plugin-log 2.10.1: LICENSE_MIT from published crate; tauri-plugin-updater 2.14.1: LICENSE_MIT from published crate; tauri-runtime 2.12.2: LICENSE-MIT from published crate; tauri-runtime-wry 2.12.3: LICENSE-MIT from published crate; tauri-utils 2.10.2: LICENSE-MIT from published crate
 
 ``````text
 MIT License
@@ -10633,7 +10865,7 @@ have been licensed under extremely permissive terms.
 <a id="license-a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"></a>
 ### a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499
 
-Sources: dunce 1.0.5: LICENSE from published crate
+Sources: constant_time_eq 0.6.1: LICENSE-CC0 from published crate; dunce 1.0.5: LICENSE from published crate
 
 ``````text
 Creative Commons Legal Code
@@ -10998,7 +11230,7 @@ SOFTWARE.
 <a id="license-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"></a>
 ### a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2
 
-Sources: ahash 0.8.12: LICENSE-APACHE from published crate; atomic-waker 1.1.2: LICENSE-APACHE from published crate; autocfg 1.5.1: LICENSE-APACHE from published crate; base64 0.22.1: LICENSE-APACHE from published crate; base64 0.23.1: LICENSE-APACHE from published crate; bitflags 1.3.2: LICENSE-APACHE from published crate; bitflags 2.13.2: LICENSE-APACHE from published crate; bs58 0.5.1: LICENSE-APACHE from published crate; bumpalo 3.20.3: LICENSE-APACHE from published crate; camino 1.2.6: LICENSE-APACHE from published crate; cc 1.8.0: LICENSE-APACHE from published crate; cc 1.9.0: LICENSE-APACHE from published crate; cfg-if 1.0.5: LICENSE-APACHE from published crate; chunked_transfer 1.5.0: LICENSE-APACHE from published crate; crossbeam-channel 0.5.17: LICENSE-APACHE from published crate; crossbeam-utils 0.8.23: LICENSE-APACHE from published crate; displaydoc 0.2.7: LICENSE-APACHE from published crate; enumset 1.1.14: LICENSE-APACHE from published crate; enumset_derive 0.15.0: LICENSE-APACHE from published crate; equivalent 1.0.3: LICENSE-APACHE from published crate; errno 0.3.14: LICENSE-APACHE from published crate; euclid 0.22.14: LICENSE-APACHE from published crate; fastrand 2.5.0: LICENSE-APACHE from published crate; find-msvc-tools 0.1.14: LICENSE-APACHE from published crate; find-msvc-tools 0.1.15: LICENSE-APACHE from published crate; flate2 1.1.10: LICENSE-APACHE from published crate; fnv 1.0.7: LICENSE-APACHE from published crate; form_urlencoded 1.2.2: LICENSE-APACHE from published crate; glob 0.3.4: LICENSE-APACHE from published crate; hashbrown 0.12.3: LICENSE-APACHE from published crate; hashbrown 0.14.5: LICENSE-APACHE from published crate; hashbrown 0.17.1: LICENSE-APACHE from published crate; heck 0.5.0: LICENSE-APACHE from published crate; html5ever 0.39.0: LICENSE-APACHE from published crate; httparse 1.10.1: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/rustwasm/gloo/40c6daa612a90a138ba3e3d70804fcbc5ad4911e/LICENSE-APACHE; https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-APACHE; hyper-rustls 0.27.10: LICENSE-APACHE from published crate; idna 1.1.0: LICENSE-APACHE from published crate; idna_adapter 1.2.1: LICENSE-APACHE from published crate; idna_adapter 1.2.2: LICENSE-APACHE from published crate; indexmap 1.9.3: LICENSE-APACHE from published crate; indexmap 2.14.2: LICENSE-APACHE from published crate; js-sys 0.3.106: LICENSE-APACHE from published crate; keyboard-types 0.7.0: LICENSE-APACHE from published crate; keyboard-types 0.8.3: LICENSE-APACHE from published crate; lazy_static 1.5.1: LICENSE-APACHE from published crate; linux-raw-sys 0.12.1: LICENSE-APACHE from published crate; lock_api 0.4.14: LICENSE-APACHE from published crate; log 0.4.34: LICENSE-APACHE from published crate; longest-increasing-subsequence 0.1.0: LICENSE-APACHE from published crate; markup5ever 0.39.0: LICENSE-APACHE from published crate; mime 0.3.17: LICENSE-APACHE from published crate; muda 0.20.0: LICENSE-APACHE from published crate; num-traits 0.2.19: LICENSE-APACHE from published crate; once_cell 1.21.4: LICENSE-APACHE from published crate; parking_lot 0.12.5: LICENSE-APACHE from published crate; parking_lot_core 0.9.12: LICENSE-APACHE from published crate; percent-encoding 2.3.2: LICENSE-APACHE from published crate; pkg-config 0.3.34: LICENSE-APACHE from published crate; png 0.18.1: LICENSE-APACHE from published crate; regex 1.13.1: LICENSE-APACHE from published crate; regex-automata 0.4.18: LICENSE-APACHE from published crate; regex-syntax 0.8.11: LICENSE-APACHE from published crate; rustc-hash 1.1.0: LICENSE-APACHE from published crate; rustc_version 0.4.1: LICENSE-APACHE from published crate; rustix 1.1.5: LICENSE-APACHE from published crate; rustls 0.23.46: LICENSE-APACHE from published crate; scopeguard 1.2.0: LICENSE-APACHE from published crate; send_wrapper 0.6.0: LICENSE-APACHE.txt from published crate; serde_with 3.24.0: LICENSE-APACHE from published crate; serde_with_macros 3.24.0: LICENSE-APACHE from published crate; servo_arc 0.4.3: LICENSE-APACHE from published crate; signal-hook-registry 1.4.8: LICENSE-APACHE from published crate; smallvec 1.16.3: LICENSE-APACHE from published crate; socket2 0.6.5: LICENSE-APACHE from published crate; stable_deref_trait 1.2.1: LICENSE-APACHE from published crate; string_cache 0.9.0: LICENSE-APACHE from published crate; string_cache_codegen 0.6.1: LICENSE-APACHE from published crate; tempfile 3.27.0: LICENSE-APACHE from published crate; tendril 0.5.1: LICENSE-APACHE from published crate; thread_local 1.1.10: LICENSE-APACHE from published crate; tiny_http 0.12.0: LICENSE-APACHE from published crate; tracing-wasm 0.2.1: LICENSE-APACHE from published crate; tray-icon 0.25.1: LICENSE-APACHE from published crate; unicase 2.10.0: LICENSE-APACHE from published crate; unicode-segmentation 1.13.3: LICENSE-APACHE from published crate; unicode-xid 0.2.6: LICENSE-APACHE from published crate; url 2.5.8: LICENSE-APACHE from published crate; uuid 1.26.1: LICENSE-APACHE from published crate; uuid 1.28.0: LICENSE-APACHE from published crate; vcpkg 0.2.15: LICENSE-APACHE from published crate; version_check 0.9.5: LICENSE-APACHE from published crate; wasm-bindgen 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-futures 0.4.79: LICENSE-APACHE from published crate; wasm-bindgen-macro 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-macro-support 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-shared 0.2.129: LICENSE-APACHE from published crate; web-sys 0.3.106: LICENSE-APACHE from published crate; web_atoms 0.2.6: LICENSE-APACHE from published crate; window-vibrancy 0.8.1: LICENSE-APACHE from published crate; wry 0.57.0: LICENSE-APACHE from published crate
+Sources: atomic-waker 1.1.2: LICENSE-APACHE from published crate; autocfg 1.5.1: LICENSE-APACHE from published crate; base64 0.22.1: LICENSE-APACHE from published crate; base64 0.23.1: LICENSE-APACHE from published crate; bitflags 1.3.2: LICENSE-APACHE from published crate; bitflags 2.13.2: LICENSE-APACHE from published crate; bs58 0.5.1: LICENSE-APACHE from published crate; bumpalo 3.20.3: LICENSE-APACHE from published crate; camino 1.2.6: LICENSE-APACHE from published crate; cc 1.8.0: LICENSE-APACHE from published crate; cc 1.9.0: LICENSE-APACHE from published crate; cfg-if 1.0.5: LICENSE-APACHE from published crate; chunked_transfer 1.5.0: LICENSE-APACHE from published crate; crossbeam-channel 0.5.17: LICENSE-APACHE from published crate; crossbeam-utils 0.8.23: LICENSE-APACHE from published crate; displaydoc 0.2.7: LICENSE-APACHE from published crate; enumset 1.1.14: LICENSE-APACHE from published crate; enumset_derive 0.15.0: LICENSE-APACHE from published crate; equivalent 1.0.3: LICENSE-APACHE from published crate; errno 0.3.14: LICENSE-APACHE from published crate; euclid 0.22.14: LICENSE-APACHE from published crate; fastrand 2.5.0: LICENSE-APACHE from published crate; find-msvc-tools 0.1.14: LICENSE-APACHE from published crate; find-msvc-tools 0.1.15: LICENSE-APACHE from published crate; flate2 1.1.10: LICENSE-APACHE from published crate; fnv 1.0.7: LICENSE-APACHE from published crate; form_urlencoded 1.2.3: LICENSE-APACHE from published crate; glob 0.3.4: LICENSE-APACHE from published crate; hashbrown 0.12.3: LICENSE-APACHE from published crate; hashbrown 0.17.1: LICENSE-APACHE from published crate; heck 0.5.0: LICENSE-APACHE from published crate; html5ever 0.39.0: LICENSE-APACHE from published crate; httparse 1.10.1: LICENSE-APACHE from published crate; https://raw.githubusercontent.com/rustwasm/gloo/40c6daa612a90a138ba3e3d70804fcbc5ad4911e/LICENSE-APACHE; https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-APACHE; hyper-rustls 0.27.10: LICENSE-APACHE from published crate; idna 1.1.0: LICENSE-APACHE from published crate; idna_adapter 1.2.1: LICENSE-APACHE from published crate; idna_adapter 1.2.2: LICENSE-APACHE from published crate; indexmap 1.9.3: LICENSE-APACHE from published crate; indexmap 2.14.2: LICENSE-APACHE from published crate; js-sys 0.3.106: LICENSE-APACHE from published crate; keyboard-types 0.7.0: LICENSE-APACHE from published crate; keyboard-types 0.8.3: LICENSE-APACHE from published crate; lazy_static 1.5.1: LICENSE-APACHE from published crate; linux-raw-sys 0.12.1: LICENSE-APACHE from published crate; lock_api 0.4.14: LICENSE-APACHE from published crate; log 0.4.34: LICENSE-APACHE from published crate; longest-increasing-subsequence 0.1.0: LICENSE-APACHE from published crate; markup5ever 0.39.0: LICENSE-APACHE from published crate; mime 0.3.17: LICENSE-APACHE from published crate; muda 0.20.0: LICENSE-APACHE from published crate; num-traits 0.2.19: LICENSE-APACHE from published crate; once_cell 1.21.4: LICENSE-APACHE from published crate; parking_lot 0.12.5: LICENSE-APACHE from published crate; parking_lot_core 0.9.12: LICENSE-APACHE from published crate; percent-encoding 2.3.2: LICENSE-APACHE from published crate; pkg-config 0.3.34: LICENSE-APACHE from published crate; png 0.18.1: LICENSE-APACHE from published crate; regex 1.13.1: LICENSE-APACHE from published crate; regex-automata 0.4.18: LICENSE-APACHE from published crate; regex-syntax 0.8.11: LICENSE-APACHE from published crate; rustc-hash 1.1.0: LICENSE-APACHE from published crate; rustc_version 0.4.1: LICENSE-APACHE from published crate; rustix 1.1.5: LICENSE-APACHE from published crate; rustls 0.23.46: LICENSE-APACHE from published crate; scopeguard 1.2.0: LICENSE-APACHE from published crate; send_wrapper 0.6.0: LICENSE-APACHE.txt from published crate; serde_with 3.24.0: LICENSE-APACHE from published crate; serde_with_macros 3.24.0: LICENSE-APACHE from published crate; servo_arc 0.4.3: LICENSE-APACHE from published crate; signal-hook-registry 1.4.8: LICENSE-APACHE from published crate; smallvec 1.16.3: LICENSE-APACHE from published crate; socket2 0.6.5: LICENSE-APACHE from published crate; stable_deref_trait 1.2.1: LICENSE-APACHE from published crate; string_cache 0.9.0: LICENSE-APACHE from published crate; string_cache_codegen 0.6.1: LICENSE-APACHE from published crate; tempfile 3.27.0: LICENSE-APACHE from published crate; tendril 0.5.1: LICENSE-APACHE from published crate; thread_local 1.1.10: LICENSE-APACHE from published crate; tiny_http 0.12.0: LICENSE-APACHE from published crate; tracing-wasm 0.2.1: LICENSE-APACHE from published crate; tray-icon 0.25.1: LICENSE-APACHE from published crate; unicase 2.10.0: LICENSE-APACHE from published crate; unicode-normalization 0.1.26: LICENSE-APACHE from published crate; unicode-segmentation 1.13.3: LICENSE-APACHE from published crate; unicode-xid 0.2.6: LICENSE-APACHE from published crate; url 2.5.9: LICENSE-APACHE from published crate; uuid 1.26.1: LICENSE-APACHE from published crate; uuid 1.28.0: LICENSE-APACHE from published crate; vcpkg 0.2.15: LICENSE-APACHE from published crate; version_check 0.9.5: LICENSE-APACHE from published crate; wasm-bindgen 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-futures 0.4.79: LICENSE-APACHE from published crate; wasm-bindgen-macro 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-macro-support 0.2.129: LICENSE-APACHE from published crate; wasm-bindgen-shared 0.2.129: LICENSE-APACHE from published crate; web-sys 0.3.106: LICENSE-APACHE from published crate; web_atoms 0.2.6: LICENSE-APACHE from published crate; window-vibrancy 0.8.1: LICENSE-APACHE from published crate; wry 0.57.0: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -11856,7 +12088,7 @@ Apache License
 <a id="license-a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"></a>
 ### a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5
 
-Sources: block-buffer 0.10.4: LICENSE-APACHE from published crate; chacha20 0.10.2: LICENSE-APACHE from published crate; cpufeatures 0.2.17: LICENSE-APACHE from published crate; cpufeatures 0.3.1: LICENSE-APACHE from published crate; crypto-common 0.1.7: LICENSE-APACHE from published crate; digest 0.10.7: LICENSE-APACHE from published crate; sha1 0.10.7: LICENSE-APACHE from published crate; sha2 0.10.9: LICENSE-APACHE from published crate
+Sources: block-buffer 0.10.4: LICENSE-APACHE from published crate; block-buffer 0.12.1: LICENSE-APACHE from published crate; chacha20 0.10.2: LICENSE-APACHE from published crate; const-oid 0.10.3: LICENSE-APACHE from published crate; cpufeatures 0.2.17: LICENSE-APACHE from published crate; cpufeatures 0.3.1: LICENSE-APACHE from published crate; crypto-common 0.1.7: LICENSE-APACHE from published crate; crypto-common 0.2.2: LICENSE-APACHE from published crate; digest 0.10.7: LICENSE-APACHE from published crate; digest 0.11.3: LICENSE-APACHE from published crate; hybrid-array 0.4.15: LICENSE-APACHE from published crate; sha1 0.10.7: LICENSE-APACHE from published crate; sha2 0.10.9: LICENSE-APACHE from published crate; sha2 0.11.1: LICENSE-APACHE from published crate
 
 ``````text
                               Apache License
@@ -12388,6 +12620,40 @@ Sources: cpufeatures 0.2.17: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2020-2025 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+``````
+
+<a id="license-af59cea35d7f5e2777a713b8d155d65efa2c339eb43f3c14e868c6ac8506edad"></a>
+### af59cea35d7f5e2777a713b8d155d65efa2c339eb43f3c14e868c6ac8506edad
+
+Sources: digest 0.11.3: LICENSE-MIT from published crate
+
+``````text
+Copyright (c) 2017-2025 RustCrypto Developers
+Copyright (c) 2017 Artyom Pavlov
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -13043,7 +13309,7 @@ freely, subject to the following restrictions:
 <a id="license-b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5"></a>
 ### b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5
 
-Sources: idna 1.1.0: LICENSE-MIT from published crate; percent-encoding 2.3.2: LICENSE-MIT from published crate; url 2.5.8: LICENSE-MIT from published crate
+Sources: idna 1.1.0: LICENSE-MIT from published crate; percent-encoding 2.3.2: LICENSE-MIT from published crate; url 2.5.9: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2013-2025 The rust-url developers
@@ -13093,7 +13359,7 @@ for the license to code that was sourced from the once_cell project.
 <a id="license-b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"></a>
 ### b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1
 
-Sources: anstream 1.0.0: LICENSE-APACHE from published crate; anstyle 1.0.14: LICENSE-APACHE from published crate; anstyle-parse 1.0.0: LICENSE-APACHE from published crate; anstyle-query 1.1.5: LICENSE-APACHE from published crate; anstyle-wincon 3.0.11: LICENSE-APACHE from published crate; colorchoice 1.0.5: LICENSE-APACHE from published crate; crc32fast 1.5.3: LICENSE-APACHE from published crate; fallible-iterator 0.3.0: LICENSE-APACHE from published crate; fallible-streaming-iterator 0.1.9: LICENSE-APACHE from published crate; hex 0.4.3: LICENSE-APACHE from published crate; is_terminal_polyfill 1.70.2: LICENSE-APACHE from published crate; json-patch 4.2.0: LICENSE-APACHE from published crate; once_cell_polyfill 1.70.2: LICENSE-APACHE from published crate
+Sources: anstream 1.0.0: LICENSE-APACHE from published crate; anstyle 1.0.14: LICENSE-APACHE from published crate; anstyle-parse 1.0.0: LICENSE-APACHE from published crate; anstyle-query 1.1.5: LICENSE-APACHE from published crate; anstyle-wincon 3.0.11: LICENSE-APACHE from published crate; colorchoice 1.0.5: LICENSE-APACHE from published crate; crc32fast 1.5.3: LICENSE-APACHE from published crate; fallible-iterator 0.3.0: LICENSE-APACHE from published crate; fallible-streaming-iterator 0.1.9: LICENSE-APACHE from published crate; hex 0.4.3: LICENSE-APACHE from published crate; is_terminal_polyfill 1.70.2: LICENSE-APACHE from published crate; json-patch 4.2.0: LICENSE-APACHE from published crate; once_cell_polyfill 1.70.2: LICENSE-APACHE from published crate; unicode-general-category 1.1.0: LICENSE from published crate
 
 ``````text
                                  Apache License
@@ -13391,7 +13657,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 <a id="license-b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0"></a>
 ### b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0
 
-Sources: chacha20 0.10.2: LICENSE-MIT from published crate
+Sources: chacha20 0.10.2: LICENSE-MIT from published crate; zeroize_derive 1.5.0: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2019-2026 The RustCrypto Project Developers
@@ -13483,10 +13749,37 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ``````
 
+<a id="license-c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f"></a>
+### c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f
+
+Sources: libsqlite3-sys 0.40.0: LICENSE from published crate; rusqlite 0.43.0: LICENSE from published crate
+
+``````text
+Copyright (c) 2014 The rusqlite developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+``````
+
 <a id="license-c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"></a>
 ### c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b
 
-Sources: windows 0.62.2: license-apache-2.0 from published crate; windows-collections 0.3.2: license-apache-2.0 from published crate; windows-core 0.62.2: license-apache-2.0 from published crate; windows-future 0.3.2: license-apache-2.0 from published crate; windows-implement 0.60.2: license-apache-2.0 from published crate; windows-interface 0.59.3: license-apache-2.0 from published crate; windows-link 0.2.1: license-apache-2.0 from published crate; windows-numerics 0.3.1: license-apache-2.0 from published crate; windows-result 0.4.1: license-apache-2.0 from published crate; windows-strings 0.5.1: license-apache-2.0 from published crate; windows-sys 0.52.0: license-apache-2.0 from published crate; windows-sys 0.61.2: license-apache-2.0 from published crate; windows-targets 0.52.6: license-apache-2.0 from published crate; windows-threading 0.2.1: license-apache-2.0 from published crate; windows-version 0.1.7: license-apache-2.0 from published crate; windows_x86_64_msvc 0.52.6: license-apache-2.0 from published crate
+Sources: windows 0.62.2: license-apache-2.0 from published crate; windows-collections 0.3.2: license-apache-2.0 from published crate; windows-core 0.62.2: license-apache-2.0 from published crate; windows-future 0.3.2: license-apache-2.0 from published crate; windows-implement 0.60.2: license-apache-2.0 from published crate; windows-interface 0.59.3: license-apache-2.0 from published crate; windows-link 0.2.1: license-apache-2.0 from published crate; windows-numerics 0.3.1: license-apache-2.0 from published crate; windows-registry 0.6.1: license-apache-2.0 from published crate; windows-result 0.4.1: license-apache-2.0 from published crate; windows-strings 0.5.1: license-apache-2.0 from published crate; windows-sys 0.61.2: license-apache-2.0 from published crate; windows-threading 0.2.1: license-apache-2.0 from published crate; windows-version 0.1.7: license-apache-2.0 from published crate
 
 ``````text
                                  Apache License
@@ -13714,7 +14007,7 @@ Permission is granted to anyone to use this software for any purpose, including 
 <a id="license-c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"></a>
 ### c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
 
-Sources: windows 0.62.2: license-mit from published crate; windows-collections 0.3.2: license-mit from published crate; windows-core 0.62.2: license-mit from published crate; windows-future 0.3.2: license-mit from published crate; windows-implement 0.60.2: license-mit from published crate; windows-interface 0.59.3: license-mit from published crate; windows-link 0.2.1: license-mit from published crate; windows-numerics 0.3.1: license-mit from published crate; windows-result 0.4.1: license-mit from published crate; windows-strings 0.5.1: license-mit from published crate; windows-sys 0.52.0: license-mit from published crate; windows-sys 0.61.2: license-mit from published crate; windows-targets 0.52.6: license-mit from published crate; windows-threading 0.2.1: license-mit from published crate; windows-version 0.1.7: license-mit from published crate; windows_x86_64_msvc 0.52.6: license-mit from published crate
+Sources: windows 0.62.2: license-mit from published crate; windows-collections 0.3.2: license-mit from published crate; windows-core 0.62.2: license-mit from published crate; windows-future 0.3.2: license-mit from published crate; windows-implement 0.60.2: license-mit from published crate; windows-interface 0.59.3: license-mit from published crate; windows-link 0.2.1: license-mit from published crate; windows-numerics 0.3.1: license-mit from published crate; windows-registry 0.6.1: license-mit from published crate; windows-result 0.4.1: license-mit from published crate; windows-strings 0.5.1: license-mit from published crate; windows-sys 0.61.2: license-mit from published crate; windows-threading 0.2.1: license-mit from published crate; windows-version 0.1.7: license-mit from published crate
 
 ``````text
     MIT License
@@ -13793,7 +14086,7 @@ licensed under the Apache License, Version 2.0 <LICENSE-APACHE> or
 <a id="license-c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"></a>
 ### c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
-Sources: ciborium 0.2.2: LICENSE from published crate; ciborium-io 0.2.2: LICENSE from published crate; ciborium-ll 0.2.2: LICENSE from published crate; quinn 0.11.12: LICENSE-APACHE from published crate; quinn-proto 0.11.19: LICENSE-APACHE from published crate; quinn-udp 0.5.16: LICENSE-APACHE from published crate; serialize-to-javascript 0.1.2: LICENSE-APACHE from published crate; serialize-to-javascript-impl 0.1.2: LICENSE-APACHE from published crate
+Sources: ciborium 0.2.2: LICENSE from published crate; ciborium-io 0.2.2: LICENSE from published crate; ciborium-ll 0.2.2: LICENSE from published crate; quinn 0.11.12: LICENSE-APACHE from published crate; quinn-proto 0.11.19: LICENSE-APACHE from published crate; quinn-udp 0.5.16: LICENSE-APACHE from published crate; rustls-platform-verifier 0.7.1: LICENSE-APACHE from published crate; serialize-to-javascript 0.1.2: LICENSE-APACHE from published crate; serialize-to-javascript-impl 0.1.2: LICENSE-APACHE from published crate
 
 ``````text
                                  Apache License
@@ -14477,7 +14770,7 @@ SOFTWARE.
 <a id="license-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"></a>
 ### cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
 
-Sources: charset 0.1.5: LICENSE-APACHE from published crate; encoding_rs 0.8.42: LICENSE-APACHE from published crate; lru-slab 0.1.3: LICENSE-APACHE from published crate; multiversion_no_op 1.0.0: LICENSE-APACHE from published crate; siphasher 1.0.4: LICENSE-APACHE from published crate; tinyvec 1.13.3: LICENSE-APACHE.md from published crate; utf8_iter 1.0.4: LICENSE-APACHE from published crate; zeroize 1.9.1: LICENSE-APACHE from published crate
+Sources: charset 0.1.5: LICENSE-APACHE from published crate; encoding_rs 0.8.42: LICENSE-APACHE from published crate; lru-slab 0.1.3: LICENSE-APACHE from published crate; multiversion_no_op 1.0.0: LICENSE-APACHE from published crate; siphasher 1.0.4: LICENSE-APACHE from published crate; tinyvec 1.13.3: LICENSE-APACHE.md from published crate; utf8_iter 1.0.4: LICENSE-APACHE from published crate; zeroize 1.9.1: LICENSE-APACHE from published crate; zeroize 1.9.2: LICENSE-APACHE from published crate; zeroize_derive 1.5.0: LICENSE-APACHE from published crate
 
 ``````text
 
@@ -14705,6 +14998,39 @@ distributed under the Licenses is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the Licenses for the specific language governing permissions and
 limitations under the Licenses.
+``````
+
+<a id="license-d2e7ec5355c96eeade56b09187ceb48a6a30299da3ce7531a66d3d11405ab963"></a>
+### d2e7ec5355c96eeade56b09187ceb48a6a30299da3ce7531a66d3d11405ab963
+
+Sources: crypto-common 0.2.2: LICENSE-MIT from published crate
+
+``````text
+Copyright (c) 2021-2026 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ``````
 
 <a id="license-d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9"></a>
@@ -16000,7 +16326,7 @@ THE SOFTWARE.
 <a id="license-f1fa5f9e9d8f7827ae2235e742dd00bdf6106d4c5753df928e521d7541b7f9b6"></a>
 ### f1fa5f9e9d8f7827ae2235e742dd00bdf6106d4c5753df928e521d7541b7f9b6
 
-Sources: hashlink 0.9.1: LICENSE-MIT from published crate
+Sources: hashlink 0.12.2: LICENSE-MIT from published crate
 
 ``````text
 This work is derived in part from the `linked-hash-map` crate, Copyright (c)
@@ -16034,7 +16360,7 @@ DEALINGS IN THE SOFTWARE.
 <a id="license-f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea"></a>
 ### f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea
 
-Sources: cookie 0.18.2: LICENSE-MIT from published crate
+Sources: cookie 0.18.3: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2017 Sergio Benitez
@@ -16181,33 +16507,6 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ``````
 
-<a id="license-f59ba65550f2a5adff98ec6478d783402c8e0a3eb515025c0b3438f3d30dc39e"></a>
-### f59ba65550f2a5adff98ec6478d783402c8e0a3eb515025c0b3438f3d30dc39e
-
-Sources: libsqlite3-sys 0.30.1: LICENSE from published crate; rusqlite 0.32.1: LICENSE from published crate
-
-``````text
-Copyright (c) 2014-2021 The rusqlite developers
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-``````
-
 <a id="license-f73041468536d0b5fd1a6610fa3f317e3dc6cf9a0c0591a5529d6556a0d8a2c3"></a>
 ### f73041468536d0b5fd1a6610fa3f317e3dc6cf9a0c0591a5529d6556a0d8a2c3
 
@@ -16300,7 +16599,7 @@ SOFTWARE.
 <a id="license-f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"></a>
 ### f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1
 
-Sources: unicode-ident 1.0.26: LICENSE-UNICODE from published crate; unicode-ident 1.0.27: LICENSE-UNICODE from published crate
+Sources: unicode-ident 1.0.26: LICENSE-UNICODE from published crate; unicode-ident 1.0.27: LICENSE-UNICODE from published crate; unicode-normalization 0.1.26: LICENSE-UNICODE from published crate
 
 ``````text
 UNICODE LICENSE V3
@@ -16627,7 +16926,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <a id="license-ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2"></a>
 ### ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2
 
-Sources: hashbrown 0.12.3: LICENSE-MIT from published crate; hashbrown 0.14.5: LICENSE-MIT from published crate; hashbrown 0.17.1: LICENSE-MIT from published crate
+Sources: hashbrown 0.12.3: LICENSE-MIT from published crate; hashbrown 0.17.1: LICENSE-MIT from published crate
 
 ``````text
 Copyright (c) 2016 Amanieu d'Antras
