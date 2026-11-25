@@ -80,21 +80,32 @@ def deny_terms(policy_path):
     return terms
 
 
+def public_identities(policy_path):
+    """Exact addresses the owner made public on purpose (GitHub merge commits carry them).
+    They are removed from the history text before the deny-term scan, so a broader deny term
+    that also matches them keeps protecting everything else."""
+    policy = json.loads(policy_path.read_text(encoding='utf-8-sig'))
+    return [value.casefold() for value in policy.get('public_identities', []) if value]
+
+
 def verify_commit(clone, export, policy_path):
     """Per published commit: exact tree, and no deny term anywhere in the history so far."""
     if tree_files(clone) != tree_files(export):
         raise RuntimeError('public tree differs from the export')
     history = git(clone, 'log', '--all', '-p', '--format=%an%n%ae%n%cn%n%ce%n%B',
                   text=False).decode('utf-8', 'replace').casefold()
+    for identity in public_identities(policy_path):
+        history = history.replace(identity, '')
     hits = sum(1 for term in deny_terms(policy_path) if term in history)
     if hits:
         raise RuntimeError(f'{hits} private deny term(s) found in public history; nothing pushed')
 
 
-def verify_final(clone):
+def verify_final(clone, policy_path):
     """Before pushing: the pattern gate on the final tree and history metadata, and gitleaks."""
+    env = {**os.environ, 'PRIVACY_PUBLIC_COMMIT_EMAILS': ','.join(public_identities(policy_path))}
     subprocess.run([sys.executable, '-I', str(ROOT / 'scripts/check-privacy.py'), '--history',
-                    '--root', str(clone)], check=True)
+                    '--root', str(clone)], check=True, env=env)
     gitleaks = shutil.which('gitleaks')
     if gitleaks:
         subprocess.run([gitleaks, 'detect', '--source', str(clone), '--no-banner', '--redact'],
@@ -213,7 +224,7 @@ def main():
             print(f'{sha[:7]} -> {public_sha[:7]} {message.splitlines()[0]}')
             if not args.direct:
                 # One reviewed change at a time: verify it, open its PR and stop.
-                verify_final(clone)
+                verify_final(clone, args.privacy_policy)
                 if args.no_push:
                     print('--no-push: verified locally; no branch pushed, no PR opened')
                     return 0
@@ -232,7 +243,7 @@ def main():
             print('nothing public to open a PR for')
             return 0
         if any(entry['public'] for entry in published):
-            verify_final(clone)
+            verify_final(clone, args.privacy_policy)
         if not args.no_push:
             git(clone, 'push', '-q', 'origin', 'main')
             print('pushed')
