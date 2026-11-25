@@ -13,6 +13,19 @@ scripts/manage-local-host.ps1 -Action Stop
 
 `InstallStartup` writes one `Clatterforge.lnk` in the current user's Startup folder. It refuses to overwrite an existing shortcut. `RemoveStartup` removes only that named shortcut and does not stop current processes. Start clears an explicit `host.stop` request; Stop leaves that request in place so an intentional stop survives a later logon. The launcher uses built-in Windows PowerShell, stores no passwords, and does not require elevation. Automatic startup begins at user sign-in, not before login.
 
+### Linux and macOS
+
+`scripts/manage-local-host.sh` and `scripts/run-local-host.sh` follow the same contract with POSIX `sh` (added November 25, 2026, #37): one supervisor per state root (a `host.lock` directory; a lock left by a dead supervisor is replaced), the same roles, backoff, receipt and `host.stop`, and adoption only of children whose PID, start time and executable match. Startup is per user: `install-startup` writes a systemd user unit (`clatterforge-host.service`) on Linux or a LaunchAgent (`dev.clatterforge.host`) on macOS and refuses to overwrite one; `remove-startup` disables and deletes it.
+
+```sh
+scripts/manage-local-host.sh start --binary <state>/runtime/clatterforge --assets <state>/runtime/ui
+scripts/manage-local-host.sh install-startup --binary <state>/runtime/clatterforge --assets <state>/runtime/ui
+scripts/manage-local-host.sh status
+scripts/manage-local-host.sh stop
+```
+
+`python3 scripts/test-managed-host.py target/debug/clatterforge` exercises the POSIX runner; it passes on Linux. The macOS paths (`ps`-based start markers, the LaunchAgent) have not been run.
+
 The private state root retains `host-runtime.json`, `host-logs/`, supervisor logs and the explicit stop request. Runtime metadata includes process creation identities and roles, not credentials. A crashed watchdog can adopt only matching saved child identities. A duplicate watchdog refuses; a duplicate backend bind preserves the active token. Unexpected child exits restart with bounded backoff. Closing the desktop UI does not stop a backend it reused.
 
 Backend restart rotates its local token; the refreshed native wrapper can retrieve the current token and reconnect to that same endpoint. Browser-only sessions must reconnect using the new local token. Existing enrollment credentials are unaffected.

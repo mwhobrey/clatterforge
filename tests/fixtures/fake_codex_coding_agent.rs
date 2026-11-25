@@ -43,7 +43,7 @@ fn main() {
     }
     assert!(args.iter().any(|a| a == "--no-daemon"));
     assert!(args.iter().any(|a| a == "--ignore-user-config"));
-    assert!(args.iter().any(|a| a == "windows.sandbox=\"mxc\""));
+    assert_eq!(args.iter().any(|a| a == "windows.sandbox=\"mxc\""), cfg!(windows));
     // M10.4 Phase 4 concurrent-dispatch test: records every real
     // invocation to a shared, test-controlled path, when set on this
     // process's own environment (inherited from the real `agent-run`

@@ -19,12 +19,12 @@ fn main() {
     let model = args.windows(2).find(|a| a[0] == "--model").unwrap()[1].clone();
     assert!(args.iter().any(|a| a == "--no-daemon"));
     assert!(args.iter().any(|a| a == "--ignore-user-config"));
-    assert!(args.iter().any(|a| a == "windows.sandbox=\"mxc\""));
+    assert_eq!(args.iter().any(|a| a == "windows.sandbox=\"mxc\""), cfg!(windows));
     assert!(env::var_os("CODEX_API_KEY").is_none());
     assert!(env::var_os("OPENAI_API_KEY").is_none());
     // M10.3: a real live Codex run failed because its own MXC sandbox mode
     // requires this platform value and the launcher's allowlist omitted it.
-    assert!(env::var_os("SystemDrive").is_some());
+    if cfg!(windows) { assert!(env::var_os("SystemDrive").is_some()); }
     let mut input = String::new(); io::stdin().read_to_string(&mut input).unwrap();
     assert!(input.contains("def add") && input.contains("Repository context"));
     if model == "hang" || model == "descendant" {

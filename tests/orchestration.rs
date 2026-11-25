@@ -819,7 +819,12 @@ fn changed_verifier_binary_invalidates_approval_before_workspace_or_dispatch() {
 fn native_verifier_keeps_platform_discovery_but_scrubs_ambient_keys() {
     let server = Server::new(vec![changes("correct")], false);
     let (temp, _repo, mut o, mut spec, config) = setup(&server);
-    spec.verify_args = vec!["platform".into(), std::env::var("ProgramFiles").unwrap()];
+    let discovery = if cfg!(windows) {
+        "ProgramFiles"
+    } else {
+        "HOME"
+    };
+    spec.verify_args = vec!["platform".into(), std::env::var(discovery).unwrap()];
     let task = prepare(&mut o, spec, config);
     let task = approve(&mut o, &task);
     let status = Command::new(env!("CARGO_BIN_EXE_clatterforge"))

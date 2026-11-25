@@ -270,7 +270,12 @@ impl OwnedProcess {
         // The owned job, not a reconstructed PID, terminates remaining descendants.
         self.job.terminate()?;
         let stopped = Instant::now();
-        while self.job.active()? != 0 && stopped.elapsed() < Duration::from_secs(2) {
+        // Reap the direct child as it dies: on Unix an unreaped leader stays in its group.
+        while {
+            let _ = self.child.try_wait();
+            self.job.active()? != 0
+        } && stopped.elapsed() < Duration::from_secs(2)
+        {
             thread::sleep(Duration::from_millis(10));
         }
         let tree_terminated = self.job.active()? == 0;
@@ -473,23 +478,48 @@ mod platform {
 #[cfg(unix)]
 mod platform {
     use super::*;
-    use std::sync::atomic::{AtomicI32, Ordering};
+    use std::{
+        io::PipeWriter,
+        os::unix::process::CommandExt,
+        sync::{
+            Mutex,
+            atomic::{AtomicI32, Ordering},
+        },
+    };
+
+    /// Kills the group when its pipe closes without the disarm line, which is what happens
+    /// when the supervisor dies: the Unix stand-in for a kill-on-close Windows Job.
+    const GUARD: &str =
+        r#"if IFS= read -r line && [ "$line" = disarm ]; then exit 0; fi; kill -KILL "-$1""#;
 
     pub struct Job {
         pgid: Arc<AtomicI32>,
+        guard: Mutex<Option<(Child, PipeWriter)>>,
     }
 
     impl Job {
         pub fn new() -> Result<Self> {
             Ok(Self {
                 pgid: Arc::new(AtomicI32::new(0)),
+                guard: Mutex::new(None),
             })
         }
 
+        /// The child leads its own process group (see `hidden`); descendants inherit it.
         pub fn assign(&self, child: &Child) -> Result<()> {
             let pid = child.id() as i32;
             ensure!(pid > 0, "invalid child PID");
             self.pgid.store(pid, Ordering::SeqCst);
+            let (reader, writer) = std::io::pipe().context("cannot create the job guard pipe")?;
+            let guard = Command::new("/bin/sh")
+                .args(["-c", GUARD, "clatterforge-job-guard", &pid.to_string()])
+                .stdin(reader)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .process_group(0)
+                .spawn()
+                .context("cannot start the process-group guard")?;
+            *self.guard.lock().unwrap_or_else(|e| e.into_inner()) = Some((guard, writer));
             Ok(())
         }
 
@@ -509,18 +539,40 @@ mod platform {
             if pgid <= 1 {
                 return Ok(0);
             }
-            let ret = unsafe { libc::kill(-pgid, 0) };
-            if ret == 0 {
-                Ok(1)
-            } else {
-                let err = std::io::Error::last_os_error();
-                if err.raw_os_error() == Some(libc::ESRCH) {
-                    Ok(0)
-                } else if err.raw_os_error() == Some(libc::EPERM) {
-                    Ok(1)
-                } else {
-                    Ok(0)
+            // Zombies still answer kill(0) until something reaps them, and orphaned ones wait
+            // on init (PID 1 in a container may never reap). Count only live group members.
+            #[cfg(target_os = "linux")]
+            {
+                let mut live = 0;
+                for entry in std::fs::read_dir("/proc")?.flatten() {
+                    let name = entry.file_name();
+                    let Some(pid) = name.to_str().and_then(|n| n.parse::<u32>().ok()) else {
+                        continue;
+                    };
+                    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+                        continue;
+                    };
+                    let Some(paren) = stat.rfind(')') else {
+                        continue;
+                    };
+                    // After the command name: state, ppid, pgrp, ...
+                    let mut fields = stat[paren + 1..].split_whitespace();
+                    let state = fields.next();
+                    let group = fields.nth(1).and_then(|g| g.parse::<i32>().ok());
+                    if group == Some(pgid) && state != Some("Z") && state != Some("X") {
+                        live += 1;
+                    }
                 }
+                Ok(live)
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                // macOS: launchd reaps orphans promptly; the leader is reaped by the caller.
+                if unsafe { libc::kill(-pgid, 0) } == 0 {
+                    return Ok(1);
+                }
+                let err = std::io::Error::last_os_error();
+                Ok(u32::from(err.raw_os_error() == Some(libc::EPERM)))
             }
         }
     }
@@ -532,6 +584,19 @@ mod platform {
                 unsafe {
                     let _ = libc::kill(-pgid, libc::SIGKILL);
                 }
+            }
+            let guard = self
+                .guard
+                .get_mut()
+                .unwrap_or_else(|e| e.into_inner())
+                .take();
+            if let Some((mut guard, mut writer)) = guard {
+                let _ = writer.write_all(
+                    b"disarm
+",
+                );
+                drop(writer);
+                let _ = guard.wait();
             }
         }
     }
@@ -549,7 +614,6 @@ mod platform {
     }
 
     pub fn hidden(command: &mut Command) {
-        use std::os::unix::process::CommandExt;
         command.process_group(0);
         #[cfg(target_os = "linux")]
         unsafe {

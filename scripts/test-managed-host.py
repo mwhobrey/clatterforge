@@ -3,6 +3,7 @@ import json
 import pathlib
 import socket
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -32,7 +33,7 @@ def wait_for(check, timeout=30):
 
 root = pathlib.Path(__file__).resolve().parents[1]
 binary = pathlib.Path(sys.argv[1]).resolve()
-pwsh = pathlib.Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+WINDOWS = os.name == "nt"
 fixture = pathlib.Path(tempfile.mkdtemp(prefix="conductor host fixture "))
 state = fixture / "state with spaces"
 assets = fixture / "assets with spaces"
@@ -40,15 +41,30 @@ assets.mkdir()
 (assets / "index.html").write_text("isolated compiled GUI fixture", encoding="utf-8")
 (fixture / "private.txt").write_text("must never be served", encoding="utf-8")
 port, ui_port = free_port(), free_port()
-args = [str(pwsh), "-NoProfile", "-File", str(root / "scripts/run-local-host.ps1"),
-        "-Binary", str(binary), "-StateRoot", str(state), "-Assets", str(assets),
-        "-Port", str(port), "-UiPort", str(ui_port)]
+if WINDOWS:
+    pwsh = pathlib.Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    args = [str(pwsh), "-NoProfile", "-File", str(root / "scripts/run-local-host.ps1"),
+            "-Binary", str(binary), "-StateRoot", str(state), "-Assets", str(assets),
+            "-Port", str(port), "-UiPort", str(ui_port)]
+else:
+    args = ["/bin/sh", str(root / "scripts/run-local-host.sh"), "--binary", str(binary),
+            "--state-root", str(state), "--assets", str(assets),
+            "--port", str(port), "--ui-port", str(ui_port)]
 
 
 def start():
     return subprocess.Popen(args, stdout=subprocess.DEVNULL,
                             stderr=open(fixture / f"supervisor-{time.time_ns()}.log", "w"),
-                            creationflags=subprocess.CREATE_NO_WINDOW)
+                            creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0)
+
+
+def stop_process(pid):
+    """Each target is a fresh process this isolated supervisor just created."""
+    if WINDOWS:
+        subprocess.run([str(pwsh), "-NoProfile", "-Command", f"Stop-Process -Id {pid} -ErrorAction Stop"],
+                       check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        os.kill(pid, signal.SIGTERM)
 
 
 def receipt():
@@ -102,9 +118,7 @@ try:
     assert receipt()["roles"]["backend"]["pid"] == before["roles"]["backend"]["pid"]
     for name in ("backend", "ui"):
         old_pid = receipt()["roles"][name]["pid"]
-        # Each target is a fresh process this isolated supervisor just created.
-        subprocess.run([str(pwsh), "-NoProfile", "-Command", f"Stop-Process -Id {old_pid} -ErrorAction Stop"], check=True,
-                       creationflags=subprocess.CREATE_NO_WINDOW)
+        stop_process(old_pid)
         wait_for(lambda: receipt()["roles"].get(name, {}).get("pid", old_pid) != old_pid)
         wait_for(lambda: get(ui=name == "ui"))
     stable = receipt()

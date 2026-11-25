@@ -1549,9 +1549,35 @@ fn concurrent_runs_claim_the_workflow_once() {
 fn cancellation_during_worker_execution_stops_the_owned_process_and_never_advances() {
     let model = Model::new(vec![dispatch("worker-a", "HANG_WORKER")]);
     let f = fixture(&model, 3);
+    // Only cancellation may stop this silent worker: under a loaded parallel suite the
+    // fixture's 5 s hard and inactivity limits could fire first and end it as timed out.
+    let workflow = {
+        let mut workflows = Workflows::open(&f.state).unwrap();
+        let w = workflows
+            .create_with_overrides(
+                "fixture",
+                "Fix a and b; choose the appropriate workers".into(),
+                "Both files pass the protected verifier".into(),
+                None,
+                clatterforge::workflow::TimeoutOverrides {
+                    generation_timeout_ms: Some(60_000),
+                    generation_idle_timeout_ms: Some(60_000),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        workflows
+            .approve(
+                &w.id,
+                w.revision,
+                &w.assignment.digest().unwrap(),
+                "fixture",
+            )
+            .unwrap()
+    };
     let state = f.state.clone();
-    let id = f.workflow.id.clone();
-    let revision = f.workflow.revision;
+    let id = workflow.id.clone();
+    let revision = workflow.revision;
     let runner =
         thread::spawn(move || Workflows::open(&state).unwrap().run(&id, revision).unwrap());
     // Admission prepares several Git snapshots before the owned worker starts.
@@ -1559,7 +1585,7 @@ fn cancellation_during_worker_execution_stops_the_owned_process_and_never_advanc
     loop {
         let w = Workflows::open(&f.state)
             .unwrap()
-            .get(&f.workflow.id)
+            .get(&workflow.id)
             .unwrap();
         if let Some(step) = w.steps.last()
             && Agents::open(&f.state)
@@ -1575,7 +1601,7 @@ fn cancellation_during_worker_execution_stops_the_owned_process_and_never_advanc
         thread::sleep(Duration::from_millis(10));
     }
     let mut workflows = Workflows::open(&f.state).unwrap();
-    let w = workflows.get(&f.workflow.id).unwrap();
+    let w = workflows.get(&workflow.id).unwrap();
     workflows.cancel(&w.id, w.revision).unwrap();
     let done = runner.join().unwrap();
     assert_eq!(done.status, AgentStatus::Cancelled);
@@ -1583,8 +1609,17 @@ fn cancellation_during_worker_execution_stops_the_owned_process_and_never_advanc
         .unwrap()
         .task(&done.steps[0].task_id)
         .unwrap();
-    assert_eq!(child.status, AgentStatus::Cancelled);
-    assert!(child.execution.unwrap().tree_terminated);
+    assert_eq!(
+        child.status,
+        AgentStatus::Cancelled,
+        "{:?} limits {} / {:?} ran {:?} ms",
+        child.error,
+        child.assignment.spec.generation_timeout_ms,
+        child.assignment.spec.generation_idle_timeout_ms,
+        child.execution.as_ref().map(|r| r.ended_at - r.started_at)
+    );
+    let execution = child.execution.unwrap();
+    assert!(execution.tree_terminated, "{execution:?}");
     assert!(child.verification.is_none());
     assert_eq!(model.requests.lock().unwrap().len(), 1);
 }

@@ -188,19 +188,23 @@ impl CodexPolicy {
         } else {
             model.to_string()
         };
-        let mut args = vec![
+        let mut args: Vec<String> = vec![
             "--no-daemon".into(),
             "--ask-for-approval".into(),
             "never".into(),
-            "-c".into(),
-            "windows.sandbox=\"mxc\"".into(),
+        ];
+        // Codex's Windows sandbox; on Linux and macOS it applies its own native sandbox.
+        if cfg!(windows) {
+            args.extend(["-c".into(), "windows.sandbox=\"mxc\"".into()]);
+        }
+        args.extend([
             "-c".into(),
             "sandbox_workspace_write.network_access=false".into(),
             "-c".into(),
             "features.multi_agent=false".into(),
             "-c".into(),
             "mcp_servers={}".into(),
-        ];
+        ]);
         if let Some(eff) = effort {
             args.push("-c".into());
             args.push(format!("model_reasoning_effort=\"{}\"", eff.as_str()));

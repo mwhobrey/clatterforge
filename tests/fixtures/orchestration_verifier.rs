@@ -7,7 +7,8 @@ fn main() {
     }
     let mode = std::env::args().nth(1).unwrap_or_default();
     if mode == "platform" {
-        assert_eq!(std::env::var("ProgramFiles").unwrap(), std::env::args().nth(2).unwrap());
+        let name = if cfg!(windows) { "ProgramFiles" } else { "HOME" };
+        assert_eq!(std::env::var(name).unwrap(), std::env::args().nth(2).unwrap());
         assert!(std::env::var_os("OPENAI_API_KEY").is_none());
     }
     if mode == "hang" { loop { thread::sleep(Duration::from_millis(50)); } }
