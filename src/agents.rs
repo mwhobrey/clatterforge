@@ -2316,6 +2316,22 @@ impl Agents {
     /// anything resembling acceptance. No repair round: a failed attempt
     /// is a human's decision to make, not this engine's to retry.
     pub fn run(&mut self, id: &str, revision: u64) -> Result<AgentTask> {
+        self.run_leased(id, revision, None)
+    }
+
+    /// Runs one attempt of a best-of-N race whose parent already holds the repository
+    /// lease (`holder`), so sibling attempts in their own worktrees can run at once while
+    /// the repository still admits one unit of work.
+    pub(crate) fn run_within_race(
+        &mut self,
+        id: &str,
+        revision: u64,
+        holder: &str,
+    ) -> Result<AgentTask> {
+        self.run_leased(id, revision, Some(holder))
+    }
+
+    fn run_leased(&mut self, id: &str, revision: u64, holder: Option<&str>) -> Result<AgentTask> {
         GlobalStop::open(&self.root)?
             .state()?
             .ensure_admission_allowed()?;
@@ -2330,7 +2346,13 @@ impl Agents {
         let resource = task.assignment.repository.identity.clone();
         let owner = current_identity()?;
         let mut coordination = Coordination::open(&self.root)?;
-        coordination.acquire(&resource, id, &owner)?;
+        match holder {
+            None => coordination.acquire(&resource, id, &owner)?,
+            Some(holder) => ensure!(
+                coordination.holder(&resource)?.as_deref() == Some(holder),
+                "a race attempt runs only while its race holds the repository lease"
+            ),
+        }
         let outcome = match self.routing_note(id,"admission_checked","Agents::run",None,None).and_then(|_| self.execute(id, &owner)) {
             Ok(task) => Ok(task),
             Err(error) => self.finish(
@@ -2344,7 +2366,10 @@ impl Agents {
         // the lease to be found and quarantined by a human - this module
         // does not yet implement that reconciliation path (see module
         // doc), so a crash here needs a human to notice and release it.
-        coordination.release(&resource, id)?;
+        // A race attempt leaves its parent's lease for the race to release.
+        if holder.is_none() {
+            coordination.release(&resource, id)?;
+        }
         outcome
     }
     fn execute(&mut self, id: &str, owner: &ProcessIdentity) -> Result<AgentTask> {

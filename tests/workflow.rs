@@ -4973,3 +4973,150 @@ fn an_accepted_workflow_is_delivered_to_a_branch_without_touching_the_checkout()
         "a moved branch is never published"
     );
 }
+
+#[test]
+fn a_best_of_n_race_runs_attempts_side_by_side_and_picks_one() {
+    use clatterforge::{coordination::Coordination, race::Races};
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut presets = AgentPresets::open(&f.state).unwrap();
+    let template = presets.get("worker-a").unwrap();
+    for (name, model_name) in [("race-standard", "fixture"), ("race-frontier", "gpt-5")] {
+        let policy = AgentBackend::CursorAgent(
+            CursorAgentPolicy::inspect(
+                worker(),
+                &worker().parent().unwrap().join("index.js"),
+                model_name.into(),
+            )
+            .unwrap(),
+        );
+        presets
+            .create(
+                name,
+                f.repo.clone(),
+                policy,
+                vec!["a.txt".into(), "b.txt".into()],
+                vec!["contract.txt".into()],
+                template.verify_executable.clone(),
+                vec!["--verify".into()],
+                5000,
+                5000,
+                None,
+                "fixture",
+            )
+            .unwrap();
+    }
+    drop(presets);
+    let mut races = Races::open(&f.state).unwrap();
+    assert!(
+        races
+            .create(
+                &["worker-a".into(), "worker-b".into()],
+                "WORK_BOTH",
+                "verifier passes",
+                "mike"
+            )
+            .is_err(),
+        "attempts with different scopes are not comparable"
+    );
+    assert!(
+        races
+            .create(
+                &["race-standard".into()],
+                "WORK_BOTH",
+                "verifier passes",
+                "mike"
+            )
+            .is_err(),
+        "a race needs at least two attempts"
+    );
+
+    let pair = || vec!["race-standard".to_string(), "race-frontier".to_string()];
+    let race = races
+        .create(
+            &pair(),
+            "WORK_IF_FRONTIER fix both files",
+            "verifier passes",
+            "mike",
+        )
+        .unwrap();
+    assert!(races.approve(&race.id, "stale-digest", "mike").is_err());
+    let digest = races.view(&race.id).unwrap()["approval_digest"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    races.approve(&race.id, &digest, "mike").unwrap();
+    let ran = races.run(&race.id, "mike").unwrap();
+    assert_eq!(ran.status, "awaiting_pick");
+    let identity = clatterforge::repository::Repository::inspect(&f.repo)
+        .unwrap()
+        .identity;
+    assert_eq!(
+        Coordination::open(&f.state)
+            .unwrap()
+            .holder(&identity)
+            .unwrap(),
+        None,
+        "the race releases its repository lease"
+    );
+
+    let view = races.view(&race.id).unwrap();
+    let candidates = view["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 2);
+    let (standard, frontier) = (&candidates[0], &candidates[1]);
+    assert_eq!(standard["model"], "fixture");
+    assert_eq!(standard["status"], "needs_work", "{standard}");
+    assert!(standard["evidence_digest"].is_null());
+    assert_eq!(frontier["model"], "gpt-5");
+    assert_eq!(frontier["status"], "awaiting_review", "{frontier}");
+    assert_eq!(frontier["verification"], "succeeded");
+    assert_eq!(frontier["diffstat"]["files"], json!(["a.txt", "b.txt"]));
+
+    let winner = frontier["task_id"].as_str().unwrap();
+    assert!(
+        races
+            .pick(&race.id, winner, "wrong-evidence", "mike")
+            .is_err(),
+        "a pick is bound to the winner's evidence"
+    );
+    let picked = races
+        .pick(
+            &race.id,
+            winner,
+            frontier["evidence_digest"].as_str().unwrap(),
+            "mike",
+        )
+        .unwrap();
+    assert_eq!(picked.winner.as_deref(), Some(winner));
+    let agents = Agents::open(&f.state).unwrap();
+    assert_eq!(agents.task(winner).unwrap().status, AgentStatus::Accepted);
+
+    // Two passing candidates: the one not picked is rejected through ordinary review.
+    let both = races
+        .create(
+            &pair(),
+            "WORK_BOTH fix both files",
+            "verifier passes",
+            "mike",
+        )
+        .unwrap();
+    let digest = races.view(&both.id).unwrap()["approval_digest"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    races.approve(&both.id, &digest, "mike").unwrap();
+    races.run(&both.id, "mike").unwrap();
+    let view = races.view(&both.id).unwrap();
+    let first = &view["candidates"][0];
+    assert_eq!(view["candidates"][1]["status"], "awaiting_review");
+    races
+        .pick(
+            &both.id,
+            first["task_id"].as_str().unwrap(),
+            first["evidence_digest"].as_str().unwrap(),
+            "mike",
+        )
+        .unwrap();
+    let loser = view["candidates"][1]["task_id"].as_str().unwrap();
+    assert_eq!(agents.task(loser).unwrap().status, AgentStatus::Rejected);
+}

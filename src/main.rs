@@ -144,6 +144,51 @@ enum Commands {
     WorkflowShow {
         task: String,
     },
+    /// Create a best-of-N race: one agent attempt per preset (2-4) on the same objective.
+    /// Presets must share repository, files and verifier.
+    #[command(name = "race-create")]
+    RaceCreate {
+        #[arg(long = "preset", required = true)]
+        presets: Vec<String>,
+        #[arg(long)]
+        objective: String,
+        #[arg(long)]
+        acceptance: String,
+        #[arg(long)]
+        by: String,
+    },
+    /// Approve every attempt of a race at once; --digest is race-show's approval_digest.
+    #[command(name = "race-approve")]
+    RaceApprove {
+        race: String,
+        #[arg(long)]
+        digest: String,
+        #[arg(long)]
+        by: String,
+    },
+    /// Run every attempt of an approved race at once under one repository lease.
+    #[command(name = "race-run")]
+    RaceRun {
+        race: String,
+        #[arg(long)]
+        by: String,
+    },
+    /// Show a race's candidates side by side.
+    #[command(name = "race-show")]
+    RaceShow {
+        race: String,
+    },
+    /// Accept one candidate (bound to its evidence digest) and reject the other reviewable ones.
+    #[command(name = "race-pick")]
+    RacePick {
+        race: String,
+        #[arg(long)]
+        task: String,
+        #[arg(long)]
+        digest: String,
+        #[arg(long)]
+        by: String,
+    },
     /// Commit an accepted candidate onto a new branch from its recorded base. No working
     /// tree, index or checked-out branch is touched; nothing is pushed.
     #[command(name = "deliver-commit")]
@@ -3037,6 +3082,30 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             print(&profile)?;
         }
         Commands::WorkflowShow { task } => print(&Workflows::open(&cli.state)?.get(task)?)?,
+        Commands::RaceCreate {
+            presets,
+            objective,
+            acceptance,
+            by,
+        } => print(
+            &clatterforge::race::Races::open(&cli.state)?
+                .create(presets, objective, acceptance, by)?,
+        )?,
+        Commands::RaceApprove { race, digest, by } => {
+            print(&clatterforge::race::Races::open(&cli.state)?.approve(race, digest, by)?)?
+        }
+        Commands::RaceRun { race, by } => {
+            print(&clatterforge::race::Races::open(&cli.state)?.run(race, by)?)?
+        }
+        Commands::RaceShow { race } => {
+            print(&clatterforge::race::Races::open(&cli.state)?.view(race)?)?
+        }
+        Commands::RacePick {
+            race,
+            task,
+            digest,
+            by,
+        } => print(&clatterforge::race::Races::open(&cli.state)?.pick(race, task, digest, by)?)?,
         Commands::DeliverCommit {
             task,
             digest,

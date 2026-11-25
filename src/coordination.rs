@@ -167,6 +167,18 @@ impl Coordination {
         Ok(())
     }
 
+    /// The task id holding an unquarantined lease on `resource`, if any.
+    pub fn holder(&self, resource: &str) -> Result<Option<String>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT task_id FROM leases WHERE resource=?1 AND quarantined=0",
+                [resource],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     pub fn release(&mut self, resource: &str, task_id: &str) -> Result<()> {
         self.connection.execute(
             "DELETE FROM leases WHERE resource=?1 AND task_id=?2 AND quarantined=0",

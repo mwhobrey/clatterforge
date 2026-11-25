@@ -21,6 +21,7 @@ pub mod logging;
 pub mod mcp;
 pub mod orchestration;
 pub mod process;
+pub mod race;
 pub mod repository;
 pub mod runner;
 pub mod schedule;
