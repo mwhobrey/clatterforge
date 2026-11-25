@@ -1440,7 +1440,23 @@ impl ConductorBackend for LocalBackend {
                 "cancel",
             ),
             "awaiting_review" => (
-                service.review(&req.task_id, req.revision, &req.digest, &by, false)?,
+                service.review_with_comments(
+                    &req.task_id,
+                    req.revision,
+                    &req.digest,
+                    &by,
+                    false,
+                    req.comments
+                        .iter()
+                        .map(|c| crate::store::ReviewComment {
+                            path: c.path.clone(),
+                            line: c.line,
+                            end_line: c.end_line,
+                            body: c.body.clone(),
+                            excerpt: String::new(),
+                        })
+                        .collect(),
+                )?,
                 "review_reject",
             ),
             other => unreachable!("status re-checked above: {other}"),

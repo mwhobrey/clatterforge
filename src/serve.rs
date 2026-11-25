@@ -1274,6 +1274,9 @@ struct ReviewBody {
     digest: String,
     by: String,
     accept: bool,
+    /// Line-anchored notes for workflow-v1 candidates; the host checks and excerpts them.
+    #[serde(default)]
+    comments: Vec<crate::store::ReviewComment>,
 }
 
 #[derive(Deserialize)]
@@ -1465,7 +1468,14 @@ async fn post_review(
     };
     let root = state.root.clone();
     match tokio::task::spawn_blocking(move || {
-        TaskService::open(&root)?.review(&id, body.revision, &body.digest, &by, body.accept)
+        TaskService::open(&root)?.review_with_comments(
+            &id,
+            body.revision,
+            &body.digest,
+            &by,
+            body.accept,
+            body.comments,
+        )
     })
     .await
     {

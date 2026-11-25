@@ -69,6 +69,31 @@ mod tests {
     use crate::repository::git;
 
     #[test]
+    fn review_comment_anchor_text_parses_ranges_and_colons() {
+        let single =
+            ReviewComment::from_anchor_text("src/lib.rs:12:Handle the empty case").unwrap();
+        assert_eq!(
+            (single.path.as_str(), single.line, single.end_line),
+            ("src/lib.rs", 12, None)
+        );
+        assert_eq!(single.body, "Handle the empty case");
+
+        let range = ReviewComment::from_anchor_text("a.txt:3-7: rename: keep it short").unwrap();
+        assert_eq!((range.line, range.end_line), (3, Some(7)));
+        assert_eq!(range.body, "rename: keep it short");
+
+        let colon_path = ReviewComment::from_anchor_text("docs/a:b.md:2:typo").unwrap();
+        assert_eq!(colon_path.path, "docs/a:b.md");
+
+        for bad in ["no anchor at all", "a.txt:x:text", ":4:text", "a.txt:4:   "] {
+            assert!(
+                ReviewComment::from_anchor_text(bad).is_err(),
+                "accepted {bad:?}"
+            );
+        }
+    }
+
+    #[test]
     fn restart_reconciliation_preserves_uncertain_attempt_without_replay() {
         let temp = tempfile::tempdir().unwrap();
         let repo = temp.path().join("repo");
@@ -332,6 +357,61 @@ pub struct Review {
     pub accepted: bool,
     pub evidence_digest: String,
     pub at: u64,
+    /// Line-anchored reviewer notes on the reviewed candidate. A retry of a rejected
+    /// workflow hands them to the next repair round.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comments: Vec<ReviewComment>,
+}
+
+/// A reviewer note anchored to lines of the candidate a review decided on.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReviewComment {
+    /// Repository-relative path of a file the candidate changed.
+    pub path: String,
+    /// First anchored line (1-based) in the candidate's version of the file.
+    pub line: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_line: Option<u32>,
+    pub body: String,
+    /// The anchored candidate lines, captured by the host when the review was recorded.
+    #[serde(default)]
+    pub excerpt: String,
+}
+
+impl ReviewComment {
+    /// Parses `PATH:LINE[-END]:TEXT`. The anchor is the first `:LINE:` or `:LINE-END:`
+    /// segment, so paths containing `:` still work.
+    pub fn from_anchor_text(text: &str) -> Result<Self> {
+        for (at, _) in text.match_indices(':') {
+            let rest = &text[at + 1..];
+            let Some(close) = rest.find(':') else {
+                break;
+            };
+            let (first, end) = match rest[..close].split_once('-') {
+                Some((a, b)) => (a, Some(b)),
+                None => (&rest[..close], None),
+            };
+            let (Ok(line), Ok(end_line)) =
+                (first.parse::<u32>(), end.map(str::parse::<u32>).transpose())
+            else {
+                continue;
+            };
+            let path = text[..at].trim();
+            let body = rest[close + 1..].trim();
+            ensure!(
+                !path.is_empty() && !body.is_empty(),
+                "review comment needs a path and text: {text}"
+            );
+            return Ok(Self {
+                path: path.to_string(),
+                line,
+                end_line,
+                body: body.to_string(),
+                excerpt: String::new(),
+            });
+        }
+        anyhow::bail!("review comment must look like PATH:LINE[-END]:TEXT, got {text:?}")
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

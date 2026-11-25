@@ -2816,6 +2816,7 @@ impl Agents {
                 accepted: accept,
                 evidence_digest: evidence.clone(),
                 at: now(),
+                comments: Vec::new(),
             });
             t.status = if accept {
                 AgentStatus::Accepted

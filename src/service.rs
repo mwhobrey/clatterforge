@@ -1625,11 +1625,31 @@ impl TaskService {
         by: &str,
         accept: bool,
     ) -> Result<board::Detail> {
+        self.review_with_comments(query, revision, digest, by, accept, Vec::new())
+    }
+
+    /// Records a review with line-anchored comments. Only workflow-v1 candidates carry
+    /// checkpointed trees the comments can be anchored to; other engines refuse them.
+    pub fn review_with_comments(
+        &mut self,
+        query: &str,
+        revision: u64,
+        digest: &str,
+        by: &str,
+        accept: bool,
+        comments: Vec<crate::store::ReviewComment>,
+    ) -> Result<board::Detail> {
         let id = self.resolve(query)?;
         if self.workflows.get(&id).is_ok() {
-            self.workflows.review(&id, revision, digest, by, accept)?;
-            self.workflows.detail(&id, None)
-        } else if self.orchestrator.task(&id).is_ok() {
+            self.workflows
+                .review_with_comments(&id, revision, digest, by, accept, comments)?;
+            return self.workflows.detail(&id, None);
+        }
+        ensure!(
+            comments.is_empty(),
+            "line-anchored review comments are supported for workflow-v1 tasks only"
+        );
+        if self.orchestrator.task(&id).is_ok() {
             let task = self
                 .orchestrator
                 .review(&id, revision, digest, by, accept)?;

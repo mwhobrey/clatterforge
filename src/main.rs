@@ -613,6 +613,11 @@ enum Commands {
         by: String,
         #[arg(long)]
         accept: bool,
+        /// Line-anchored note on the candidate (workflow-v1), as PATH:LINE[-END]:TEXT.
+        /// Repeatable. A later board-retry of a rejected workflow hands these to the next
+        /// repair round.
+        #[arg(long = "comment", value_parser = parse_review_comment)]
+        comments: Vec<clatterforge::store::ReviewComment>,
         #[arg(long)]
         json: bool,
     },
@@ -1558,9 +1563,10 @@ fn board_write_command(cli: &Cli) -> Result<bool> {
             digest,
             by,
             accept,
+            comments,
             json,
         } => (
-            service.review(task, *revision, digest, by, *accept)?,
+            service.review_with_comments(task, *revision, digest, by, *accept, comments.clone())?,
             *json,
             false,
         ),
@@ -2188,6 +2194,10 @@ fn policy_command(cli: &Cli) -> Result<bool> {
         _ => return Ok(false),
     }
     Ok(true)
+}
+
+fn parse_review_comment(value: &str) -> Result<clatterforge::store::ReviewComment, String> {
+    clatterforge::store::ReviewComment::from_anchor_text(value).map_err(|e| e.to_string())
 }
 
 fn parse_operations(values: &[String]) -> Result<Vec<clatterforge::authorization::Operation>> {

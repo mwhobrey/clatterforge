@@ -234,8 +234,24 @@ pub struct DecisionRequest {
     /// it. Binds the decision to the exact thing being decided on.
     pub digest: String,
     pub principal: String,
+    /// `conductor_reject` of a workflow-v1 result only: line-anchored notes on the
+    /// candidate. The host checks each anchor against the candidate and records the
+    /// anchored lines; a later retry hands the comments to the next repair round.
+    #[serde(default)]
+    pub comments: Vec<ReviewCommentInput>,
     #[serde(default)]
     pub request_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ReviewCommentInput {
+    /// Repository-relative path of a file the candidate changed.
+    pub path: String,
+    /// First line (1-based) in the candidate's version of the file.
+    pub line: u32,
+    #[serde(default)]
+    pub end_line: Option<u32>,
+    pub body: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]

@@ -14,7 +14,7 @@ use crate::{
     process::{Presence, ProcessIdentity, current_identity, presence},
     repository::{Repository, git, git_output},
     service::TaskService,
-    store::{Approval, Artifact, Review},
+    store::{Approval, Artifact, Review, ReviewComment},
     workflow_workspace::{self, Checkpoint, GitQuery, GitRead, GitReadRequest, SharedWorkspace},
 };
 use anyhow::{Context, Result, ensure};
@@ -27,6 +27,33 @@ use std::{
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
+
+pub const MAX_REVIEW_COMMENTS: usize = 50;
+const MAX_COMMENT_CHARS: usize = 2000;
+const MAX_EXCERPT_CHARS: usize = 1000;
+
+/// Repair-round text for a worker: each reviewer comment with its anchor and the candidate
+/// lines it referred to. Comments are reviewer input, not host evidence.
+fn review_comment_brief(comments: &[ReviewComment]) -> Option<String> {
+    if comments.is_empty() {
+        return None;
+    }
+    let mut brief = String::from(
+        "\n\nReviewer comments on the rejected candidate (address each; anchors refer to the \
+         candidate you are continuing from):",
+    );
+    for c in comments {
+        let anchor = match c.end_line {
+            Some(end) if end != c.line => format!("{}:{}-{end}", c.path, c.line),
+            _ => format!("{}:{}", c.path, c.line),
+        };
+        brief.push_str(&format!("\n- {anchor}: {}", c.body));
+        for line in c.excerpt.lines() {
+            brief.push_str(&format!("\n    > {line}"));
+        }
+    }
+    Some(brief)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -2190,6 +2217,10 @@ pub struct Workflow {
     pub reset_workspace_pending: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resume_guidance: Option<String>,
+    /// Line-anchored comments from the rejected review a retry continues from; handed to
+    /// the planner and the next dispatched stage as structured repair input.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resume_review_comments: Vec<ReviewComment>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub archived_steps: Vec<ArchivedWorkflowStep>,
 }
@@ -2639,6 +2670,7 @@ impl Workflows {
             checkpoint_seq: 0,
             reset_workspace_pending: false,
             resume_guidance: None,
+            resume_review_comments: Vec::new(),
             archived_steps: vec![],
         };
         let tx = self
@@ -2805,6 +2837,16 @@ impl Workflows {
         let clean_guidance = guidance
             .map(|g| g.trim().chars().take(2048).collect::<String>())
             .filter(|g| !g.is_empty());
+        // A retry after a rejection carries that review's anchored comments forward; any
+        // other retry starts without them.
+        let carried_comments = if w.status == AgentStatus::Rejected {
+            w.review
+                .as_ref()
+                .map(|r| r.comments.clone())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let workspace = self.root.join("workflow-workspaces").join(&w.id);
         let shared = w.assignment.context["workspace_mode"] == "shared_git_v1";
 
@@ -2962,6 +3004,7 @@ impl Workflows {
             w.summary = None;
             w.review = None;
             w.resume_guidance = clean_guidance;
+            w.resume_review_comments = carried_comments;
             Ok(())
         })
     }
@@ -3078,6 +3121,7 @@ impl Workflows {
                 "objective":w.assignment.objective,"acceptance":w.assignment.acceptance,
                 "repository":w.assignment.context,
                 "operator_guidance":w.resume_guidance,
+                "review_comments":w.resume_review_comments,
                 "candidate_checkpoint":w.steps.last().and_then(|s|s.checkpoint.as_ref()),
                 "git_page":git_page,"remaining_git_reads":4usize.saturating_sub(w.git_reads.len()),
                 "approved_workers":catalog,"routing_recommendation":recommendation,"remaining_steps":w.effective_max_steps().saturating_sub(w.steps.len()),
@@ -3277,12 +3321,16 @@ impl Workflows {
                         )?;
                     let effort = complexity.recommended_effort();
                     let resolved_worker = preset.name.clone();
-                    let dispatch_objective = match w.resume_guidance.as_deref() {
-                        Some(guidance) if w.steps.len() == active_cursor => {
-                            format!("{objective}\n\nOperator retry guidance:\n{guidance}")
+                    let mut dispatch_objective = objective;
+                    if w.steps.len() == active_cursor {
+                        if let Some(guidance) = w.resume_guidance.as_deref() {
+                            dispatch_objective
+                                .push_str(&format!("\n\nOperator retry guidance:\n{guidance}"));
                         }
-                        _ => objective,
-                    };
+                        if let Some(brief) = review_comment_brief(&w.resume_review_comments) {
+                            dispatch_objective.push_str(&brief);
+                        }
+                    }
                     let shared = w.assignment.context["workspace_mode"] == "shared_git_v1";
                     let handoff = if let Some(previous) = w.steps.last() {
                         self.validate_step(&w, previous)?;
@@ -3293,7 +3341,7 @@ impl Workflows {
                                 .clone()
                                 .context("missing prior evidence")?,
                             context: serde_json::to_string(
-                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"previous_stage":previous.result,"routing_rationale":rationale}),
+                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"previous_stage":previous.result,"routing_rationale":rationale}),
                             )?,
                             files: if shared {
                                 BTreeMap::new()
@@ -3306,7 +3354,7 @@ impl Workflows {
                             source_task: w.id.clone(),
                             evidence_digest: w.assignment.digest()?,
                             context: serde_json::to_string(
-                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"routing_rationale":rationale}),
+                                &json!({"overall_objective":w.assignment.objective,"overall_acceptance":w.assignment.acceptance,"operator_guidance":w.resume_guidance,"review_comments":w.resume_review_comments,"routing_rationale":rationale}),
                             )?,
                             files: BTreeMap::new(),
                         })
@@ -3805,6 +3853,87 @@ impl Workflows {
         }
         Ok(())
     }
+    /// Checks each comment against the reviewed candidate (the last step's checkpoint tree)
+    /// and captures the anchored lines as host-observed excerpts.
+    fn anchor_comments(
+        &self,
+        w: &Workflow,
+        comments: Vec<ReviewComment>,
+    ) -> Result<Vec<ReviewComment>> {
+        if comments.is_empty() {
+            return Ok(comments);
+        }
+        ensure!(
+            comments.len() <= MAX_REVIEW_COMMENTS,
+            "at most {MAX_REVIEW_COMMENTS} review comments"
+        );
+        let tree = w
+            .steps
+            .last()
+            .and_then(|s| s.checkpoint.as_ref())
+            .map(|c| c.tree.clone())
+            .context("line comments need a checkpointed workflow candidate")?;
+        let checkout = &w.assignment.profile.repository.checkout;
+        let base = &w.assignment.profile.repository.base;
+        let changed = git(
+            checkout,
+            &[
+                "diff-tree",
+                "-r",
+                "--no-renames",
+                "--name-only",
+                "-z",
+                base,
+                &tree,
+            ],
+        )?;
+        let changed: BTreeSet<String> = changed
+            .split(|b| *b == 0)
+            .filter(|p| !p.is_empty())
+            .map(|p| String::from_utf8_lossy(p).into_owned())
+            .collect();
+        let mut anchored = Vec::with_capacity(comments.len());
+        for mut comment in comments {
+            comment.path = comment.path.trim().replace('\\', "/");
+            comment.body = comment.body.trim().to_string();
+            ensure!(
+                !comment.body.is_empty() && comment.body.chars().count() <= MAX_COMMENT_CHARS,
+                "review comment on {} needs a body of 1 to {MAX_COMMENT_CHARS} characters",
+                comment.path
+            );
+            ensure!(
+                changed.contains(&comment.path),
+                "{} is not a file the candidate changed",
+                comment.path
+            );
+            let end = comment.end_line.unwrap_or(comment.line);
+            ensure!(
+                comment.line >= 1 && end >= comment.line && end - comment.line < 200,
+                "review comment on {} has an invalid line range",
+                comment.path
+            );
+            let blob = git(
+                checkout,
+                &["cat-file", "blob", &format!("{tree}:{}", comment.path)],
+            )
+            .with_context(|| format!("{} was deleted by the candidate", comment.path))?;
+            let text = String::from_utf8_lossy(&blob);
+            let lines: Vec<&str> = text.lines().collect();
+            ensure!(
+                (end as usize) <= lines.len(),
+                "{} has {} line(s) in the candidate; line {end} does not exist",
+                comment.path,
+                lines.len()
+            );
+            comment.excerpt = lines[comment.line as usize - 1..end as usize]
+                .join("\n")
+                .chars()
+                .take(MAX_EXCERPT_CHARS)
+                .collect();
+            anchored.push(comment);
+        }
+        Ok(anchored)
+    }
     pub fn review(
         &mut self,
         id: &str,
@@ -3813,6 +3942,17 @@ impl Workflows {
         by: &str,
         accept: bool,
     ) -> Result<Workflow> {
+        self.review_with_comments(id, revision, digest, by, accept, Vec::new())
+    }
+    pub fn review_with_comments(
+        &mut self,
+        id: &str,
+        revision: u64,
+        digest: &str,
+        by: &str,
+        accept: bool,
+        comments: Vec<ReviewComment>,
+    ) -> Result<Workflow> {
         let w = self.get(id)?;
         ensure!(
             w.status == AgentStatus::AwaitingReview
@@ -3820,6 +3960,7 @@ impl Workflows {
                 && w.evidence_digest()? == digest,
             "current workflow review evidence required"
         );
+        let comments = self.anchor_comments(&w, comments)?;
         for step in &w.steps {
             self.validate_step(&w, step)?;
         }
@@ -3836,6 +3977,7 @@ impl Workflows {
                 accepted: accept,
                 at: now(),
                 evidence_digest: digest.into(),
+                comments,
             });
             w.status = if accept {
                 AgentStatus::Accepted
@@ -4704,6 +4846,7 @@ mod tests {
             checkpoint_seq: 2,
             reset_workspace_pending: false,
             resume_guidance: None,
+            resume_review_comments: Vec::new(),
             archived_steps: vec![],
         };
         match plan_next_decision(&wf) {
@@ -5165,6 +5308,7 @@ mod tests {
             checkpoint_seq: 1,
             reset_workspace_pending: false,
             resume_guidance: None,
+            resume_review_comments: Vec::new(),
             archived_steps: archived,
         };
         match plan_next_decision_with_scoreboard(&wf, &scoreboard) {

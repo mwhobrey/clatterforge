@@ -1495,6 +1495,7 @@ impl Orchestrator {
                 reviewer: by.into(),
                 accepted: accept,
                 at: now(),
+                comments: Vec::new(),
             });
             Ok(())
         })

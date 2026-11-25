@@ -410,6 +410,36 @@ async fn capabilities_lists_every_tool_and_declares_known_limits() {
 }
 
 #[tokio::test]
+async fn line_review_comments_are_refused_outside_workflow_tasks() {
+    let (_dir, _repo, state, id) = setup();
+    let server = McpServer::open(state.clone()).unwrap();
+    let submitted = server
+        .conductor_submit_task(Parameters(submit_fake(&id)))
+        .await
+        .unwrap()
+        .0;
+    let task_id = submitted.task["id"].as_str().unwrap();
+    let error = clatterforge::service::TaskService::open(&state)
+        .unwrap()
+        .review_with_comments(
+            task_id,
+            submitted.task["revision"].as_u64().unwrap(),
+            "any-digest",
+            "human",
+            false,
+            vec![clatterforge::store::ReviewComment {
+                path: "README.md".into(),
+                line: 1,
+                end_line: None,
+                body: "anchored note".into(),
+                excerpt: String::new(),
+            }],
+        )
+        .unwrap_err();
+    assert!(error.to_string().contains("workflow-v1"), "{error:#}");
+}
+
+#[tokio::test]
 async fn global_stop_status_reflects_an_engaged_stop() {
     let (_dir, _repo, state, _id) = setup();
     GlobalStop::open(&state)
@@ -854,6 +884,7 @@ async fn approval_requirements_and_decisions_follow_the_actual_task_status() {
             revision: created["revision"].as_u64().unwrap(),
             digest: "not-the-real-digest".into(),
             principal: "reviewer@example.invalid".into(),
+            comments: Vec::new(),
             request_id: None,
         }))
         .await;
@@ -865,6 +896,7 @@ async fn approval_requirements_and_decisions_follow_the_actual_task_status() {
             revision: created["revision"].as_u64().unwrap(),
             digest: assignment_digest,
             principal: "reviewer@example.invalid".into(),
+            comments: Vec::new(),
             request_id: None,
         }))
         .await

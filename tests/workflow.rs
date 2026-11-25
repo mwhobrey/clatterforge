@@ -4587,3 +4587,108 @@ fn dirty_checkout_integrates_into_isolated_worktree_and_rolls_back() {
         "wrong-b"
     );
 }
+
+#[test]
+fn rejected_review_comments_are_anchored_and_handed_to_the_repair_round() {
+    use clatterforge::store::ReviewComment;
+    let model = Model::new(vec![
+        dispatch("worker-a", "WORK_A"),
+        dispatch("worker-b", "WORK_B"),
+        json!({"action":"finish","summary":"done"}),
+        dispatch("worker-b", "WORK_B"),
+        json!({"action":"finish","summary":"repaired"}),
+    ]);
+    let f = fixture(&model, 3);
+    let done = run(&f);
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{done:?}");
+    let digest = done.evidence_digest().unwrap();
+    let comment = |path: &str, line: u32, body: &str| ReviewComment {
+        path: path.into(),
+        line,
+        end_line: None,
+        body: body.into(),
+        excerpt: "caller-supplied excerpt is ignored".into(),
+    };
+    let mut workflows = Workflows::open(&f.state).unwrap();
+
+    for (bad, why) in [
+        (
+            comment("README.md", 1, "not part of the diff"),
+            "unchanged file",
+        ),
+        (comment("a.txt", 99, "past the end"), "missing line"),
+        (comment("a.txt", 1, "   "), "empty body"),
+        (comment("a.txt", 0, "zero line"), "line zero"),
+    ] {
+        assert!(
+            workflows
+                .review_with_comments(&done.id, done.revision, &digest, "human", false, vec![bad])
+                .is_err(),
+            "accepted a comment with {why}"
+        );
+    }
+    assert_eq!(
+        workflows.get(&done.id).unwrap().status,
+        AgentStatus::AwaitingReview,
+        "a refused comment records nothing"
+    );
+
+    let rejected = workflows
+        .review_with_comments(
+            &done.id,
+            done.revision,
+            &digest,
+            "human",
+            false,
+            vec![comment(
+                "a.txt",
+                1,
+                "Keep the canonical value but explain it",
+            )],
+        )
+        .unwrap();
+    assert_eq!(rejected.status, AgentStatus::Rejected);
+    let recorded = &rejected.review.as_ref().unwrap().comments;
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(
+        recorded[0].excerpt, "fixed-a",
+        "the host captures the candidate line"
+    );
+
+    let retried = workflows
+        .retry(
+            &done.id,
+            rejected.revision,
+            "human",
+            false,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(retried.resume_review_comments, *recorded);
+
+    let seen = model.requests.lock().unwrap().len();
+    let repaired = workflows.run(&done.id, retried.revision).unwrap();
+    let requests = model.requests.lock().unwrap();
+    assert!(
+        requests[seen..].iter().any(|r| r
+            .to_string()
+            .contains("Keep the canonical value but explain it")),
+        "the planner receives the review comments"
+    );
+    let stage = repaired.steps.last().unwrap();
+    let objective = Agents::open(&f.state)
+        .unwrap()
+        .task(&stage.task_id)
+        .unwrap()
+        .assignment
+        .spec
+        .objective;
+    assert!(
+        objective.contains("Reviewer comments on the rejected candidate")
+            && objective.contains("- a.txt:1: Keep the canonical value but explain it")
+            && objective.contains("> fixed-a"),
+        "the repair stage objective carries the anchored comments: {objective}"
+    );
+}

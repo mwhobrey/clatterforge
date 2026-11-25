@@ -850,6 +850,7 @@ impl Store {
                 accepted,
                 evidence_digest,
                 at: now(),
+                comments: Vec::new(),
             });
             task.status = if accepted {
                 Status::Accepted
