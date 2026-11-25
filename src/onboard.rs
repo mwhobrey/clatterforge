@@ -618,10 +618,19 @@ pub fn list_editable_repo_files(
     excluded_files: &[String],
 ) -> Result<Vec<String>> {
     let ls = git_text(repo_path, &["ls-files"])?;
+    Ok(rank_editable_paths(ls.lines(), excluded_files))
+}
+
+/// Filters and ranks repository-relative paths the same way for any listing source
+/// (the index via `ls-files`, or a commit via `ls-tree`).
+pub fn rank_editable_paths<'a>(
+    paths: impl IntoIterator<Item = &'a str>,
+    excluded_files: &[String],
+) -> Vec<String> {
     let is_excluded = |path: &str| excluded_files.iter().any(|v| v.eq_ignore_ascii_case(path));
     let mut ranked_sources = Vec::new();
     let mut other_tracked = Vec::new();
-    for line in ls.lines() {
+    for line in paths {
         let trim = line.trim();
         if trim.is_empty() || is_ignored_repo_path(trim) || is_excluded(trim) {
             continue;
@@ -636,7 +645,7 @@ pub fn list_editable_repo_files(
     other_tracked.sort();
     ranked_sources.extend(other_tracked);
     ranked_sources.truncate(5000);
-    Ok(ranked_sources)
+    ranked_sources
 }
 
 pub fn detect_suggested_files_with_count(repo_path: &Path) -> (Vec<String>, usize) {

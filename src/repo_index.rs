@@ -6,20 +6,21 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
+    io::{BufRead, BufReader, Read, Write},
     path::Path,
+    process::{Command, Stdio},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use rusqlite::{Connection, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     now,
-    onboard::{list_editable_repo_files, source_file_rank},
+    onboard::{rank_editable_paths, source_file_rank},
     open_sqlite_with_retry,
-    orchestration::{MAX_ALLOWED_FILES, safe_file},
-    repository::Repository,
+    orchestration::MAX_ALLOWED_FILES,
+    repository::{Repository, git},
     workflow::Profile,
 };
 
@@ -310,13 +311,97 @@ fn tokenize_body(text: &str) -> (BTreeMap<String, u32>, u32) {
     (counts, doc_len)
 }
 
-fn read_lossy_bounded(path: &Path) -> Option<String> {
-    let bytes = fs::read(path).ok()?;
-    let slice = &bytes[..bytes.len().min(MAX_FILE_READ_BYTES)];
-    Some(String::from_utf8_lossy(slice).into_owned())
+/// Tracked regular files at `commit`, as path -> blob id. Symlinks and submodules are skipped,
+/// and so are paths that are not valid UTF-8.
+fn commit_blobs(repo: &Path, commit: &str) -> Result<BTreeMap<String, String>> {
+    ensure!(
+        commit.len() >= 7 && commit.bytes().all(|b| b.is_ascii_hexdigit()),
+        "repository index base must be a commit id"
+    );
+    let listing = git(repo, &["ls-tree", "-r", "-z", "--full-tree", commit])?;
+    let mut blobs = BTreeMap::new();
+    for record in listing.split(|b| *b == 0) {
+        let Some(tab) = record.iter().position(|b| *b == b'\t') else {
+            continue;
+        };
+        let (Ok(meta), Ok(path)) = (
+            std::str::from_utf8(&record[..tab]),
+            std::str::from_utf8(&record[tab + 1..]),
+        ) else {
+            continue;
+        };
+        let mut fields = meta.split(' ');
+        let (Some(mode), Some("blob"), Some(id)) = (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if mode != "120000" {
+            blobs.insert(path.to_owned(), id.to_owned());
+        }
+    }
+    Ok(blobs)
 }
 
-/// Scans `repo_checkout` and replaces the cached symbol & weighted token index for `profile_name`.
+/// Reads each blob through one `git cat-file --batch`, keeping at most
+/// `MAX_FILE_READ_BYTES` per blob. `None` marks an object Git reports missing.
+fn read_blobs_bounded(repo: &Path, ids: &[String]) -> Result<Vec<Option<String>>> {
+    let mut child = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["cat-file", "--batch"])
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("could not start git cat-file")?;
+    let mut stdin = child.stdin.take().context("git cat-file stdin")?;
+    let request: String = ids.iter().map(|id| format!("{id}\n")).collect();
+    // Written from a thread so a large request can never deadlock against unread output.
+    let writer = std::thread::spawn(move || stdin.write_all(request.as_bytes()));
+    let mut reader = BufReader::new(child.stdout.take().context("git cat-file stdout")?);
+    let mut texts = Vec::with_capacity(ids.len());
+    let read = (|| -> Result<()> {
+        let mut header = String::new();
+        for _ in ids {
+            header.clear();
+            ensure!(
+                reader.read_line(&mut header)? > 0,
+                "git cat-file ended early"
+            );
+            let fields: Vec<&str> = header.trim_end().split(' ').collect();
+            let [_, _, size] = fields[..] else {
+                texts.push(None);
+                continue;
+            };
+            let size: u64 = size.parse().context("git cat-file object size")?;
+            let keep = size.min(MAX_FILE_READ_BYTES as u64);
+            let mut body = vec![0; keep as usize];
+            reader.read_exact(&mut body)?;
+            // Discard the rest of the object plus its trailing newline.
+            let rest = size - keep + 1;
+            ensure!(
+                std::io::copy(&mut (&mut reader).take(rest), &mut std::io::sink())? == rest,
+                "git cat-file output truncated"
+            );
+            texts.push(Some(String::from_utf8_lossy(&body).into_owned()));
+        }
+        Ok(())
+    })();
+    if read.is_err() {
+        let _ = child.kill();
+    }
+    let _ = writer.join();
+    let status = child.wait()?;
+    read?;
+    ensure!(status.success(), "git cat-file failed");
+    Ok(texts)
+}
+
+/// Indexes the tracked files of `base_commit` (not the working tree, so uncommitted edits
+/// never shape suggestions keyed on that commit) and replaces the cached symbol & weighted
+/// token index for `profile_name`.
 pub fn index_profile_repo(
     state_root: &Path,
     profile_name: &str,
@@ -342,17 +427,17 @@ pub fn index_profile_repo_with_progress(
     excluded_files: &[String],
     on_progress: &mut dyn FnMut(usize, usize),
 ) -> Result<IndexSummary> {
-    let mut files = list_editable_repo_files(repo_checkout, excluded_files)?;
+    let blobs = commit_blobs(repo_checkout, base_commit)?;
+    let mut files = rank_editable_paths(blobs.keys().map(String::as_str), excluded_files);
     files.truncate(MAX_INDEXED_FILES);
     let total = files.len();
     on_progress(0, total);
+    let ids: Vec<String> = files.iter().map(|rel| blobs[rel].clone()).collect();
+    let texts = read_blobs_bounded(repo_checkout, &ids)?;
 
     let mut entries = Vec::with_capacity(total);
-    for (idx, rel) in files.iter().enumerate() {
-        let text = safe_file(repo_checkout, rel)
-            .ok()
-            .and_then(|p| read_lossy_bounded(&p))
-            .unwrap_or_default();
+    for (idx, (rel, text)) in files.iter().zip(texts).enumerate() {
+        let text = text.unwrap_or_default();
         let symbols = extract_symbols(&text);
         let path_tokens = split_code_tokens(rel);
         let symbol_tokens = {
@@ -837,6 +922,39 @@ pub fn suggest_files_for_objective(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn batch_blob_reads_truncate_oversized_blobs_and_stay_aligned() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path();
+        git(repo, &["init", "-q"]).unwrap();
+        let write = |name: &str, body: &[u8]| {
+            std::fs::write(repo.join(name), body).unwrap();
+            String::from_utf8(git(repo, &["hash-object", "-w", name]).unwrap())
+                .unwrap()
+                .trim()
+                .to_owned()
+        };
+        let small = write("a.rs", b"pub fn first() {}\n");
+        let big = write("b.rs", &vec![b'x'; MAX_FILE_READ_BYTES * 2 + 17]);
+        let after = write("c.rs", b"pub fn after_big() {}\n");
+        let missing = "0".repeat(small.len());
+
+        let texts = read_blobs_bounded(repo, &[small, big, missing, after]).unwrap();
+        assert_eq!(texts[0].as_deref(), Some("pub fn first() {}\n"));
+        assert_eq!(
+            texts[1].as_ref().map(String::len),
+            Some(MAX_FILE_READ_BYTES)
+        );
+        assert_eq!(texts[2], None);
+        assert_eq!(texts[3].as_deref(), Some("pub fn after_big() {}\n"));
+    }
+
+    #[test]
+    fn commit_blobs_refuses_a_non_commit_id() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(commit_blobs(dir.path(), "--output=x").is_err());
+    }
 
     #[test]
     fn split_code_tokens_handles_camel_and_snake_case() {

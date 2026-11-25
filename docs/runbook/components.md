@@ -24,7 +24,7 @@ Cancellation is revision-checked, with one tolerance: a stale revision is accept
 | Module | Owns | Persists |
 |---|---|---|
 | `onboard.rs` | CLI, model and verifier discovery (injectable `DiscoveryEnv` for hermetic tests); profile and preset creation with rollback | Profiles and presets |
-| `repo_index.rs` | Per-profile file/symbol index; ranks files for an objective to suggest scope (2,500 files, 128 KiB per file at most) | `repo_file_index`, `repo_index_meta` |
+| `repo_index.rs` | Per-profile file/symbol index of the tracked files at HEAD (never the working tree); ranks files for an objective to suggest scope (2,500 files, 128 KiB per file at most) | `repo_file_index`, `repo_index_meta` |
 | `routing_metrics.rs` | One row per agent attempt; outcome-weighted scoreboard used by workflow routing. Usage is parsed from the end of stdout; `usage_reported` keeps "no receipt" distinct from zero tokens | `cli_model_outcomes` |
 | `provider_status.rs` | Bounded provider availability and sign-in probes; token telemetry summary for `/api/providers` | None |
 

@@ -907,6 +907,34 @@ pub fn query_session_flight_log(content: &str) {
         after_commit.matched[0].path,
         "crates/core-lib/src/session_store.rs"
     );
+
+    // The index is keyed on HEAD, so it reads HEAD's blobs: uncommitted edits and untracked
+    // files never shape suggestions, even when the index is rebuilt with them present.
+    fs::write(
+        repo.join("crates/core-lib/src/session_store.rs"),
+        "pub fn persist_checkpoint_record() {}\npub fn rotate_audit_journal() {}\n",
+    )
+    .unwrap();
+    fs::write(
+        repo.join("crates/core-lib/src/uncommitted_ledger.rs"),
+        "pub fn rotate_audit_journal() {}\n",
+    )
+    .unwrap();
+    clatterforge::repo_index::delete_profile_index(&state, "indexed-proj").unwrap();
+    let rebuilt = suggest_files_for_objective(
+        &state,
+        &profile,
+        "Change rotate_audit_journal",
+        "Tests pass",
+        16,
+    )
+    .unwrap();
+    assert!(!rebuilt.used_cached_index);
+    assert!(
+        rebuilt.matched.is_empty(),
+        "working-tree-only symbols and files must not be suggested: {:?}",
+        rebuilt.matched
+    );
 }
 
 #[test]
