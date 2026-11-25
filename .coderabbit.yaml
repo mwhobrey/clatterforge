@@ -1,0 +1,55 @@
+# CodeRabbit review settings. Install the CodeRabbit GitHub App on the repository to enable.
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: >-
+  Be direct and specific. Flag correctness, security and data-loss risks first; skip style
+  that rustfmt, clippy and the existing tests already enforce.
+early_access: false
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    - "!THIRD_PARTY_NOTICES.md"
+    - "!**/Cargo.lock"
+    - "!gui/assets/tailwind.css"
+    - "!licenses/**"
+  path_instructions:
+    - path: "src/{serve,sessions,http_access,enrollment,mcp,gateway}.rs"
+      instructions: >-
+        Authentication and authorization boundary. Check that every mutating route
+        authenticates, that paired sessions need CSRF, that only the main forge (bearer token
+        through a loopback Host) can change settings, and that Sparks (edge clients) can
+        never widen their repository scope or raise sandbox levels.
+    - path: "src/{sandbox,appcontainer,sandbox_settings,agentlet}.rs"
+      instructions: >-
+        Verifier sandbox and worker environment. Check that levels never exceed the preset
+        ceiling, that images stay digest-pinned, that no host secret or path is passed beyond
+        the policy, and that ACL grants are revoked and never touch system folders.
+    - path: "src/{agents,workflow,service,integration,delivery,race,schedule}.rs"
+      instructions: >-
+        Task lifecycle. Check revision and digest binding on every decision, that approvals
+        bind to the exact assignment, that nothing runs during a global stop, and that
+        failures retain evidence instead of replaying work.
+    - path: "scripts/**"
+      instructions: >-
+        Release and privacy tooling. Flag anything that could publish private paths, deny
+        terms, keys or tokens, or push without the privacy and secret scans.
+    - path: "tests/**"
+      instructions: >-
+        Tests must use isolated temporary repositories and fake agent processes, never real
+        providers or personal state. Flag timing assumptions that could flake under load.
+    - path: "gui/src-tauri/**"
+      instructions: >-
+        Desktop shell and updater. Updates must verify against the embedded public key; no
+        update endpoint, key or private path may be committed.
+chat:
+  auto_reply: true

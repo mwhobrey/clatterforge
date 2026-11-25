@@ -9,7 +9,7 @@ import subprocess
 import tomllib
 
 
-ROOT_FILES = {'.gitattributes', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'LICENSE', 'NOTICE',
+ROOT_FILES = {'.coderabbit.yaml', '.gitattributes', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'LICENSE', 'NOTICE',
               'THIRD_PARTY_NOTICES.md'}
 SOURCE_ROOTS = ('.github/', 'src/', 'edge/', 'protocol/', 'gui/', 'tests/', 'scripts/', 'licenses/', 'examples/')
 PUBLIC_DOCS = 'docs/public/tree/'
