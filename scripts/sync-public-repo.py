@@ -84,9 +84,9 @@ def deny_terms(policy_path):
 
 
 def public_identities(policy_path):
-    """Exact addresses the owner made public on purpose (GitHub merge commits carry them).
-    They are removed from the history text before the deny-term scan, so a broader deny term
-    that also matches them keeps protecting everything else."""
+    """Exact author/committer names or addresses the owner made public on purpose (GitHub's
+    web merges write the merging account into commits). Only a complete identity field equal
+    to one of them is exempt from the deny-term scan; messages and patches never are."""
     policy = json.loads(policy_path.read_text(encoding='utf-8-sig'))
     return [value.casefold() for value in policy.get('public_identities', []) if value]
 
@@ -95,10 +95,12 @@ def verify_commit(clone, export, policy_path):
     """Per published commit: exact tree, and no deny term anywhere in the history so far."""
     if tree_files(clone) != tree_files(export):
         raise RuntimeError('public tree differs from the export')
-    history = git(clone, 'log', '--all', '-p', '--format=%an%n%ae%n%cn%n%ce%n%B',
+    history = git(clone, 'log', '--all', '-p', '--format=%B',
                   text=False).decode('utf-8', 'replace').casefold()
-    for identity in public_identities(policy_path):
-        history = history.replace(identity, '')
+    exempt = set(public_identities(policy_path))
+    fields = git(clone, 'log', '--all', '--format=%an%n%ae%n%cn%n%ce',
+                 text=False).decode('utf-8', 'replace').casefold().splitlines()
+    history += '\n'.join(field for field in fields if field.strip() not in exempt)
     hits = sum(1 for term in deny_terms(policy_path) if term in history)
     if hits:
         raise RuntimeError(f'{hits} private deny term(s) found in public history; nothing pushed')
@@ -154,15 +156,20 @@ def resolve_pending_pr(clone, state):
 def bundle_mapping(clone, pending, merged):
     """Maps a merged bundle PR back to development commits: one public commit per changed
     development commit after a rebase merge, or the single squash commit for all of them."""
-    changed = [entry['dev'] for entry in pending['entries'] if entry['changed']]
-    landed = git(clone, 'rev-list', '--reverse', f"{pending['base']}..{merged}").split()
-    if len(landed) == len(changed):
-        public = dict(zip(changed, landed))
-    elif len(landed) == 1:
-        public = dict.fromkeys(changed, landed[0])
+    changed = [entry for entry in pending['entries'] if entry['changed']]
+    # The PR's own commits end at the merge commit; anything else that reached main in the
+    # meantime sits below them, so take exactly as many commits as changes and check their
+    # subjects rather than counting from the base recorded when the PR opened.
+    landed = git(clone, 'rev-list', '--reverse', '-n', str(len(changed)), merged).split()
+    subjects = [git(clone, 'log', '-1', '--format=%s', sha).strip() for sha in landed]
+    if subjects == [entry['subject'] for entry in changed]:
+        public = {entry['dev']: sha for entry, sha in zip(changed, landed)}
+    elif git(clone, 'log', '-1', '--format=%s', merged).strip().startswith(pending['title']):
+        # A squash merge: one commit whose subject is the PR title.
+        public = dict.fromkeys((entry['dev'] for entry in changed), merged)
     else:
-        raise RuntimeError(f'bundle PR landed {len(landed)} commits for {len(changed)} changes; '
-                           'record the mapping by hand')
+        raise RuntimeError(f'cannot match the merged bundle ({merged[:7]}) to its {len(changed)} '
+                           'changes; record the mapping by hand')
     return [{'dev': entry['dev'], 'public': public.get(entry['dev'])} for entry in pending['entries']]
 
 
@@ -275,9 +282,12 @@ def main():
                        + 'Merge with rebase to keep one commit per change.')
             branch, number, url = open_pull_request(
                 clone, pending[-1], message, branch=f'sync/bundle-{pending[-1][:12]}')
+            subject_of = dict(zip((entry['dev'] for entry in changes), subjects))
             state['pending_pr'] = {
-                'entries': [{'dev': entry['dev'], 'changed': bool(entry['public'])} for entry in published],
-                'base': base, 'branch': branch, 'number': number}
+                'entries': [{'dev': entry['dev'], 'changed': bool(entry['public']),
+                             'subject': subject_of.get(entry['dev'])} for entry in published],
+                'base': base, 'title': f'Sync {len(changes)} changes',
+                'branch': branch, 'number': number}
             args.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
             git(clone, 'reset', '-q', '--hard', 'origin/main')
             print(f'opened {url}; merge it with rebase, then run again')

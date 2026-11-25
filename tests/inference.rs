@@ -1186,7 +1186,14 @@ fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() 
     std::fs::write(&config_path, serde_json::to_vec(&cfg).unwrap()).unwrap();
     std::fs::write(
         &request_path,
-        serde_json::to_vec(&request("slow", false)).unwrap(),
+        serde_json::to_vec(&{
+            // The default 2 s deadline can expire before a loaded runner sees the first
+            // partial chunk; keep it well beyond the partial-output wait below.
+            let mut slow = request("slow", false);
+            slow.deadline_ms = 60_000;
+            slow
+        })
+        .unwrap(),
     )
     .unwrap();
     std::fs::write(&registry_path, br#"{"schema_version":99,"records":[]}"#).unwrap();

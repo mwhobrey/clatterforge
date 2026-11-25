@@ -97,8 +97,13 @@ def main():
     if args.history:
         allowed = public_commit_emails()
         for identity in history_identities(args.root):
+            # Compare the complete email field, not the matched substring: the email
+            # pattern can start mid-field (`private!alice@...`), which must not pass.
+            field = identity.rpartition('<')[2].rstrip('>').strip().casefold()
+            if field in allowed:
+                continue
             for kind, match in findings_in_text(identity):
-                if kind == 'email' and match.casefold() not in allowed:
+                if kind == 'email':
                     problems.append(f'commit metadata: {kind}: {match}')
     if problems:
         print('Privacy check failed. Replace these with reserved example values:', file=sys.stderr)

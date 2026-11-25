@@ -63,6 +63,13 @@ class PublicCommitEmailTests(unittest.TestCase):
             self.assertNotEqual(self.run_gate(root, '').returncode, 0)
             self.assertNotEqual(self.run_gate(root, 'other@' + 'gmail.com').returncode, 0)
             self.assertEqual(self.run_gate(root, ' ALICE.Smith@' + 'gmail.com ').returncode, 0)
+            (root / 'a.txt').write_text('nothing personal again', encoding='utf-8')
+            prefixed_identity = ['git', '-C', str(root), '-c', 'user.name=Alice',
+                                 '-c', f'user.email=private!{email}']
+            subprocess.run([*prefixed_identity, 'commit', '-qam', 'prefixed'], check=True)
+            prefixed = self.run_gate(root, email)
+            self.assertNotEqual(prefixed.returncode, 0)
+            self.assertIn('commit metadata: email', prefixed.stderr)
             (root / 'a.txt').write_text('mail ' + email, encoding='utf-8')
             subprocess.run([*git, 'commit', '-qam', 'two'], check=True)
             failed = self.run_gate(root, email)
