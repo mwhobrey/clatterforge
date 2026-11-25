@@ -27,7 +27,7 @@ pub fn digest_file(path: &Path) -> Result<String> {
 
 pub const MAX_EVENT: usize = 256 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Executable {
     pub path: PathBuf,
     pub hash: String,

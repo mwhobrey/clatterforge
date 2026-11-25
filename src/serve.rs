@@ -3832,6 +3832,7 @@ mod tests {
             verification_timeout_ms: 5000,
             soft_timeouts: false,
             effort: None,
+            sandbox: None,
         };
         let backend = crate::agents::AgentBackend::Local(
             crate::agents::LocalAgentPolicy::inspect(

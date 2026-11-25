@@ -144,6 +144,61 @@ enum Commands {
     WorkflowShow {
         task: String,
     },
+    /// Set or clear an agent preset's verifier sandbox (ADR 0017). Administrator action;
+    /// tasks already assigned keep the sandbox in their approved assignment.
+    #[command(name = "agent-preset-sandbox")]
+    AgentPresetSandbox {
+        name: String,
+        /// Remove the sandbox so the verifier runs on the host again.
+        #[arg(long)]
+        clear: bool,
+        /// Docker CLI executable to pin.
+        #[arg(long, required_unless_present = "clear")]
+        docker: Option<PathBuf>,
+        /// Image pinned by digest: name@sha256:<digest>.
+        #[arg(long, required_unless_present = "clear")]
+        image: Option<String>,
+        /// One argument of the verifier command inside the image (repeat, in order).
+        #[arg(
+            long = "arg",
+            allow_hyphen_values = true,
+            required_unless_present = "clear"
+        )]
+        command: Vec<String>,
+        #[arg(long, default_value = "1000:1000")]
+        user: String,
+        #[arg(long, default_value = "isolated")]
+        default_level: String,
+        /// Highest level a task may request without editing the preset.
+        #[arg(long, default_value = "isolated")]
+        ceiling: String,
+        /// Host environment name passed through at trusted-paths (repeatable).
+        #[arg(long = "env")]
+        env_passthrough: Vec<String>,
+        /// Host path mounted read-only at trusted-paths (repeatable).
+        #[arg(long = "read-only")]
+        read_only_paths: Vec<PathBuf>,
+        #[arg(long, default_value_t = 2048)]
+        memory_mb: u32,
+        #[arg(long, default_value_t = 2)]
+        cpus: u32,
+        #[arg(long, default_value_t = 512)]
+        pids: u32,
+    },
+    /// Change a task's verifier sandbox level within its preset's ceiling, before approval
+    /// or before a retry. Raising it needs a reason; approval or the retry then binds to it.
+    #[command(name = "sandbox-request")]
+    SandboxRequest {
+        task: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        level: String,
+        #[arg(long, default_value = "")]
+        reason: String,
+        #[arg(long)]
+        by: String,
+    },
     /// Create a best-of-N race: one agent attempt per preset (2-4) on the same objective.
     /// Presets must share repository, files and verifier.
     #[command(name = "race-create")]
@@ -3082,6 +3137,66 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             print(&profile)?;
         }
         Commands::WorkflowShow { task } => print(&Workflows::open(&cli.state)?.get(task)?)?,
+        Commands::AgentPresetSandbox {
+            name,
+            clear,
+            docker,
+            image,
+            command,
+            user,
+            default_level,
+            ceiling,
+            env_passthrough,
+            read_only_paths,
+            memory_mb,
+            cpus,
+            pids,
+        } => {
+            use clatterforge::sandbox::{SandboxBackend, SandboxLevel, SandboxPolicy};
+            let policy = if *clear {
+                None
+            } else {
+                Some(SandboxPolicy {
+                    backend: SandboxBackend::Docker {
+                        docker: clatterforge::codex::Executable::new(
+                            docker.as_ref().context("--docker is required")?,
+                        )?,
+                        image: image.clone().context("--image is required")?,
+                        command: command.clone(),
+                        user: user.clone(),
+                    },
+                    default_level: SandboxLevel::parse(default_level)?,
+                    ceiling: SandboxLevel::parse(ceiling)?,
+                    env_passthrough: env_passthrough.clone(),
+                    read_only_paths: read_only_paths.clone(),
+                    memory_mb: *memory_mb,
+                    cpus: *cpus,
+                    pids: *pids,
+                })
+            };
+            print(
+                &clatterforge::agent_preset::AgentPresets::open(&cli.state)?
+                    .set_sandbox(name, policy)?,
+            )?
+        }
+        Commands::SandboxRequest {
+            task,
+            revision,
+            level,
+            reason,
+            by,
+        } => {
+            let id = clatterforge::service::TaskService::open(&cli.state)?.resolve(task)?;
+            print(
+                &clatterforge::agents::Agents::open(&cli.state)?.request_sandbox_level(
+                    &id,
+                    *revision,
+                    clatterforge::sandbox::SandboxLevel::parse(level)?,
+                    reason,
+                    by,
+                )?,
+            )?
+        }
         Commands::RaceCreate {
             presets,
             objective,

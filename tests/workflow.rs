@@ -5120,3 +5120,241 @@ fn a_best_of_n_race_runs_attempts_side_by_side_and_picks_one() {
     let loser = view["candidates"][1]["task_id"].as_str().unwrap();
     assert_eq!(agents.task(loser).unwrap().status, AgentStatus::Rejected);
 }
+
+#[test]
+fn a_sandboxed_verifier_runs_at_the_approved_level_and_records_its_invocation() {
+    use clatterforge::sandbox::{SandboxBackend, SandboxLevel, SandboxPolicy};
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut presets = AgentPresets::open(&f.state).unwrap();
+    let template = presets.get("worker-a").unwrap();
+    presets
+        .create(
+            "sandboxed",
+            f.repo.clone(),
+            template.backend.clone(),
+            vec!["a.txt".into(), "b.txt".into()],
+            vec!["contract.txt".into()],
+            template.verify_executable.clone(),
+            vec!["--verify".into()],
+            5000,
+            5000,
+            None,
+            "fixture",
+        )
+        .unwrap();
+    // The fixture worker stands in for the Docker CLI: it verifies its working directory
+    // (the worktree) when the container command it receives is `--verify`.
+    let image = format!("fixture/verifier@sha256:{}", "b".repeat(64));
+    let policy = SandboxPolicy {
+        backend: SandboxBackend::Docker {
+            docker: clatterforge::codex::Executable::new(worker()).unwrap(),
+            image: image.clone(),
+            command: vec!["--verify".into()],
+            user: "1000:1000".into(),
+        },
+        default_level: SandboxLevel::Isolated,
+        ceiling: SandboxLevel::Network,
+        env_passthrough: vec![],
+        read_only_paths: vec![],
+        memory_mb: 1024,
+        cpus: 1,
+        pids: 128,
+    };
+    presets.set_sandbox("sandboxed", Some(policy)).unwrap();
+    let preset = presets.get("sandboxed").unwrap();
+    drop(presets);
+
+    let mut agents = Agents::open(&f.state).unwrap();
+    let task = agents
+        .create(
+            preset.spec("WORK_BOTH fix both files".into(), "verifier passes".into()),
+            preset.backend.clone(),
+        )
+        .unwrap();
+    let assigned = task.assignment.spec.sandbox.clone().unwrap();
+    assert_eq!(
+        assigned.level,
+        SandboxLevel::Isolated,
+        "tasks start at the default level"
+    );
+
+    assert!(
+        agents
+            .request_sandbox_level(
+                &task.id,
+                task.revision,
+                SandboxLevel::TrustedPaths,
+                "toolchain",
+                "mike"
+            )
+            .is_err(),
+        "nothing goes past the preset ceiling"
+    );
+    assert!(
+        agents
+            .request_sandbox_level(&task.id, task.revision, SandboxLevel::Network, "", "mike")
+            .is_err(),
+        "raising needs a reason"
+    );
+    let original_digest = task.assignment.digest().unwrap();
+    let raised = agents
+        .request_sandbox_level(
+            &task.id,
+            task.revision,
+            SandboxLevel::Network,
+            "fetches test data",
+            "mike",
+        )
+        .unwrap();
+    let digest = raised.assignment.digest().unwrap();
+    assert_ne!(
+        digest, original_digest,
+        "the level is part of the approved assignment"
+    );
+    assert!(
+        agents
+            .approve(&task.id, raised.revision, &original_digest, "mike")
+            .is_err(),
+        "approval must name the raised assignment"
+    );
+    let approved = agents
+        .approve(&task.id, raised.revision, &digest, "mike")
+        .unwrap();
+    assert!(
+        agents
+            .request_sandbox_level(
+                &task.id,
+                approved.revision,
+                SandboxLevel::Isolated,
+                "",
+                "mike"
+            )
+            .is_err(),
+        "the level cannot change between approval and run"
+    );
+
+    let done = agents.run(&task.id, approved.revision).unwrap();
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
+    let receipt = done.verification.unwrap();
+    assert_eq!(receipt.outcome, "succeeded");
+    let argv = receipt.command.join(" ");
+    let workspace = done.assignment.workspace.to_str().unwrap().to_string();
+    for expected in [
+        "run --rm --pull never --network bridge".to_string(),
+        "--cap-drop ALL".to_string(),
+        "--security-opt no-new-privileges".to_string(),
+        "--user 1000:1000".to_string(),
+        "--memory 1024m --cpus 1 --pids-limit 128".to_string(),
+        format!("type=bind,source={workspace},target=/work"),
+        format!("{image} --verify"),
+    ] {
+        assert!(
+            argv.contains(&expected),
+            "receipt lacks {expected:?}: {argv}"
+        );
+    }
+    assert!(argv.starts_with(&worker().display().to_string()), "{argv}");
+}
+
+/// Live check against a real Docker daemon. Run with
+/// `CLATTERFORGE_SANDBOX_IMAGE=name@sha256:<digest>` (an image present locally, with `sh`)
+/// and optionally `CLATTERFORGE_DOCKER=<path to docker.exe>`, then `--ignored`.
+#[test]
+#[ignore = "needs a running Docker daemon and CLATTERFORGE_SANDBOX_IMAGE"]
+fn live_docker_sandbox_enforces_network_user_and_environment() {
+    use clatterforge::sandbox::{SandboxBackend, SandboxLevel, SandboxPolicy};
+    let image =
+        std::env::var("CLATTERFORGE_SANDBOX_IMAGE").expect("set CLATTERFORGE_SANDBOX_IMAGE");
+    let docker = std::env::var_os("CLATTERFORGE_DOCKER")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(r"C:\Program Files\Docker\Docker\resources\bin\docker.exe")
+        });
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut presets = AgentPresets::open(&f.state).unwrap();
+    let template = presets.get("worker-a").unwrap();
+    presets
+        .create(
+            "live-sandbox",
+            f.repo.clone(),
+            template.backend.clone(),
+            vec!["a.txt".into(), "b.txt".into()],
+            vec!["contract.txt".into()],
+            template.verify_executable.clone(),
+            vec!["--verify".into()],
+            5000,
+            120_000,
+            None,
+            "fixture",
+        )
+        .unwrap();
+    let probe = "echo uid=$(id -u); echo nets=$(ls /sys/class/net | tr '\\n' ' '); \
+                 echo host_env=$(env | grep -c -i -e userprofile -e appdata -e gh_token); \
+                 grep -q fixed-a a.txt && grep -q fixed-b b.txt";
+    presets
+        .set_sandbox(
+            "live-sandbox",
+            Some(SandboxPolicy {
+                backend: SandboxBackend::Docker {
+                    docker: clatterforge::codex::Executable::new(&docker).unwrap(),
+                    image,
+                    command: vec!["sh".into(), "-c".into(), probe.into()],
+                    user: "1000:1000".into(),
+                },
+                default_level: SandboxLevel::Isolated,
+                ceiling: SandboxLevel::Network,
+                env_passthrough: vec![],
+                read_only_paths: vec![],
+                memory_mb: 512,
+                cpus: 1,
+                pids: 64,
+            }),
+        )
+        .unwrap();
+    let preset = presets.get("live-sandbox").unwrap();
+    drop(presets);
+
+    let run_at = |level: Option<SandboxLevel>| {
+        let mut agents = Agents::open(&f.state).unwrap();
+        let mut task = agents
+            .create(
+                preset.spec("WORK_BOTH fix both files".into(), "verifier passes".into()),
+                preset.backend.clone(),
+            )
+            .unwrap();
+        if let Some(level) = level {
+            task = agents
+                .request_sandbox_level(&task.id, task.revision, level, "live network check", "mike")
+                .unwrap();
+        }
+        let digest = task.assignment.digest().unwrap();
+        let approved = agents
+            .approve(&task.id, task.revision, &digest, "mike")
+            .unwrap();
+        let done = agents.run(&task.id, approved.revision).unwrap();
+        assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
+        let receipt = done.verification.unwrap();
+        assert_eq!(receipt.outcome, "succeeded");
+        fs::read_to_string(&receipt.stdout.artifact.path).unwrap()
+    };
+
+    let isolated = run_at(None);
+    assert!(isolated.contains("uid=1000"), "{isolated}");
+    assert!(
+        isolated.lines().any(|l| l.trim() == "nets=lo"),
+        "isolated has loopback only: {isolated}"
+    );
+    assert!(
+        isolated.contains("host_env=0"),
+        "no host environment: {isolated}"
+    );
+
+    let networked = run_at(Some(SandboxLevel::Network));
+    assert!(
+        networked.contains("eth0"),
+        "network level has an interface: {networked}"
+    );
+    assert!(networked.contains("host_env=0"), "{networked}");
+}

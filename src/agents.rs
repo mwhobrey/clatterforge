@@ -117,6 +117,10 @@ pub struct AgentSpec {
     pub soft_timeouts: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<ExecutionEffort>,
+    /// The verifier sandbox and the level it runs at. Part of the assignment, so the
+    /// approval digest covers it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<crate::sandbox::AssignedSandbox>,
 }
 
 /// Reasoning/execution effort level requested for a coding-agent invocation.
@@ -1599,6 +1603,9 @@ impl Agents {
             agentlet.validate_scope(&spec.allowed_files)?;
             backend.validate_agentlet()?;
         }
+        if let Some(sandbox) = &spec.sandbox {
+            sandbox.validate()?;
+        }
         crate::agent_progress::validate_limits_with_mode(
             spec.generation_timeout_ms,
             spec.generation_idle_timeout_ms,
@@ -2319,6 +2326,51 @@ impl Agents {
         self.run_leased(id, revision, None)
     }
 
+    /// Changes the verifier sandbox level within the preset's ceiling. Allowed while the
+    /// task awaits approval (the approval then has to name the changed assignment digest)
+    /// or after a failed, rejected or cancelled attempt (the operator's next retry approves
+    /// it). Never past the ceiling, never for a workflow's child task.
+    pub fn request_sandbox_level(
+        &mut self,
+        id: &str,
+        revision: u64,
+        level: crate::sandbox::SandboxLevel,
+        reason: &str,
+        by: &str,
+    ) -> Result<AgentTask> {
+        self.mutate(
+            id,
+            revision,
+            "sandbox_level_requested",
+            "Agents::request_sandbox_level",
+            |t| {
+                ensure!(
+                    t.assignment.handoff.is_none() && t.assignment.shared_workspace.is_none(),
+                    "a workflow's child task uses its preset's default sandbox level"
+                );
+                ensure!(
+                    matches!(
+                        t.status,
+                        AgentStatus::AwaitingApproval
+                            | AgentStatus::NeedsWork
+                            | AgentStatus::Failed
+                            | AgentStatus::Rejected
+                            | AgentStatus::Cancelled
+                    ),
+                    "the sandbox level can change only before approval or before a retry"
+                );
+                let sandbox = t
+                    .assignment
+                    .spec
+                    .sandbox
+                    .as_mut()
+                    .context("this task's preset has no verifier sandbox")?;
+                sandbox.request(level, reason, by)?;
+                Ok(())
+            },
+        )
+    }
+
     /// Runs one attempt of a best-of-N race whose parent already holds the repository
     /// lease (`holder`), so sibling attempts in their own worktrees can run at once while
     /// the repository still admits one unit of work.
@@ -2602,13 +2654,29 @@ impl Agents {
             t.workspace_warning = workspace_path_warning(&t.assignment.workspace);
             Ok(())
         })?;
-        let mut verify_command = Command::new(&task.assignment.verifier.executable.path);
-        if task.assignment.spec.agentlet.is_some() {
-            crate::agentlet::configure_environment(&mut verify_command, None);
-        }
-        verify_command
-            .args(&task.assignment.verifier.args)
-            .current_dir(&task.assignment.workspace);
+        // A sandboxed verifier runs the pinned container command through the pinned Docker
+        // CLI instead of the host executable; its receipt records that exact invocation.
+        let (mut verify_command, verify_argv) = match &task.assignment.spec.sandbox {
+            Some(sandbox) => {
+                let (program, args) =
+                    crate::sandbox::verifier_invocation(sandbox, &task.assignment.workspace)?;
+                let mut command = Command::new(&program);
+                command.args(&args).current_dir(&task.assignment.workspace);
+                let mut argv = vec![program.display().to_string()];
+                argv.extend(args);
+                (command, argv)
+            }
+            None => {
+                let mut command = Command::new(&task.assignment.verifier.executable.path);
+                if task.assignment.spec.agentlet.is_some() {
+                    crate::agentlet::configure_environment(&mut command, None);
+                }
+                command
+                    .args(&task.assignment.verifier.args)
+                    .current_dir(&task.assignment.workspace);
+                (command, task.assignment.verifier.argv())
+            }
+        };
         let verif_idle_ms = if task.assignment.spec.soft_timeouts {
             Some(
                 task.assignment
@@ -2656,7 +2724,7 @@ impl Agents {
         progress.finish(&verify_result)?;
         let verify_receipt = process_receipt(
             verify_result,
-            task.assignment.verifier.argv(),
+            verify_argv,
             &task.assignment.workspace,
             &directory,
             "verification",
@@ -2946,6 +3014,7 @@ mod tests {
             verification_timeout_ms: 5000,
             soft_timeouts: false,
             effort: None,
+            sandbox: None,
         };
         let text = serde_json::to_string(&spec).unwrap();
         let back: AgentSpec = serde_json::from_str(&text).unwrap();
@@ -3073,6 +3142,7 @@ gemini-4-argon-medium\tGemini 4 Argon (Medium)\n";
                     verification_timeout_ms: 5_000,
                     soft_timeouts: false,
                     effort: None,
+                    sandbox: None,
                 },
                 AgentBackend::Agy(AgyAgentPolicy {
                     executable: Executable::new(&exe).unwrap(),

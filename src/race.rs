@@ -171,8 +171,9 @@ impl Races {
             );
             ensure!(
                 preset.verify_executable == first.verify_executable
-                    && preset.verify_args == first.verify_args,
-                "race presets must share one verifier ({} differs)",
+                    && preset.verify_args == first.verify_args
+                    && preset.sandbox == first.sandbox,
+                "race presets must share one verifier and verifier sandbox ({} differs)",
                 preset.name
             );
         }

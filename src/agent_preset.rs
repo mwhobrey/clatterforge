@@ -47,6 +47,10 @@ pub struct AgentPreset {
     pub allowed_models: Vec<String>,
     #[serde(default, skip_serializing_if = "crate::agent_progress::is_false")]
     pub soft_timeouts: bool,
+    /// Administrator-set verifier sandbox (ADR 0017). Absent means the verifier runs on
+    /// the host exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<crate::sandbox::SandboxPolicy>,
 }
 
 impl AgentPreset {
@@ -95,6 +99,10 @@ impl AgentPreset {
             soft_timeouts: self.soft_timeouts,
             agentlet: self.agentlet.clone(),
             effort,
+            sandbox: self
+                .sandbox
+                .as_ref()
+                .map(crate::sandbox::AssignedSandbox::at_default),
         }
     }
 
@@ -369,6 +377,7 @@ impl AgentPresets {
             tier: None,
             allowed_models: Vec::new(),
             soft_timeouts: false,
+            sandbox: None,
         };
         self.connection.execute(
             "INSERT INTO agent_presets VALUES (?1, ?2)",
@@ -399,6 +408,25 @@ impl AgentPresets {
         }
         preset.tier = tier;
         preset.allowed_models = cleaned;
+        self.connection.execute(
+            "UPDATE agent_presets SET record=?2 WHERE name=?1",
+            params![preset.name, serde_json::to_string(&preset)?],
+        )?;
+        Ok(preset)
+    }
+
+    /// Sets or clears the preset's verifier sandbox. Tasks already assigned keep the
+    /// sandbox recorded in their own approved assignment.
+    pub fn set_sandbox(
+        &self,
+        name: &str,
+        sandbox: Option<crate::sandbox::SandboxPolicy>,
+    ) -> Result<AgentPreset> {
+        let mut preset = self.get(name)?;
+        if let Some(policy) = &sandbox {
+            policy.validate()?;
+        }
+        preset.sandbox = sandbox;
         self.connection.execute(
             "UPDATE agent_presets SET record=?2 WHERE name=?1",
             params![preset.name, serde_json::to_string(&preset)?],

@@ -4704,6 +4704,7 @@ mod tests {
             tier: Some(tier),
             allowed_models,
             soft_timeouts: false,
+            sandbox: None,
         };
         let mk_repo = || Repository {
             checkout: dir.path().to_path_buf(),
@@ -5008,6 +5009,7 @@ mod tests {
                         "gemini-4-hydrogen-high".into(),
                     ],
                     soft_timeouts: false,
+                    sandbox: None,
                 },
                 purpose: "impl".into(),
             }],
@@ -5347,6 +5349,7 @@ mod tests {
                 tier: Some(tier),
                 allowed_models: vec![model.into()],
                 soft_timeouts: false,
+                sandbox: None,
             },
             purpose: "codex worker".into(),
         };
@@ -5372,6 +5375,7 @@ mod tests {
                 tier: Some(tier),
                 allowed_models: vec![model.into()],
                 soft_timeouts: false,
+                sandbox: None,
             },
             purpose: "agy worker".into(),
         };

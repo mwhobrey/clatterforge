@@ -100,6 +100,7 @@ fn spec(repo: &Path, objective: &str) -> AgentSpec {
         verification_timeout_ms: 5000,
         soft_timeouts: false,
         effort: None,
+        sandbox: None,
     }
 }
 fn policy() -> AgentBackend {

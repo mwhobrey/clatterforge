@@ -6,6 +6,7 @@
 - [Local-model workflows](workflows.md)
 - [Specialist agentlets](agentlets.md)
 - [Source integration](integration.md)
+- [Verifier sandbox](sandbox.md)
 - [Managed host](managed-host.md)
 - [Windows CLI adapters](windows-cli.md)
 - [Git workflow](git.md)

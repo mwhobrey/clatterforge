@@ -24,6 +24,7 @@ pub mod process;
 pub mod race;
 pub mod repository;
 pub mod runner;
+pub mod sandbox;
 pub mod schedule;
 pub mod serve;
 pub mod service;
