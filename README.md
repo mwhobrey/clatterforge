@@ -29,7 +29,7 @@ The demo creates an expendable repository under `.clatterforge/demos/`, uses sim
 - [Remote access](docs/REMOTE_ACCESS.md) and [local inference](docs/INFERENCE.md)
 - [Contribution guide](CONTRIBUTING.md), [security boundaries](SECURITY.md) and [release gates](docs/RELEASE.md)
 
-The Windows supervisor, Linux edge/protocol and WASM web client have different support boundaries. Generic onboarding, unattended scheduling, automatic recovery and portable installers are still work in progress. A worktree isolates Git changes; it does not sandbox agent processes or credentials.
+The Windows supervisor (the main forge), Linux Sparks (`clatterforge-edge`) with the shared protocol, and the WASM web client have different support boundaries. Generic onboarding, unattended scheduling, automatic recovery and portable installers are still work in progress. A worktree isolates Git changes; it does not sandbox agent processes or credentials.
 
 ## License
 

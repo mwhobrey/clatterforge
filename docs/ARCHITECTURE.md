@@ -1,6 +1,8 @@
 # Architecture
 
-The Windows Rust host owns durable SQLite state, objective intake, approvals, routing validation, resource admission, process supervision and evidence. The desktop/web interface and authenticated API/MCP expose that lifecycle. A separate Linux edge uses shared protocol types to forward narrowly allowed requests.
+The Windows Rust host owns durable SQLite state, objective intake, approvals, routing validation, resource admission, process supervision and evidence. The desktop/web interface and authenticated API/MCP expose that lifecycle. Sparks, separate lightweight Linux adapters (`clatterforge-edge`), use shared protocol types to forward narrowly allowed requests to the main forge.
+
+Sparks are the lightweight remote pieces of Clatterforge: the `clatterforge-edge` adapter and the enrolled connections (bots, remote machines) that forward narrowly allowed calls to the main forge. They own no task state and cannot change forge settings. Code, binaries, CLI commands and API paths keep the `edge` name (`clatterforge-edge`, `edge-gateway`, `enrollment-*`, `/api/edge/...`) so existing installations keep working.
 
 ## Objective workflow
 

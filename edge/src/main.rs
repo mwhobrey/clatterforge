@@ -34,7 +34,7 @@ use std::{path::PathBuf, time::Duration};
 #[derive(Parser, Debug)]
 #[command(
     name = "clatterforge-edge",
-    about = "Lightweight MCP edge adapter forwarding conductor_* tool calls to a remote Clatterforge"
+    about = "Clatterforge Spark: lightweight MCP adapter forwarding conductor_* tool calls to the main forge"
 )]
 struct Cli {
     /// Base URL of the main Clatterforge's HTTP service, e.g.
@@ -657,8 +657,8 @@ impl ServerHandler for EdgeMcpServer {
                 env!("CARGO_PKG_VERSION"),
             ))
             .with_instructions(
-                "Clatterforge edge adapter. Forwards every conductor_* call, authenticated, to a \
-                remote main Clatterforge - the edge owns no task state of its own. Same lifecycle \
+                "Clatterforge Spark (edge adapter). Forwards every conductor_* call, authenticated, \
+                to the main forge - a Spark owns no task state of its own. Same lifecycle \
                 as the local adapter: conductor_submit_task -> conductor_get_approval_requirements/ \
                 conductor_approve -> conductor_resume -> conductor_get_task/conductor_get_evidence -> \
                 conductor_approve/conductor_reject. Call conductor_capabilities first.",

@@ -698,13 +698,14 @@ enum Commands {
     /// Revoke all persisted paired-device sessions immediately.
     #[command(name = "sessions-revoke-all")]
     SessionsRevokeAll,
-    /// Run the dedicated loopback gateway: a narrow allow-list reverse proxy that is
+    /// Run the dedicated loopback gateway Sparks connect through: a narrow allow-list
+    /// reverse proxy that is
     /// the only thing a public-facing tunnel (Cloudflare or otherwise) should ever be
     /// pointed at. Forwards exactly `POST /api/edge/tools/call` to `--upstream`
     /// (the real `clatterforge serve` instance); every other path or method gets a
-    /// plain 404 before anything resembling the rest of the Conductor's HTTP API is
+    /// plain 404 before anything resembling the rest of the forge's HTTP API is
     /// ever reached. Performs no authentication of its own - `authenticate_edge` on
-    /// the real Conductor still has to pass. Always binds loopback only, by design -
+    /// the main forge still has to pass. Always binds loopback only, by design -
     /// there is no flag to bind it anywhere else.
     #[command(name = "edge-gateway")]
     EdgeGateway {
@@ -957,12 +958,13 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// M12.0 Phase 2: enroll a new external client (e.g. one Hitch/Grok Bot installation)
+    /// M12.0 Phase 2: enroll a new Spark (an external client such as one Hitch/Grok Bot
+    /// installation)
     /// allowed to call `/api/edge/tools/call`. Prints the one and only plaintext copy of
     /// the issued credential, or writes it to --token-file instead of stdout - never both.
     /// `--repositories` resolves each checkout path to its `Repository::identity` at
-    /// creation time, same as `grant-create --repository`; stored, not yet enforced (see
-    /// `src/enrollment.rs`).
+    /// creation time, same as `grant-create --repository`; that scope is enforced on every
+    /// call (see `src/enrollment.rs`).
     #[command(name = "enrollment-create")]
     EnrollmentCreate {
         #[arg(long)]

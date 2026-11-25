@@ -16,7 +16,7 @@ The output must be a new directory. It has one independent initial commit on `ma
 ## Remaining publication checks
 
 - Create the intended public repository only with owner authorization; enable private security reporting and branch/ruleset checks.
-- Run the SHA-pinned read-only hosted CI for Windows, Linux edge/protocol, WASM and security; local results do not establish hosted CI success.
+- Run the SHA-pinned read-only hosted CI for Windows, Linux Spark (`edge`) and protocol, WASM and security; local results do not establish hosted CI success.
 - Exercise documented setup on a clean Windows machine and one real disposable project using explicitly configured local model/CLI accounts. Current fixtures verify host behavior without provider usage; they do not prove fresh real-provider acceptance.
 - Agentlet acceptance has exercised one disposable project with real local Gemma routing to Cursor implementation and Codex review, followed by explicit source application/restore. This is a bounded provider check; fresh-machine installation and broader unfamiliar-project trials remain open.
 
