@@ -4531,6 +4531,7 @@ fn ForgeSettings(config: ApiConnection) -> Element {
     let mut env_names = use_signal(String::new);
     let mut read_only = use_signal(String::new);
     let mut image_filter = use_signal(String::new);
+    let mut backend = use_signal(|| "docker".to_string());
 
     let load = {
         let config = config.clone();
@@ -4565,6 +4566,10 @@ fn ForgeSettings(config: ApiConnection) -> Element {
             image.set(String::new());
             command.set(String::new());
         } else {
+            backend.set(match current["backend"]["kind"].as_str() {
+                Some("app_container") => "app_container".to_string(),
+                _ => "docker".to_string(),
+            });
             image.set(text(&current["backend"]["image"]));
             command.set(
                 current["backend"]["command"]
@@ -4676,6 +4681,12 @@ fn ForgeSettings(config: ApiConnection) -> Element {
         })
         .unwrap_or_default();
     let selected = preset();
+    let app_container_available = data
+        .as_ref()
+        .and_then(|v| v["backends"].as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .any(|b| b == "app_container");
     let input_class = "w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-100 disabled:opacity-60";
 
     rsx! {
@@ -4721,6 +4732,20 @@ fn ForgeSettings(config: ApiConnection) -> Element {
                         }
                         if !selected.is_empty() {
                             div { class: "space-y-2",
+                                div {
+                                    label { class: "block text-neutral-400 mb-1", "Backend" }
+                                    select {
+                                        class: input_class,
+                                        disabled: !editable,
+                                        value: "{backend}",
+                                        onchange: move |e| backend.set(e.value()),
+                                        option { value: "docker", "Docker container (any host)" }
+                                        if app_container_available {
+                                            option { value: "app_container", "Windows AppContainer (this preset's own verifier)" }
+                                        }
+                                    }
+                                }
+                                if backend() == "docker" {
                                 p { class: "text-neutral-400", "Curated images (pinned by digest)" }
                                 div { class: "flex flex-wrap gap-2",
                                     for entry in catalog.iter() {
@@ -4800,6 +4825,11 @@ fn ForgeSettings(config: ApiConnection) -> Element {
                                         oninput: move |e| command.set(e.value()),
                                     }
                                 }
+                                } else {
+                                    p { class: "text-neutral-400",
+                                        "Runs this preset's own pinned verifier in a fresh Windows AppContainer per run: the worktree is writable, your profile is not readable, and network is on only at the network level."
+                                    }
+                                }
                                 div { class: "grid grid-cols-2 gap-2 sm:grid-cols-5",
                                     div {
                                         label { class: "block text-neutral-400 mb-1", "Default level" }
@@ -4861,6 +4891,7 @@ fn ForgeSettings(config: ApiConnection) -> Element {
                                                     onclick: move |_| {
                                                         let number = |s: String, fallback: u32| s.trim().parse::<u32>().unwrap_or(fallback);
                                                         let body = serde_json::json!({
+                                                            "backend": backend(),
                                                             "image": image(),
                                                             "command": command().lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>(),
                                                             "default_level": default_level(),

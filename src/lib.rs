@@ -2,6 +2,7 @@ pub mod agent_preset;
 pub mod agent_progress;
 pub mod agentlet;
 pub mod agents;
+pub mod appcontainer;
 pub mod authorization;
 pub mod autonomy;
 pub mod board;

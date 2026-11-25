@@ -185,6 +185,7 @@ pub fn overview(root: &Path, editable: bool) -> Result<Value> {
         "local_images": images,
         "presets": presets,
         "levels": ["isolated", "network", "trusted_paths"],
+        "backends": if cfg!(windows) { json!(["docker", "app_container"]) } else { json!(["docker"]) },
     }))
 }
 
@@ -214,6 +215,13 @@ pub struct SandboxForm {
     pub cpus: u32,
     #[serde(default = "default_pids")]
     pub pids: u32,
+    /// `docker` (default) or `app_container` (Windows; image and command are ignored).
+    #[serde(default = "default_backend")]
+    pub backend: String,
+}
+
+fn default_backend() -> String {
+    "docker".into()
 }
 
 fn default_user() -> String {
@@ -238,14 +246,21 @@ pub fn apply(root: &Path, preset: &str, form: SandboxForm) -> Result<Value> {
     let policy = if form.clear {
         None
     } else {
-        let docker = find_docker().context("Docker CLI not found on this forge")?;
+        let backend = match form.backend.trim().replace('-', "_").as_str() {
+            "docker" => {
+                let docker = find_docker().context("Docker CLI not found on this forge")?;
+                SandboxBackend::Docker {
+                    docker: crate::codex::Executable::new(&docker)?,
+                    image: form.image.trim().to_string(),
+                    command: form.command,
+                    user: form.user.trim().to_string(),
+                }
+            }
+            "app_container" => SandboxBackend::AppContainer { launcher: None },
+            other => anyhow::bail!("unknown sandbox backend {other:?}"),
+        };
         Some(SandboxPolicy {
-            backend: SandboxBackend::Docker {
-                docker: crate::codex::Executable::new(&docker)?,
-                image: form.image.trim().to_string(),
-                command: form.command,
-                user: form.user.trim().to_string(),
-            },
+            backend,
             default_level: form.default_level,
             ceiling: form.ceiling,
             env_passthrough: form

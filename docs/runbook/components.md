@@ -15,6 +15,7 @@ Where behavior lives in `src/`, and what each module persists under the state ro
 | `agent_progress.rs` | Host-observed progress, an approved inactivity window and an independent hard cap |
 | `workflow.rs`, `workflow_workspace.rs` | Multi-stage workflows (local model or built-in router), review gates, retry/resume, failover; shared worktrees and Git tree checkpoints |
 | `integration.rs` | Applying an accepted candidate to its exact source checkout, with a byte journal and restore |
+| `sandbox.rs`, `appcontainer.rs`, `sandbox_settings.rs` | Verifier sandbox policy and levels; Docker and Windows AppContainer backends; forge settings catalog and editing |
 | `race.rs` | Best-of-N races: 2-4 comparable agent attempts approved as one unit, run at once under one repository lease, shown side by side and picked through ordinary review |
 | `delivery.rs` | Explicit, digest-bound delivery of an accepted candidate to a new branch (plumbing commit, no checkout touched), then optional push and pull request |
 | `service.rs` | `TaskService`: one id-resolution and engine-dispatch path shared by CLI, HTTP and MCP; dependency gate and repository leases |

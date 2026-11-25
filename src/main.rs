@@ -152,18 +152,18 @@ enum Commands {
         /// Remove the sandbox so the verifier runs on the host again.
         #[arg(long)]
         clear: bool,
-        /// Docker CLI executable to pin.
-        #[arg(long, required_unless_present = "clear")]
+        /// `docker` (any host) or `app-container` (Windows; runs the preset's own verifier).
+        #[arg(long, default_value = "docker")]
+        backend: String,
+        /// Docker CLI executable to pin (docker backend).
+        #[arg(long)]
         docker: Option<PathBuf>,
-        /// Image pinned by digest: name@sha256:<digest>.
-        #[arg(long, required_unless_present = "clear")]
+        /// Image pinned by digest: name@sha256:<digest> (docker backend).
+        #[arg(long)]
         image: Option<String>,
-        /// One argument of the verifier command inside the image (repeat, in order).
-        #[arg(
-            long = "arg",
-            allow_hyphen_values = true,
-            required_unless_present = "clear"
-        )]
+        /// One argument of the verifier command inside the image (docker backend; repeat,
+        /// in order).
+        #[arg(long = "arg", allow_hyphen_values = true)]
         command: Vec<String>,
         #[arg(long, default_value = "1000:1000")]
         user: String,
@@ -1275,6 +1275,15 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Sandboxed-verifier trampoline (ADR 0017): runs the command after `--` in a fresh
+    /// Windows AppContainer described by the JSON `--spec`, and exits with its code.
+    #[command(name = "appcontainer-exec", hide = true)]
+    AppcontainerExec {
+        #[arg(long)]
+        spec: String,
+        #[arg(last = true, required = true)]
+        command: Vec<String>,
+    },
 }
 
 fn print(value: &impl Serialize) -> Result<()> {
@@ -1363,6 +1372,11 @@ fn run() -> Result<()> {
     match &cli.command {
         Commands::LocalAgentWorker { args } => {
             std::process::exit(clatterforge::agents::run_local_agent_worker(args)?)
+        }
+        Commands::AppcontainerExec { spec, command } => {
+            let spec: clatterforge::appcontainer::LaunchSpec =
+                serde_json::from_str(spec).context("invalid AppContainer launch spec")?;
+            std::process::exit(clatterforge::appcontainer::run(&spec, command)?)
         }
         Commands::FixtureWorker {
             spec,
@@ -3140,6 +3154,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
         Commands::AgentPresetSandbox {
             name,
             clear,
+            backend,
             docker,
             image,
             command,
@@ -3156,8 +3171,8 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             let policy = if *clear {
                 None
             } else {
-                Some(SandboxPolicy {
-                    backend: SandboxBackend::Docker {
+                let backend = match backend.trim().replace('-', "_").as_str() {
+                    "docker" => SandboxBackend::Docker {
                         docker: clatterforge::codex::Executable::new(
                             docker.as_ref().context("--docker is required")?,
                         )?,
@@ -3165,6 +3180,13 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                         command: command.clone(),
                         user: user.clone(),
                     },
+                    "app_container" => SandboxBackend::AppContainer { launcher: None },
+                    other => anyhow::bail!(
+                        "unknown sandbox backend {other:?}; use docker or app-container"
+                    ),
+                };
+                Some(SandboxPolicy {
+                    backend,
                     default_level: SandboxLevel::parse(default_level)?,
                     ceiling: SandboxLevel::parse(ceiling)?,
                     env_passthrough: env_passthrough.clone(),

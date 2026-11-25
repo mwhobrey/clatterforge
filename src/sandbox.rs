@@ -72,8 +72,14 @@ pub enum SandboxBackend {
         /// `uid[:gid]`, never root.
         user: String,
     },
-    /// Windows AppContainer, slice 2 of ADR 0017 (#33). Not available yet.
-    AppContainer,
+    /// Windows AppContainer (ADR 0017 slice 2): the host's pinned verifier runs in a fresh
+    /// AppContainer per run through the `appcontainer-exec` trampoline.
+    AppContainer {
+        /// The `clatterforge` binary that hosts the trampoline. Defaults to the running
+        /// binary; set only when that is not a `clatterforge` executable (tests).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        launcher: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -169,8 +175,14 @@ impl SandboxPolicy {
                     "sandbox user must be a numeric non-root uid[:gid]"
                 );
             }
-            SandboxBackend::AppContainer => {
-                bail!("the AppContainer sandbox backend is not available yet (#33)")
+            SandboxBackend::AppContainer { launcher } => {
+                ensure!(cfg!(windows), "the AppContainer sandbox needs Windows");
+                if let Some(launcher) = launcher {
+                    ensure!(
+                        launcher.is_absolute() && launcher.is_file(),
+                        "AppContainer launcher must be an existing absolute path"
+                    );
+                }
             }
         }
         Ok(())
@@ -234,21 +246,56 @@ impl AssignedSandbox {
 }
 
 /// The verifier invocation for `workspace` under `sandbox`: the program and its arguments.
-/// Listed environment names reach the container as `--env NAME`, taking the value from the
-/// Docker CLI's own environment.
+/// Docker runs the policy's container command, and listed environment names reach it as
+/// `--env NAME` from the Docker CLI's own environment. AppContainer runs the host's pinned
+/// `verifier` through the trampoline, which hands listed names through itself.
 pub fn verifier_invocation(
     sandbox: &AssignedSandbox,
     workspace: &Path,
+    verifier: &crate::codex::PinnedCommand,
 ) -> Result<(PathBuf, Vec<String>)> {
     sandbox.validate()?;
-    let SandboxBackend::Docker {
-        docker,
-        image,
-        command,
-        user,
-    } = &sandbox.policy.backend
-    else {
-        bail!("the AppContainer sandbox backend is not available yet (#33)");
+    let (docker, image, command, user) = match &sandbox.policy.backend {
+        SandboxBackend::Docker {
+            docker,
+            image,
+            command,
+            user,
+        } => (docker, image, command, user),
+        SandboxBackend::AppContainer { launcher } => {
+            verifier.validate()?;
+            let program = match launcher {
+                Some(path) => path.clone(),
+                None => std::env::current_exe().context("cannot locate the clatterforge binary")?,
+            };
+            let trusted = sandbox.level.allows_trusted();
+            let spec = crate::appcontainer::LaunchSpec {
+                workspace: workspace.to_path_buf(),
+                network: sandbox.level.allows_network(),
+                read_only_paths: if trusted {
+                    sandbox.policy.read_only_paths.clone()
+                } else {
+                    Vec::new()
+                },
+                env_passthrough: if trusted {
+                    sandbox.policy.env_passthrough.clone()
+                } else {
+                    Vec::new()
+                },
+                memory_mb: sandbox.policy.memory_mb,
+                cpus: sandbox.policy.cpus,
+                pids: sandbox.policy.pids,
+            };
+            let mut args = vec![
+                "appcontainer-exec".to_string(),
+                "--spec".to_string(),
+                serde_json::to_string(&spec)?,
+                "--".to_string(),
+                verifier.executable.path.to_string_lossy().into_owned(),
+            ];
+            args.extend(verifier.args.iter().cloned());
+            return Ok((program, args));
+        }
     };
     let workspace = workspace
         .to_str()
@@ -334,6 +381,13 @@ mod tests {
         }
     }
 
+    fn verifier() -> crate::codex::PinnedCommand {
+        crate::codex::PinnedCommand {
+            executable: Executable::new(&std::env::current_exe().unwrap()).unwrap(),
+            args: vec!["--verify".into()],
+        }
+    }
+
     fn with_backend(
         mut p: SandboxPolicy,
         change: impl FnOnce(&mut SandboxBackend),
@@ -369,8 +423,19 @@ mod tests {
             "Docker settings never pass through"
         );
         let mut app = policy(Isolated, Isolated);
-        app.backend = SandboxBackend::AppContainer;
-        assert!(app.validate().is_err(), "AppContainer is slice 2");
+        app.backend = SandboxBackend::AppContainer { launcher: None };
+        assert_eq!(
+            app.validate().is_ok(),
+            cfg!(windows),
+            "AppContainer is Windows-only"
+        );
+        app.backend = SandboxBackend::AppContainer {
+            launcher: Some(PathBuf::from("relative/launcher.exe")),
+        };
+        assert!(
+            app.validate().is_err(),
+            "a launcher must be an absolute file"
+        );
     }
 
     #[test]
@@ -408,7 +473,7 @@ mod tests {
             SandboxLevel::Isolated,
             SandboxLevel::TrustedPaths,
         ));
-        let (_, isolated) = verifier_invocation(&sandbox, &workspace).unwrap();
+        let (_, isolated) = verifier_invocation(&sandbox, &workspace, &verifier()).unwrap();
         let joined = isolated.join(" ");
         assert!(joined.contains("--network none"), "{joined}");
         for flag in [
@@ -430,16 +495,58 @@ mod tests {
         sandbox
             .request(SandboxLevel::Network, "fetch", "mike")
             .unwrap();
-        let (_, network) = verifier_invocation(&sandbox, &workspace).unwrap();
+        let (_, network) = verifier_invocation(&sandbox, &workspace, &verifier()).unwrap();
         assert!(network.join(" ").contains("--network bridge"));
         assert!(!network.join(" ").contains("readonly"));
 
         sandbox
             .request(SandboxLevel::TrustedPaths, "toolchain", "mike")
             .unwrap();
-        let (_, trusted) = verifier_invocation(&sandbox, &workspace).unwrap();
+        let (_, trusted) = verifier_invocation(&sandbox, &workspace, &verifier()).unwrap();
         let joined = trusted.join(" ");
         assert!(joined.contains("target=/ro/0,readonly"), "{joined}");
         assert!(joined.contains("--env CARGO_TERM_COLOR"), "{joined}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn appcontainer_invocations_run_the_host_verifier_through_the_trampoline() {
+        let workspace = std::env::temp_dir();
+        let launcher = std::env::current_exe().unwrap();
+        let mut policy = policy(SandboxLevel::Isolated, SandboxLevel::TrustedPaths);
+        policy.backend = SandboxBackend::AppContainer {
+            launcher: Some(launcher.clone()),
+        };
+        let mut sandbox = AssignedSandbox::at_default(&policy);
+        let verifier = verifier();
+        let spec_at = |sandbox: &AssignedSandbox| {
+            let (program, args) = verifier_invocation(sandbox, &workspace, &verifier).unwrap();
+            assert_eq!(program, launcher);
+            assert_eq!(args[0], "appcontainer-exec");
+            assert_eq!(args[3], "--");
+            assert_eq!(args[4], verifier.executable.path.to_string_lossy());
+            assert_eq!(args[5], "--verify");
+            serde_json::from_str::<crate::appcontainer::LaunchSpec>(&args[2]).unwrap()
+        };
+        let isolated = spec_at(&sandbox);
+        assert!(!isolated.network && isolated.read_only_paths.is_empty());
+        assert!(isolated.env_passthrough.is_empty());
+        assert_eq!((isolated.memory_mb, isolated.pids), (2048, 512));
+
+        sandbox
+            .request(SandboxLevel::Network, "fetch", "mike")
+            .unwrap();
+        let network = spec_at(&sandbox);
+        assert!(network.network && network.read_only_paths.is_empty());
+
+        sandbox
+            .request(SandboxLevel::TrustedPaths, "toolchain", "mike")
+            .unwrap();
+        let trusted = spec_at(&sandbox);
+        assert_eq!(trusted.read_only_paths, vec![std::env::temp_dir()]);
+        assert_eq!(
+            trusted.env_passthrough,
+            vec!["CARGO_TERM_COLOR".to_string()]
+        );
     }
 }

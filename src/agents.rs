@@ -2658,8 +2658,11 @@ impl Agents {
         // CLI instead of the host executable; its receipt records that exact invocation.
         let (mut verify_command, verify_argv) = match &task.assignment.spec.sandbox {
             Some(sandbox) => {
-                let (program, args) =
-                    crate::sandbox::verifier_invocation(sandbox, &task.assignment.workspace)?;
+                let (program, args) = crate::sandbox::verifier_invocation(
+                    sandbox,
+                    &task.assignment.workspace,
+                    &task.assignment.verifier,
+                )?;
                 let mut command = Command::new(&program);
                 command.args(&args).current_dir(&task.assignment.workspace);
                 let mut argv = vec![program.display().to_string()];

@@ -5358,3 +5358,92 @@ fn live_docker_sandbox_enforces_network_user_and_environment() {
     );
     assert!(networked.contains("host_env=0"), "{networked}");
 }
+
+#[cfg(windows)]
+#[test]
+fn an_appcontainer_verifier_runs_the_preset_verifier_inside_a_fresh_container() {
+    use clatterforge::sandbox::{SandboxBackend, SandboxLevel, SandboxPolicy};
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut presets = AgentPresets::open(&f.state).unwrap();
+    let template = presets.get("worker-a").unwrap();
+    presets
+        .create(
+            "contained",
+            f.repo.clone(),
+            template.backend.clone(),
+            vec!["a.txt".into(), "b.txt".into()],
+            vec!["contract.txt".into()],
+            template.verify_executable.clone(),
+            vec!["--verify".into()],
+            5000,
+            60_000,
+            None,
+            "fixture",
+        )
+        .unwrap();
+    presets
+        .set_sandbox(
+            "contained",
+            Some(SandboxPolicy {
+                backend: SandboxBackend::AppContainer {
+                    launcher: Some(PathBuf::from(env!("CARGO_BIN_EXE_clatterforge"))),
+                },
+                default_level: SandboxLevel::Isolated,
+                ceiling: SandboxLevel::Network,
+                env_passthrough: vec![],
+                read_only_paths: vec![],
+                memory_mb: 1024,
+                cpus: 1,
+                pids: 64,
+            }),
+        )
+        .unwrap();
+    let preset = presets.get("contained").unwrap();
+    drop(presets);
+
+    let mut agents = Agents::open(&f.state).unwrap();
+    let task = agents
+        .create(
+            preset.spec("WORK_BOTH fix both files".into(), "verifier passes".into()),
+            preset.backend.clone(),
+        )
+        .unwrap();
+    let approved = agents
+        .approve(
+            &task.id,
+            task.revision,
+            &task.assignment.digest().unwrap(),
+            "mike",
+        )
+        .unwrap();
+    let done = agents.run(&task.id, approved.revision).unwrap();
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
+    let receipt = done.verification.unwrap();
+    assert_eq!(receipt.outcome, "succeeded");
+    assert_eq!(receipt.command[1], "appcontainer-exec");
+    let spec: clatterforge::appcontainer::LaunchSpec =
+        serde_json::from_str(&receipt.command[3]).unwrap();
+    assert!(
+        !spec.network,
+        "isolated runs without the network capability"
+    );
+    assert_eq!(spec.pids, 64);
+
+    let leftovers = std::env::var_os("LOCALAPPDATA")
+        .map(|d| PathBuf::from(d).join("Packages"))
+        .and_then(|d| fs::read_dir(d).ok())
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| {
+                    e.file_name()
+                        .to_string_lossy()
+                        .to_lowercase()
+                        .starts_with("clatterforge.verifier.")
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    assert_eq!(leftovers, 0, "each run deletes its AppContainer profile");
+}

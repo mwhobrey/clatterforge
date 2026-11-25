@@ -5,7 +5,7 @@ The independent verifier runs code an agent just wrote. A preset can run it in a
 ## Backends
 
 - **Docker** (any host with Docker): the verifier runs in a container from an image pinned by digest (`name@sha256:<digest>`; a tag alone is refused, and images are never pulled at run time). The worktree is bind-mounted read-write at `/work` and is the only host path mounted. Every run uses `--rm`, `--cap-drop ALL`, `--security-opt no-new-privileges`, a numeric non-root user, and memory, CPU and process limits. It verifies inside Linux, not on the Windows host.
-- **AppContainer** (Windows): planned (#33). Selecting it is refused for now.
+- **AppContainer** (Windows): the preset's own pinned verifier runs in a fresh AppContainer for each run, started through the `clatterforge appcontainer-exec` trampoline so the existing job, output capture, timeouts and cancellation still apply. The run's profile is granted read/write on the worktree and read/execute on the verifier's own folder (never the Windows or Program Files trees, which containers can already read; a drive root or your profile root is refused). At `trusted-paths` it also gets the listed read-only paths and passthrough names. Network is off unless the level grants the `internetClient` capability; loopback stays blocked by Windows. The verifier inherits only its standard handles, gets a minimal environment with its temp and app-data folders redirected into the container profile, and runs in a nested job with memory, process and CPU limits. Afterwards the grants are revoked and the profile is deleted, so a crash can leave only entries for a deleted identity. Choose it with `agent-preset-sandbox <preset> --backend app-container` or in the settings panel.
 
 ## Levels
 
@@ -39,6 +39,8 @@ clatterforge sandbox-request <task> --revision N --level network --reason "fetch
 - Workflow child tasks and race attempts use their preset's default level. A race requires every attempt to share one sandbox policy.
 
 ## What is enforced
+
+AppContainer: Windows enforces file access by ACL against the run's container identity and network by capability. Anything readable by `ALL APPLICATION PACKAGES` (much of Windows and Program Files) stays readable, and the verifier's own folder is readable for the run. Verifiers should be native executables: `cmd.exe /c` parses quoted arguments differently from other Windows programs.
 
 Docker's namespaces and cgroups enforce the filesystem view, network and limits, to the extent the Docker daemon and its VM do; the daemon is trusted. Code in the container can change the worktree it was given, which the host's normal scope check still inspects afterwards. The verification receipt records the exact Docker invocation. The coding CLIs keep your environment, profile and network; an environment allowlist for them is planned (#34).
 
