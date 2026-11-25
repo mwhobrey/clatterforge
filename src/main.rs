@@ -185,6 +185,14 @@ enum Commands {
         #[arg(long, default_value_t = 512)]
         pids: u32,
     },
+    /// Set the host environment names a preset's worker CLI and host verifier receive
+    /// beyond the minimal allowlist (#34). Repeat --pass; omit it to pass nothing extra.
+    #[command(name = "agent-preset-env")]
+    AgentPresetEnv {
+        name: String,
+        #[arg(long = "pass")]
+        passthrough: Vec<String>,
+    },
     /// Change a task's verifier sandbox level within its preset's ceiling, before approval
     /// or before a retry. Raising it needs a reason; approval or the retry then binds to it.
     #[command(name = "sandbox-request")]
@@ -3201,6 +3209,10 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                     .set_sandbox(name, policy)?,
             )?
         }
+        Commands::AgentPresetEnv { name, passthrough } => print(
+            &clatterforge::agent_preset::AgentPresets::open(&cli.state)?
+                .set_env_passthrough(name, passthrough.clone())?,
+        )?,
         Commands::SandboxRequest {
             task,
             revision,

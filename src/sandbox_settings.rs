@@ -175,6 +175,7 @@ pub fn overview(root: &Path, editable: bool) -> Result<Value> {
                 "repository": preset.repository,
                 "backend": preset.backend.target(),
                 "sandbox": preset.sandbox,
+                "env_passthrough": preset.env_passthrough,
             })
         })
         .collect();
@@ -277,6 +278,12 @@ pub fn apply(root: &Path, preset: &str, form: SandboxForm) -> Result<Value> {
     };
     let updated = AgentPresets::open(root)?.set_sandbox(preset, policy)?;
     Ok(json!({"name": updated.name, "sandbox": updated.sandbox}))
+}
+
+/// Sets the names a preset's worker and host verifier receive beyond the allowlist.
+pub fn apply_env(root: &Path, preset: &str, passthrough: Vec<String>) -> Result<Value> {
+    let updated = AgentPresets::open(root)?.set_env_passthrough(preset, passthrough)?;
+    Ok(json!({"name": updated.name, "env_passthrough": updated.env_passthrough}))
 }
 
 #[cfg(test)]

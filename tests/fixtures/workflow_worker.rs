@@ -88,6 +88,10 @@ fn main() {
         fs::write(workspace.join("a.txt"),"fixed-a").unwrap();
         fs::write(workspace.join("b.txt"),"fixed-b").unwrap();
     }
+    if objective.contains("ENV_REPORT") {
+        let seen = |name: &str| env::var_os(name).is_some();
+        fs::write(workspace.join("a.txt"), format!("fixed-a secret={} listed={}", seen("CLATTERFORGE_TEST_AMBIENT_SECRET"), seen("CLATTERFORGE_TEST_LISTED"))).unwrap();
+    }
     if objective.contains("WORK_IF_FRONTIER") {
         fs::write(workspace.join("a.txt"),"fixed-a").unwrap();
         if model.contains("thinking") || model.contains("opus") || model == "gpt-5" || model == "o3" {

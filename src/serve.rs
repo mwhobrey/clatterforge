@@ -1590,6 +1590,39 @@ async fn post_sandbox_preset(
 }
 
 #[derive(Deserialize)]
+struct EnvBody {
+    #[serde(default)]
+    passthrough: Vec<String>,
+}
+
+/// `POST /api/settings/presets/{name}/env`: names a preset's worker receives beyond the
+/// environment allowlist.
+async fn post_preset_env(
+    State(state): State<Arc<ServeState>>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    Json(body): Json<EnvBody>,
+) -> Response {
+    let actor = match authenticate(&headers, &state, true).await {
+        Ok(actor) => actor,
+        Err(err) => return err.into_response(),
+    };
+    if !is_main_forge(&actor, &headers) {
+        return main_forge_only();
+    }
+    let root = state.root.clone();
+    match tokio::task::spawn_blocking(move || {
+        crate::sandbox_settings::apply_env(&root, &name, body.passthrough)
+    })
+    .await
+    {
+        Ok(Ok(updated)) => Json(updated).into_response(),
+        Ok(Err(err)) => error_response(err),
+        Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
+    }
+}
+
+#[derive(Deserialize)]
 struct PullBody {
     image: String,
 }
@@ -2778,6 +2811,7 @@ fn build_router(state: Arc<ServeState>, ui_assets: Option<PathBuf>) -> Result<Ro
             post(post_sandbox_preset),
         )
         .route("/api/settings/sandbox/pull", post(post_sandbox_pull))
+        .route("/api/settings/presets/{name}/env", post(post_preset_env))
         .route("/api/tasks/{id}/context-pack", get(get_context_pack))
         .route("/api/tasks/{id}/plan", post(post_plan))
         .route(
@@ -3160,6 +3194,10 @@ mod tests {
             (
                 "/api/settings/sandbox/pull",
                 serde_json::json!({"image": format!("alpine@sha256:{}", "a".repeat(64))}),
+            ),
+            (
+                "/api/settings/presets/anything/env",
+                serde_json::json!({"passthrough": ["OPENAI_API_KEY"]}),
             ),
         ] {
             let refused = client
@@ -4076,6 +4114,7 @@ mod tests {
             soft_timeouts: false,
             effort: None,
             sandbox: None,
+            worker_env: None,
         };
         let backend = crate::agents::AgentBackend::Local(
             crate::agents::LocalAgentPolicy::inspect(

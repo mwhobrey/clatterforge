@@ -4705,6 +4705,7 @@ mod tests {
             allowed_models,
             soft_timeouts: false,
             sandbox: None,
+            env_passthrough: Vec::new(),
         };
         let mk_repo = || Repository {
             checkout: dir.path().to_path_buf(),
@@ -5010,6 +5011,7 @@ mod tests {
                     ],
                     soft_timeouts: false,
                     sandbox: None,
+                    env_passthrough: Vec::new(),
                 },
                 purpose: "impl".into(),
             }],
@@ -5350,6 +5352,7 @@ mod tests {
                 allowed_models: vec![model.into()],
                 soft_timeouts: false,
                 sandbox: None,
+                env_passthrough: Vec::new(),
             },
             purpose: "codex worker".into(),
         };
@@ -5376,6 +5379,7 @@ mod tests {
                 allowed_models: vec![model.into()],
                 soft_timeouts: false,
                 sandbox: None,
+                env_passthrough: Vec::new(),
             },
             purpose: "agy worker".into(),
         };

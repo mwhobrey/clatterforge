@@ -1,6 +1,6 @@
 # Verifier sandbox
 
-The independent verifier runs code an agent just wrote. A preset can run it in a sandbox instead of on the host. This is opt-in per preset; without a sandbox the verifier runs on the host exactly as before. The coding CLIs (Cursor, Codex, AGY, local worker) are not sandboxed: they need your sign-in and network.
+The independent verifier runs code an agent just wrote. A preset can run it in a sandbox instead of on the host. This is opt-in per preset; without a sandbox the verifier runs on the host exactly as before. The coding CLIs (Cursor, Codex, AGY, local worker) are not sandboxed: they need your sign-in and network. Their environment is scoped (see Worker environment).
 
 ## Backends
 
@@ -42,7 +42,7 @@ clatterforge sandbox-request <task> --revision N --level network --reason "fetch
 
 AppContainer: Windows enforces file access by ACL against the run's container identity and network by capability. Anything readable by `ALL APPLICATION PACKAGES` (much of Windows and Program Files) stays readable, and the verifier's own folder is readable for the run. Verifiers should be native executables: `cmd.exe /c` parses quoted arguments differently from other Windows programs.
 
-Docker's namespaces and cgroups enforce the filesystem view, network and limits, to the extent the Docker daemon and its VM do; the daemon is trusted. Code in the container can change the worktree it was given, which the host's normal scope check still inspects afterwards. The verification receipt records the exact Docker invocation. The coding CLIs keep your environment, profile and network; an environment allowlist for them is planned (#34).
+Docker's namespaces and cgroups enforce the filesystem view, network and limits, to the extent the Docker daemon and its VM do; the daemon is trusted. Code in the container can change the worktree it was given, which the host's normal scope check still inspects afterwards. The verification receipt records the exact Docker invocation. The coding CLIs keep your profile and network; their environment is scoped as described under Worker environment.
 
 ## Live check
 
@@ -66,3 +66,14 @@ The forge UI's **Forge Settings: Verifier Sandbox** panel edits the same preset 
 Only the main forge can change these: the bearer-token desktop/local UI reached through a loopback host. Paired browsers and phones see the panel read-only, a bearer request through a remote host name (such as Tailscale Serve) is refused, and Sparks never reach it. Changes apply to newly assigned tasks; existing tasks keep the sandbox their approval recorded.
 
 Refresh the catalog's digests from their tags with `python scripts/refresh-sandbox-catalog.py` (or `--check` to report drift); review the diff, since a new digest is new code the verifier will run.
+
+## Worker environment
+
+Every preset assignment runs its coding CLI and its host verifier on an environment allowlist: system locations, profile folders (so Cursor, Codex and other CLIs still find their own sign-in), non-secret machine details (processor, OS, user and computer names, common program folders) and nothing else. API keys, cloud credentials and Git tokens in your environment do not reach them unless the preset lists the name:
+
+```powershell
+clatterforge agent-preset-env my-preset --pass OPENAI_API_KEY --pass HTTPS_PROXY
+clatterforge agent-preset-env my-preset          # pass nothing extra
+```
+
+The settings panel's **Worker environment** field does the same from the main forge. The names are recorded in each task's assignment, so approval binds to exactly what the worker sees. Tasks assigned before the allowlist existed keep the full environment they were approved with. This is environment scoping only: the CLIs still run with your user account, profile files and network.

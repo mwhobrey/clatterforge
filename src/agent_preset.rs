@@ -51,6 +51,24 @@ pub struct AgentPreset {
     /// the host exactly as before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<crate::sandbox::SandboxPolicy>,
+    /// Host environment names the worker CLI and host verifier receive beyond the minimal
+    /// allowlist (#34), for example a CLI that authenticates with an API key variable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub env_passthrough: Vec<String>,
+}
+
+/// Plain variable names, at most 32 of them.
+pub fn validate_env_names(names: &[String]) -> Result<()> {
+    ensure!(
+        names.len() <= 32
+            && names.iter().all(|name| {
+                !name.is_empty()
+                    && name.len() <= 64
+                    && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            }),
+        "environment names must be plain names (letters, digits, underscore), at most 32"
+    );
+    Ok(())
 }
 
 impl AgentPreset {
@@ -103,6 +121,9 @@ impl AgentPreset {
                 .sandbox
                 .as_ref()
                 .map(crate::sandbox::AssignedSandbox::at_default),
+            worker_env: Some(crate::agents::WorkerEnvironment {
+                passthrough: self.env_passthrough.clone(),
+            }),
         }
     }
 
@@ -378,6 +399,7 @@ impl AgentPresets {
             allowed_models: Vec::new(),
             soft_timeouts: false,
             sandbox: None,
+            env_passthrough: Vec::new(),
         };
         self.connection.execute(
             "INSERT INTO agent_presets VALUES (?1, ?2)",
@@ -408,6 +430,26 @@ impl AgentPresets {
         }
         preset.tier = tier;
         preset.allowed_models = cleaned;
+        self.connection.execute(
+            "UPDATE agent_presets SET record=?2 WHERE name=?1",
+            params![preset.name, serde_json::to_string(&preset)?],
+        )?;
+        Ok(preset)
+    }
+
+    /// Sets the environment names this preset's worker and host verifier receive beyond
+    /// the allowlist. Tasks already assigned keep what their approval recorded.
+    pub fn set_env_passthrough(&self, name: &str, names: Vec<String>) -> Result<AgentPreset> {
+        let mut preset = self.get(name)?;
+        let mut names: Vec<String> = names
+            .into_iter()
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .collect();
+        names.sort();
+        names.dedup();
+        validate_env_names(&names)?;
+        preset.env_passthrough = names;
         self.connection.execute(
             "UPDATE agent_presets SET record=?2 WHERE name=?1",
             params![preset.name, serde_json::to_string(&preset)?],

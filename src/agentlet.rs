@@ -38,7 +38,14 @@ pub(crate) fn validate_command(command: &crate::codex::PinnedCommand) -> Result<
     Ok(())
 }
 
-pub(crate) fn configure_environment(command: &mut Command, backend: Option<&AgentBackend>) {
+/// The worker/verifier environment (#34): system locations, profile paths (so CLIs still
+/// find their own sign-in) and non-secret machine descriptors, plus exactly the names a
+/// preset lists. Tokens and keys in the operator's environment never pass otherwise.
+pub(crate) fn configure_environment_with(
+    command: &mut Command,
+    backend: Option<&AgentBackend>,
+    passthrough: &[String],
+) {
     command.env_clear();
     for name in [
         "SystemRoot",
@@ -52,10 +59,24 @@ pub(crate) fn configure_environment(command: &mut Command, backend: Option<&Agen
         "USERPROFILE",
         "LOCALAPPDATA",
         "APPDATA",
+        "HOMEDRIVE",
+        "HOMEPATH",
         "ProgramFiles",
         "ProgramFiles(x86)",
         "ProgramW6432",
         "ProgramData",
+        "ALLUSERSPROFILE",
+        "PUBLIC",
+        "CommonProgramFiles",
+        "CommonProgramFiles(x86)",
+        "CommonProgramW6432",
+        "OS",
+        "PROCESSOR_ARCHITECTURE",
+        "PROCESSOR_IDENTIFIER",
+        "NUMBER_OF_PROCESSORS",
+        "COMPUTERNAME",
+        "USERNAME",
+        "USERDOMAIN",
         "HOME",
         "USER",
         "LOGNAME",
@@ -64,7 +85,10 @@ pub(crate) fn configure_environment(command: &mut Command, backend: Option<&Agen
         "TERM",
         "LANG",
         "LC_ALL",
-    ] {
+    ]
+    .into_iter()
+    .chain(passthrough.iter().map(String::as_str))
+    {
         if let Some(value) = std::env::var_os(name) {
             command.env(name, value);
         }
@@ -647,7 +671,7 @@ mod tests {
             .env("NODE_OPTIONS", "synthetic")
             .env("CODEX_HOME", "unapproved")
             .env("CONDUCTOR_AGENTLET_CREDENTIAL_SENTINEL", "synthetic");
-        configure_environment(&mut command, Some(&backend));
+        configure_environment_with(&mut command, Some(&backend), &[]);
         let vars: std::collections::BTreeMap<_, _> = command
             .get_envs()
             .map(|(k, v)| (k.to_owned(), v.map(|s| s.to_owned())))
@@ -665,6 +689,26 @@ mod tests {
                 .as_deref(),
             Some(dir.path().as_os_str())
         );
+    }
+
+    #[test]
+    fn listed_names_pass_through_and_everything_else_stays_out() {
+        // PATH is always present in the test process; use it as a stand-in for a listed
+        // name and check an unlisted variable set on the command itself is dropped.
+        let mut command = Command::new("fixture.exe");
+        command
+            .env("GH_TOKEN", "synthetic")
+            .env("AWS_SECRET_ACCESS_KEY", "synthetic");
+        configure_environment_with(&mut command, None, &["PATH".to_string()]);
+        let names: Vec<String> = command
+            .get_envs()
+            .filter(|(_, v)| v.is_some())
+            .map(|(k, _)| k.to_string_lossy().to_uppercase())
+            .collect();
+        assert!(names.iter().any(|n| n == "PATH"));
+        for secret in ["GH_TOKEN", "AWS_SECRET_ACCESS_KEY"] {
+            assert!(!names.iter().any(|n| n == secret), "{secret} leaked");
+        }
     }
 
     #[test]

@@ -4532,6 +4532,7 @@ fn ForgeSettings(config: ApiConnection) -> Element {
     let mut read_only = use_signal(String::new);
     let mut image_filter = use_signal(String::new);
     let mut backend = use_signal(|| "docker".to_string());
+    let mut worker_env = use_signal(String::new);
 
     let load = {
         let config = config.clone();
@@ -4553,12 +4554,22 @@ fn ForgeSettings(config: ApiConnection) -> Element {
     let mut select_preset = move |name: String| {
         preset.set(name.clone());
         notice.set(None);
-        let current = view()
-            .and_then(|v| {
-                v["presets"]
-                    .as_array()
-                    .and_then(|p| p.iter().find(|p| p["name"] == name.as_str()).cloned())
-            })
+        let record = view().and_then(|v| {
+            v["presets"]
+                .as_array()
+                .and_then(|p| p.iter().find(|p| p["name"] == name.as_str()).cloned())
+        });
+        worker_env.set(
+            record
+                .as_ref()
+                .and_then(|p| p["env_passthrough"].as_array().cloned())
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|n| n.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        let current = record
             .map(|p| p["sandbox"].clone())
             .unwrap_or(serde_json::Value::Null);
         let text = |v: &serde_json::Value| v.as_str().unwrap_or("").to_string();
@@ -4932,6 +4943,42 @@ fn ForgeSettings(config: ApiConnection) -> Element {
                                     }
                                     p { class: "text-[11px] text-neutral-500",
                                         "Changes apply to newly assigned tasks; existing tasks keep the sandbox their approval recorded."
+                                    }
+                                }
+                                div { class: "mt-3 border-t border-neutral-800 pt-3",
+                                    label { class: "block text-neutral-400 mb-1",
+                                        "Worker environment: extra names passed to this preset's CLI and host verifier (comma separated)"
+                                    }
+                                    p { class: "text-[11px] text-neutral-500 mb-1",
+                                        "Everything else in your environment stays out; system paths and profile folders always pass so CLIs find their sign-in."
+                                    }
+                                    input {
+                                        class: input_class,
+                                        disabled: !editable,
+                                        placeholder: "e.g. OPENAI_API_KEY, HTTPS_PROXY",
+                                        value: "{worker_env}",
+                                        oninput: move |e| worker_env.set(e.value()),
+                                    }
+                                    if editable {
+                                        {
+                                            let mut post = post.clone();
+                                            let name = selected.clone();
+                                            rsx! {
+                                                button {
+                                                    r#type: "button",
+                                                    class: "mt-2 rounded bg-neutral-800 px-3 py-1 hover:bg-neutral-700 disabled:opacity-50",
+                                                    disabled: busy(),
+                                                    onclick: move |_| post(
+                                                        format!("/api/settings/presets/{}/env", name),
+                                                        serde_json::json!({
+                                                            "passthrough": worker_env().split(',').map(str::trim).filter(|n| !n.is_empty()).collect::<Vec<_>>(),
+                                                        }),
+                                                        format!("Saved the worker environment for {}", name),
+                                                    ),
+                                                    "Save worker environment"
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

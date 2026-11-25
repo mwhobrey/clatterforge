@@ -5447,3 +5447,79 @@ fn an_appcontainer_verifier_runs_the_preset_verifier_inside_a_fresh_container() 
         .unwrap_or(0);
     assert_eq!(leftovers, 0, "each run deletes its AppContainer profile");
 }
+
+// Windows only: setting process variables while other tests run is safe there because the
+// Win32 environment calls are internally synchronized; on Unix it would race other threads.
+#[cfg(windows)]
+#[test]
+fn preset_workers_get_the_allowlist_plus_listed_names_only() {
+    // Unique names so no other test reads them; the engine spawns the worker with this
+    // process's environment as its starting point.
+    unsafe {
+        std::env::set_var(
+            "CLATTERFORGE_TEST_AMBIENT_SECRET",
+            "must-not-reach-the-worker",
+        );
+        std::env::set_var("CLATTERFORGE_TEST_LISTED", "listed-by-the-preset");
+    }
+    let model = Model::new(vec![json!({"action":"finish","summary":"unused"})]);
+    let f = fixture(&model, 2);
+    let mut presets = AgentPresets::open(&f.state).unwrap();
+    let template = presets.get("worker-a").unwrap();
+    presets
+        .create(
+            "env-scoped",
+            f.repo.clone(),
+            template.backend.clone(),
+            vec!["a.txt".into(), "b.txt".into()],
+            vec!["contract.txt".into()],
+            template.verify_executable.clone(),
+            vec!["--verify".into()],
+            5000,
+            5000,
+            None,
+            "fixture",
+        )
+        .unwrap();
+    assert!(
+        presets
+            .set_env_passthrough("env-scoped", vec!["NOT A NAME".into()])
+            .is_err(),
+        "only plain variable names"
+    );
+    presets
+        .set_env_passthrough("env-scoped", vec!["CLATTERFORGE_TEST_LISTED".into()])
+        .unwrap();
+    let preset = presets.get("env-scoped").unwrap();
+    drop(presets);
+
+    let mut agents = Agents::open(&f.state).unwrap();
+    let task = agents
+        .create(
+            preset.spec("ENV_REPORT WORK_BOTH".into(), "verifier passes".into()),
+            preset.backend.clone(),
+        )
+        .unwrap();
+    assert_eq!(
+        task.assignment
+            .spec
+            .worker_env
+            .as_ref()
+            .unwrap()
+            .passthrough,
+        vec!["CLATTERFORGE_TEST_LISTED".to_string()],
+        "the approved assignment records exactly what passes through"
+    );
+    let approved = agents
+        .approve(
+            &task.id,
+            task.revision,
+            &task.assignment.digest().unwrap(),
+            "mike",
+        )
+        .unwrap();
+    let done = agents.run(&task.id, approved.revision).unwrap();
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
+    let report = fs::read_to_string(done.assignment.workspace.join("a.txt")).unwrap();
+    assert_eq!(report, "fixed-a secret=false listed=true");
+}

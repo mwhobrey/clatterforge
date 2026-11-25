@@ -101,6 +101,7 @@ fn spec(repo: &Path, objective: &str) -> AgentSpec {
         soft_timeouts: false,
         effort: None,
         sandbox: None,
+        worker_env: None,
     }
 }
 fn policy() -> AgentBackend {

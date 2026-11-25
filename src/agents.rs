@@ -121,6 +121,20 @@ pub struct AgentSpec {
     /// approval digest covers it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<crate::sandbox::AssignedSandbox>,
+    /// The worker and host-verifier environment (#34). Every assignment from a preset sets
+    /// it: the minimal allowlist plus these names. Absent only on records assigned before
+    /// the allowlist existed, which keep inheriting the full environment they were
+    /// approved with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_env: Option<WorkerEnvironment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkerEnvironment {
+    /// Host environment names passed through beyond the allowlist.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub passthrough: Vec<String>,
 }
 
 /// Reasoning/execution effort level requested for a coding-agent invocation.
@@ -1606,6 +1620,9 @@ impl Agents {
         if let Some(sandbox) = &spec.sandbox {
             sandbox.validate()?;
         }
+        if let Some(env) = &spec.worker_env {
+            crate::agent_preset::validate_env_names(&env.passthrough)?;
+        }
         crate::agent_progress::validate_limits_with_mode(
             spec.generation_timeout_ms,
             spec.generation_idle_timeout_ms,
@@ -2529,9 +2546,22 @@ impl Agents {
             command.args[flag + 1] = "plan".into();
         }
         let mut process = task.assignment.backend.process(&command.executable.path);
+        // Agentlets always run on the allowlist; every preset assignment since #34 does too.
+        let passthrough = task
+            .assignment
+            .spec
+            .worker_env
+            .as_ref()
+            .map_or(&[][..], |env| env.passthrough.as_slice());
         if task.assignment.spec.agentlet.is_some() {
             crate::agentlet::validate_command(&command)?;
-            crate::agentlet::configure_environment(&mut process, Some(&task.assignment.backend));
+        }
+        if task.assignment.spec.agentlet.is_some() || task.assignment.spec.worker_env.is_some() {
+            crate::agentlet::configure_environment_with(
+                &mut process,
+                Some(&task.assignment.backend),
+                passthrough,
+            );
         }
         process
             .args(&command.args)
@@ -2671,8 +2701,18 @@ impl Agents {
             }
             None => {
                 let mut command = Command::new(&task.assignment.verifier.executable.path);
-                if task.assignment.spec.agentlet.is_some() {
-                    crate::agentlet::configure_environment(&mut command, None);
+                if task.assignment.spec.agentlet.is_some()
+                    || task.assignment.spec.worker_env.is_some()
+                {
+                    crate::agentlet::configure_environment_with(
+                        &mut command,
+                        None,
+                        task.assignment
+                            .spec
+                            .worker_env
+                            .as_ref()
+                            .map_or(&[][..], |env| env.passthrough.as_slice()),
+                    );
                 }
                 command
                     .args(&task.assignment.verifier.args)
@@ -3018,6 +3058,7 @@ mod tests {
             soft_timeouts: false,
             effort: None,
             sandbox: None,
+            worker_env: None,
         };
         let text = serde_json::to_string(&spec).unwrap();
         let back: AgentSpec = serde_json::from_str(&text).unwrap();
@@ -3146,6 +3187,7 @@ gemini-4-argon-medium\tGemini 4 Argon (Medium)\n";
                     soft_timeouts: false,
                     effort: None,
                     sandbox: None,
+                    worker_env: None,
                 },
                 AgentBackend::Agy(AgyAgentPolicy {
                     executable: Executable::new(&exe).unwrap(),
