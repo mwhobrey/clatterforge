@@ -163,6 +163,30 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "installer exited $($install.ExitCode)" }
           python scripts/release/smoke-installed.py --app (Join-Path $dest 'clatterforge-desktop.exe') --timeout 180
           if ($LASTEXITCODE -ne 0) { throw 'installed-artifact smoke test failed' }
+      # Evidence for a failed Windows smoke test: what the runner's desktop showed, and the exact
+      # installer, so it can be reproduced locally. Never named installer-*, so the release job
+      # can never pick it up.
+      - name: Capture Windows smoke-test evidence
+        if: failure() && matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path smoke-debug | Out-Null
+          Copy-Item dist/release/*-setup.exe smoke-debug/ -ErrorAction SilentlyContinue
+          try {
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
+            [System.Drawing.Graphics]::FromImage($bitmap).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+            $bitmap.Save("$PWD/smoke-debug/desktop.png")
+            "session: $((Get-Process -Id $PID).SessionId), screen: $($bounds.Width)x$($bounds.Height)" | Set-Content smoke-debug/session.txt
+          } catch { "screenshot failed: $_" | Set-Content smoke-debug/session.txt }
+      - name: Upload Windows smoke-test evidence
+        if: failure() && matrix.name == 'windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: smoke-debug-windows
+          path: smoke-debug/
+          retention-days: 7
       - name: Smoke-test the installed Linux app
         if: matrix.name == 'linux'
         run: |

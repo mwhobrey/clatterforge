@@ -227,6 +227,30 @@ def ui_checks(devtools, deadline, report):
                           'expanded_after': devtools.evaluate(PANEL_JS), 'settings_loaded': bool(loaded)}
 
 
+def windows_webview_diagnostics(process, devtools_port):
+    """Why a WebView2 window exposed no page: whether the app and any WebView2 processes are
+    running, in which Windows session (0 is the non-interactive service session), and whether
+    the DevTools port listens. Best effort; never raises."""
+    info = {'app_running': process.poll() is None}
+    try:
+        with socket.create_connection(('127.0.0.1', devtools_port), timeout=2):
+            info['devtools_port_listening'] = True
+    except OSError:
+        info['devtools_port_listening'] = False
+    try:
+        rows = subprocess.run(['tasklist', '/FO', 'CSV', '/NH'], capture_output=True, text=True,
+                              timeout=20).stdout.splitlines()
+        def session_of(image):
+            return sorted({row.split('","')[3] for row in rows
+                           if row.lower().startswith(f'"{image}"') and row.count('","') >= 4})
+        info['app_sessions'] = session_of('clatterforge-desktop.exe')
+        info['webview2_sessions'] = session_of('msedgewebview2.exe')
+        info['webview2_processes'] = sum(1 for row in rows if row.lower().startswith('"msedgewebview2.exe"'))
+    except (OSError, subprocess.SubprocessError) as error:
+        info['tasklist_error'] = str(error)
+    return info
+
+
 def stop(process):
     if process.poll() is not None:
         return
@@ -283,7 +307,8 @@ def main():
             report['mode'] = 'native-webview'
             target = page_target(devtools_port, deadline)
             if not target:
-                report['frontend'] = {'ok': False, 'detail': 'the app WebView exposed no page'}
+                report['frontend'] = {'ok': False, 'detail': 'the app WebView exposed no page',
+                                      'diagnostics': windows_webview_diagnostics(process, devtools_port)}
                 report['interact'] = {'ok': False, 'detail': 'skipped: no WebView page'}
             else:
                 ui_checks(DevTools(target), deadline, report)
