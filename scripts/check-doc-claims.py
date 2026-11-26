@@ -25,6 +25,10 @@ RETIRED = [
     ('Prepare source integration', 'the desktop button names changed'),
     ('Restore original source', 'the desktop button is Restore Originals'),
     ('Recover original source', 'the desktop button is Recover Originals'),
+    ('Prepare Direct Merge', 'the button is Prepare Checkout Integration; integration is not a Git merge'),
+    ('Prepare Worktree Merge', 'the button is Prepare Worktree Integration; integration is not a Git merge'),
+    ('Switch to Direct Checkout', 'the target is called checkout'),
+    ('Merge plan', 'the panel heading is Integration plan'),
 ]
 
 MAINTAINED = [
@@ -34,7 +38,7 @@ MAINTAINED = [
     'docs/public/tree/README.md', 'docs/public/tree/CONTRIBUTING.md', 'docs/public/tree/SECURITY.md',
     'docs/public/tree/docs/ARCHITECTURE.md', 'docs/public/tree/docs/RELEASE.md',
     'docs/public/tree/docs/runbook/integration.md', 'docs/public/tree/docs/runbook/packaging.md',
-    'docs/public/tree/docs/runbook/managed-host.md',
+    'docs/public/tree/docs/runbook/managed-host.md', 'docs/COWORKER_QUICKSTART.md',
     'site/index.html',
 ]
 
