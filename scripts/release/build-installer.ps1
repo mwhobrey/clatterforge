@@ -40,8 +40,13 @@ if (-not $OutDir) { $OutDir = Join-Path $repo "dist\installer\$version" }
 # point Tauri at that fresh output rather than whatever an earlier development build left in
 # gui\target (which would ship a stale UI).
 $webDist = Join-Path $repo 'target\installer-desktop\dx\clatterforge-gui\release\web\public'
+# frontendDist must be a relative, forward-slash path (relative to gui/src-tauri). Tauri reads
+# this field as a URL when it can, and an absolute Windows path such as "D:\..." parses as a URL
+# with scheme "d:", so the app would try to load the build machine's folder at runtime instead of
+# embedding the files (v0.1.0 shipped that way: ERR_FILE_NOT_FOUND in the window).
+$frontendDist = '../../target/installer-desktop/dx/clatterforge-gui/release/web/public'
 $override = [ordered]@{
-    build = [ordered]@{ frontendDist = $webDist }
+    build = [ordered]@{ frontendDist = $frontendDist }
     bundle = [ordered]@{
         externalBin = @('binaries/clatterforge')
         resources = @{ "$webDist\" = 'ui/' }
