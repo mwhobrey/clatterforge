@@ -16,7 +16,7 @@ As of November 25, 2026.
 
 ### Release blockers
 
-- **The v0.1.0 Windows desktop window does not load its interface.** Found November 25, 2026 by the installed-artifact smoke test (below), run against the published installer: the backend starts and answers correctly, but the app's WebView navigates to a `file:///D:/a/...` path from the CI build machine and shows `ERR_FILE_NOT_FOUND`. The release build passes that build folder to Tauri as a Windows drive path, which is read as an address to load rather than files to embed. Linux and macOS builds pass a Unix path and are not expected to be affected, but their desktop windows have not been inspected either. Do not treat any Windows build as functional until the smoke test passes against it.
+- **The v0.1.0 Windows desktop window does not load its interface.** Found November 25, 2026 by the installed-artifact smoke test (below), run against the published installer: the backend starts and answers correctly, but the app's WebView navigates to a `file:///D:/a/...` path from the CI build machine and shows `ERR_FILE_NOT_FOUND`. The release build passes that build folder to Tauri as a Windows drive path, which is read as an address to load rather than files to embed. Linux and macOS builds pass a Unix path and are not expected to be affected, but their desktop windows have not been inspected either. Do not treat any Windows build as functional until the smoke test passes against it. **Fixed in source for 0.1.1:** the release build now passes a relative path. A local build with the fix passed the smoke test inside its own WebView2 window (backend, frontend and interaction); the CI-built 0.1.1 must pass the same test, which the release workflow now runs before uploading anything.
 
 ### Outstanding
 
