@@ -13,6 +13,10 @@ ROOT_FILES = {'.coderabbit.yaml', '.gitattributes', '.gitignore', 'Cargo.toml', 
               'THIRD_PARTY_NOTICES.md'}
 SOURCE_ROOTS = ('.github/', 'src/', 'edge/', 'protocol/', 'gui/', 'tests/', 'scripts/', 'licenses/', 'examples/', 'site/')
 PUBLIC_DOCS = 'docs/public/tree/'
+# Development-only files under exported roots. Dependabot runs against the development
+# repository, where dependency updates are reviewed and then published by the sync; enabled on
+# the public repository it would open pull requests the next sync reverts.
+DEV_ONLY = {'.github/dependabot.yml'}
 MANIFESTS = ('Cargo.toml', 'edge/Cargo.toml', 'protocol/Cargo.toml', 'gui/Cargo.toml',
              'gui/src-tauri/Cargo.toml')
 
@@ -24,7 +28,7 @@ def git(root, *args):
 def public_path(name):
     if name.startswith(PUBLIC_DOCS):
         return name[len(PUBLIC_DOCS):]
-    if Path(name).name == 'AGENTS.md':
+    if Path(name).name == 'AGENTS.md' or name in DEV_ONLY:
         return None
     if name in ROOT_FILES or name.startswith(SOURCE_ROOTS):
         return name
