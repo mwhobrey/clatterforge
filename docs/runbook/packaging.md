@@ -70,7 +70,7 @@ It needs Xcode command line tools, `tauri-cli` and `dioxus-cli` at the versions 
 - **Updates:** the update artifact is `Clatterforge_<version>_<arch>.app.tar.gz` plus `.sig`; `latest.json` holds `darwin-aarch64` or `darwin-x86_64`. The release workflow merges both architectures with the other platforms.
 - **DMG layout:** the script sets `CI=true` so create-dmg skips its Finder AppleScript step (it hangs without a GUI session); the image has default icon placement.
 
-Verified locally on Apple silicon (Rust 1.90.0, November 25, 2026): an unsigned build produces the app and a valid `.dmg`. A build with the owner's Developer ID and an App Store Connect API key produced a hardened-runtime signed app and `.dmg`, both notarized and stapled; `codesign --verify --deep --strict`, `stapler validate` and `spctl` (source `Notarized Developer ID`) accept them. Launched with a throwaway `HOME`, the signed app starts its sidecar with the Application Support state folder and the bundled UI, serves the UI (200), and the API answers 200 with the token and 401 without it. A throwaway minisign key produced the `.app.tar.gz`, its `.sig` and a `latest.json` with a `darwin-aarch64` entry that `merge-manifests.py` accepts. Not yet exercised: an in-place update with the real update key, an Intel build, and the CI jobs.
+Verified locally on Apple silicon (Rust 1.90.0, November 25, 2026): a build without a signing identity (ad-hoc signed) produces the app and a valid `.dmg`. A build with the owner's Developer ID and an App Store Connect API key produced a hardened-runtime signed app and `.dmg`, both notarized and stapled; `codesign --verify --deep --strict`, `stapler validate` and `spctl` (source `Notarized Developer ID`) accept them. Launched with a throwaway `HOME`, the signed app starts its sidecar with the Application Support state folder and the bundled UI, serves the UI (200), and the API answers 200 with the token and 401 without it. A throwaway minisign key produced the `.app.tar.gz`, its `.sig` and a `latest.json` with a `darwin-aarch64` entry that `merge-manifests.py` accepts. Not yet exercised: an in-place update with the real update key, an Intel build, and the CI jobs.
 
 ## Releasing from CI
 
@@ -99,7 +99,7 @@ The workflow is linted (actionlint) and the merge script is unit-tested (`script
 
 ## Code signing
 
-Installers and binaries are not code-signed yet, so Windows SmartScreen warns on first run. `-SignCommand "<signing command> %1"` passes a signing command to Tauri, which signs each file before update signatures are computed; use it once a certificate or signing service is available.
+Code signing (a platform-trusted signature on the executable) is separate from update signing (the minisign signature every self-updating build verifies). macOS builds are code-signed with a Developer ID and notarized (see [macOS](#macos)). Windows and Linux binaries are not code-signed yet, so Windows SmartScreen warns on first run. On Windows, `-SignCommand "<signing command> %1"` passes a signing command to Tauri, which signs each file before update signatures are computed; use it once a certificate or signing service is available.
 
 ## Not covered
 
