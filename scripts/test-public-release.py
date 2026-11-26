@@ -37,6 +37,8 @@ class PublicReleaseTests(unittest.TestCase):
                      'gui/Cargo.toml', 'gui/src-tauri/Cargo.toml'):
             self.write(name, '[package]\nname="fixture"\nlicense="Apache-2.0"\n')
         self.write('src/lib.rs', '// public code\n')
+        self.write('.github/workflows/ci.yml', 'name: CI\n')
+        self.write('.github/dependabot.yml', 'version: 2\n')
         self.commit('Reviewed source')
         self.write('untracked-secret.txt', 'private-host-fixture')
         self.write('.conductor/state.sqlite', 'private-host-fixture')
@@ -83,6 +85,8 @@ class PublicReleaseTests(unittest.TestCase):
         self.assertFalse((self.output / 'untracked-secret.txt').exists())
         self.assertFalse((self.output / '.conductor').exists())
         self.assertFalse((self.output / '.clatterforge').exists())
+        self.assertTrue((self.output / '.github/workflows/ci.yml').exists())
+        self.assertFalse((self.output / '.github/dependabot.yml').exists())
         self.assertEqual((self.output / 'AGENTS.md').read_text(), 'Public documentation\n')
         second = self.export()
         self.assertNotEqual(second.returncode, 0)

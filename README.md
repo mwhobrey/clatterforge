@@ -1,41 +1,86 @@
 # Clatterforge
 
-> **Renamed from Dev Conductor.** The binary is `clatterforge` (setup scripts also install the old `dev-conductor` name as an alias). State defaults to `.clatterforge`; an existing `.conductor` directory keeps being used in place when no `.clatterforge` exists. Sessions paired under the old cookie names stay signed in.
+**Coding agents, on a short and well-documented leash.**
 
-A local-first development conductor: give it an objective, approve its scope, and review the resulting change and verification evidence.
+Clatterforge is a local-first forge for coding agents. You approve the scope. Local workers (the Cursor and Codex CLIs you already use, routed by a local model) write the change in an isolated Git worktree. You review the diff and an independent verifier's evidence. Nothing touches your checkout until you integrate it.
 
-Clatterforge is a supervised source alpha for Windows, Linux and macOS. A local model chooses the next approved coding worker; local Cursor and Codex CLI adapters do the coding. The host validates routing decisions, owns process supervision and retains durable task state. Workflow stages share one Git worktree with checkpoints and pass objectives, prior results and references between stages. Git supplies source and diff evidence on demand.
+![The Clatterforge review screen: a task board on the left and, on the right, a task's diff with Accept and Reject and its verified attempt](site/shots/review.png)
 
-The desktop and authenticated HTTP/MCP interfaces expose the same task lifecycle. Finishing a workflow produces a candidate for human review. Applying an accepted candidate to its source checkout is a separate, explicit integration action.
+<sub>A real screenshot of v0.1.0 reviewing a demo repository, with the built-in test worker.</sub>
 
-[Specialist agentlets](docs/runbook/agentlets.md) add reusable versioned instructions and typed reports to approved CLI presets. Conductor enforces candidate edit/review scope and required reviews of the current Git checkpoint; Gemma routes among the approved specialists.
+[**Download v0.1.0**](../../releases/latest) · Windows · macOS · Linux · Apache-2.0 · alpha
 
-## Try it
+## Why
 
-Prerequisites: Git, Rust 1.90.0 (on Windows, native with the Visual Studio C++ build tools), and Python 3.11 or later. SQLite is bundled. Installers for all three platforms are on the [releases page](../../releases/latest). Tests and the fixture demo need no model download, provider account or existing private service.
+Coding agents are fast and confidently wrong often enough that you want a record of what they did, under what instructions, and whether anything independent checked it. Clatterforge doesn't try to make agents smarter. It makes their work accountable:
+
+- **Approval binds to an exact assignment.** Scope, worker, verifier and limits are approved together, and the approval is tied to that revision. Change anything and it needs a new one.
+- **Runs are supervised.** Workers run as owned process trees with timeouts, cancellation and a global stop. A crash leaves the task marked unknown with its evidence; it is never silently rerun.
+- **Verification is independent.** A separate verifier decides pass or fail. What the agent claims about its own work is recorded, never trusted as proof.
+- **Integration is a separate step.** An accepted change is applied to your checkout explicitly, or delivered as a branch and pull request.
+
+What it does **not** do matters as much: a worktree isolates Git changes, not processes, and the coding CLIs still run with your account, profile and network. The [security boundaries](SECURITY.md) spell out exactly what is and isn't enforced.
+
+## How it works
+
+1. **Objective.** Describe the change. The forge records repository context and the exact base commit.
+2. **Approval.** You approve one assignment. In a multi-step workflow, a local model (for example Gemma via Ollama) picks which approved worker runs next; it can only choose from what you approved.
+3. **Supervised run.** Cursor or Codex works in an isolated worktree under the forge's process supervision.
+4. **Review.** You get the candidate diff, logs and the verifier's result. Review comments feed the next repair round.
+5. **Integration.** Apply the accepted candidate, or hand it off as a branch and pull request.
+
+The desktop app, an authenticated HTTP API and an MCP server all drive the same task lifecycle. Edge clients ("Sparks") on other machines connect to one main forge, which alone holds state and policy.
+
+## Install
+
+Download the installer for your platform from the [latest release](../../releases/latest):
+
+| Platform | File | Notes |
+|---|---|---|
+| Windows x64 | `Clatterforge_<version>_x64-setup.exe` | Per-user install. Not yet code-signed, so SmartScreen warns on first run. |
+| macOS, Apple silicon | `Clatterforge_<version>_aarch64.dmg` | Signed and notarized. |
+| macOS, Intel | `Clatterforge_<version>_x64.dmg` | Signed and notarized. |
+| Linux x86_64 | `Clatterforge_<version>_amd64.AppImage` | Single file, updates itself. |
+| Debian / Ubuntu | `Clatterforge_<version>_amd64.deb` | Updates through your package manager. |
+
+The Windows, macOS and AppImage builds update themselves from signed releases. Your state lives outside the install folder, so updates and uninstalls leave it alone.
+
+**To run real work you also need:**
+
+- **Git**, and a repository you are willing to point agents at.
+- **The Codex CLI and/or the Cursor CLI**, installed and signed in with their own instructions. Clatterforge does not bundle accounts or install provider tools.
+- **For multi-step workflows, a local model** to route between workers, served by [Ollama](https://ollama.com). The [example configuration](examples/orchestration-gemma26b-config.json) uses Gemma; the [inference guide](docs/INFERENCE.md) covers limits. A single-worker task needs no model.
+- **Optional: Docker**, to run verifiers in a pinned sandbox image.
+
+Then set up a worker preset and your first workflow with the [workflows runbook](docs/runbook/workflows.md), using a throwaway repository first.
+
+## Build from source
+
+You need Git, Rust 1.90.0 (on Windows, native with the Visual Studio C++ build tools) and Python 3.11 or later. SQLite is bundled. The test suite needs no model, provider account or network service.
 
 ```sh
 cargo +1.90.0 fetch --locked
 cargo +1.90.0 test --workspace --locked -- --test-threads=4
 ```
 
-On Windows, the fixture demo:
+On Windows, `scripts/demo.ps1` creates a throwaway repository, runs one task with simulated approval and leaves a patch awaiting review. Installer builds are described in the [packaging runbook](docs/runbook/packaging.md).
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo.ps1
-```
+## Status
 
-The demo creates an expendable repository under `.clatterforge/demos/`, uses simulated approval and leaves a patch awaiting human review. It does not represent real-provider acceptance.
+This is an **alpha**. Working today: the main forge on Windows, macOS and Linux with signed self-updating installers; Linux edge clients; the web client; the HTTP and MCP interfaces; and an optional verifier sandbox (Docker, or a Windows AppContainer). Still in progress: Windows and Linux code signing, guided onboarding, and automatic recovery. The [release notes](docs/RELEASE.md) track the remaining gates.
 
 ## Documentation
 
-- [First-agent guide](docs/FIRST_AGENT.md) and [architecture](docs/ARCHITECTURE.md)
-- [Runbook index](docs/runbook/00_INDEX.md): development, workflows, review, integration and host operations
+- [Architecture](docs/ARCHITECTURE.md) and the [workflows runbook](docs/runbook/workflows.md)
+- [First-agent guide](docs/FIRST_AGENT.md), for coding agents working on this repository
+- [Runbook](docs/runbook/00_INDEX.md): workflows, review, integration and host operations
 - [Remote access](docs/REMOTE_ACCESS.md) and [local inference](docs/INFERENCE.md)
-- [Contribution guide](CONTRIBUTING.md), [security boundaries](SECURITY.md) and [release gates](docs/RELEASE.md)
+- [Security boundaries](SECURITY.md), [contributing](CONTRIBUTING.md) and [release gates](docs/RELEASE.md)
 
-The main forge (Windows, Linux or macOS), Linux Sparks (`clatterforge-edge`) with the shared protocol, and the WASM web client have different support boundaries. Per-user installers with signed updates and durable scheduling exist; macOS builds are Developer ID signed and notarized, while Windows and Linux code signing, generic onboarding and automatic recovery are still work in progress. A worktree isolates Git changes. The optional verifier sandbox (Docker, or a Windows AppContainer) and the worker environment allowlist add process, network and secret limits; the coding CLIs themselves still run with your account, profile and network (see the sandbox runbook).
+The project website is linked in this repository's About section.
 
 ## License
 
-First-party code is licensed under [Apache-2.0](LICENSE), with attribution in [NOTICE](NOTICE). Dependencies retain their own terms; [third-party notices](THIRD_PARTY_NOTICES.md) list collected texts for every dependency. Model weights and external CLI tools are separately installed and licensed.
+Clatterforge is licensed under [Apache-2.0](LICENSE), with attribution in [NOTICE](NOTICE). Dependencies keep their own terms; [third-party notices](THIRD_PARTY_NOTICES.md) collect them. Model weights and external CLI tools are installed and licensed separately.
+
+<sub>Formerly Dev Conductor. The binary is `clatterforge` (setup scripts also install `dev-conductor` as an alias), and an existing `.conductor` state directory keeps working.</sub>
