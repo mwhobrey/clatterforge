@@ -1452,7 +1452,7 @@ pub(crate) fn TaskInspector(
                                 span { class: "text-[#8D9DAD]",
                                     "Step of workflow "
                                     span { class: "font-mono text-[#66D8CE]", "#{parent_short}" }
-                                    " — review, retry, and merge on the parent workflow."
+                                    " — review, retry, and integrate on the parent workflow."
                                 }
                                 button {
                                     r#type: "button",
@@ -1780,16 +1780,16 @@ pub(crate) fn TaskInspector(
                                         button {
                                             class: "cf-action-btn rounded px-3.5 py-2 text-xs disabled:opacity-45",
                                             disabled: busy || !has_actor,
-                                            title: "Create an isolated Git worktree & branch so merge works even if your main checkout has uncommitted WIP",
+                                            title: "Create an isolated Git worktree and branch for the unstaged changes, so integration works even if your main checkout has uncommitted work",
                                             onclick: move |_| on_prepare_integration.call("worktree".to_string()),
-                                            if busy { "Preparing…" } else { "Prepare Worktree Merge" }
+                                            if busy { "Preparing…" } else { "Prepare Worktree Integration" }
                                         }
                                         button {
                                             class: "rounded px-3.5 py-2 text-xs font-semibold border border-[#202D3A] bg-[#111A26] hover:bg-[#202D3A]/70 text-[#F2F5F7] disabled:opacity-45",
                                             disabled: busy || !has_actor,
                                             title: "Prepare unstaged changes directly in the repository checkout (requires a clean checkout)",
                                             onclick: move |_| on_prepare_integration.call("checkout".to_string()),
-                                            if busy { "Preparing…" } else { "Prepare Direct Merge" }
+                                            if busy { "Preparing…" } else { "Prepare Checkout Integration" }
                                         }
                                     }
                                 }
@@ -1959,7 +1959,7 @@ fn IntegrationActionCard(
                         span { class: "font-semibold text-emerald-300", "✓ Accepted by {rev}" }
                         span { class: "text-[#8D9DAD]", "·" }
                     }
-                    span { class: "font-semibold {status_cls}", "Merge plan: {plan.status}" }
+                    span { class: "font-semibold {status_cls}", "Integration plan: {plan.status}" }
                     span {
                         class: if is_worktree { "px-2 py-0.5 rounded bg-sky-950/60 border border-sky-700/50 text-sky-300 font-semibold" } else { "px-2 py-0.5 rounded bg-[#111A26] border border-[#202D3A] text-[#8D9DAD]" },
                         if is_worktree { "Worktree" } else { "Main Checkout" }
@@ -1976,7 +1976,7 @@ fn IntegrationActionCard(
                                 class: "rounded px-3 py-1.5 text-xs font-medium border border-[#202D3A] bg-[#111A26] hover:bg-[#202D3A]/60 text-[#F2F5F7] disabled:opacity-45",
                                 disabled: busy || !has_actor,
                                 onclick: move |_| on_prepare_integration.call("checkout".to_string()),
-                                "Switch to Direct Checkout"
+                                "Switch to Checkout"
                             }
                         } else {
                             button {

@@ -3904,7 +3904,7 @@ fn WorkflowIntake(
                                             checked: require_clean_checkout(),
                                             onchange: move |e| require_clean_checkout.set(e.checked()),
                                         }
-                                        span { title: "Require a clean Git checkout before creating, approving, or running tasks (uncheck to allow WIP and merge via Worktree)", "Require clean repo" }
+                                        span { title: "Require a clean Git checkout before creating, approving, or running tasks (uncheck to allow uncommitted work and integrate through a worktree)", "Require clean repo" }
                                     }
                                     if config.is_bearer() {
                                         label { r#for: "dispatch_low_spec_cb", class: "flex items-center gap-2 min-h-10 text-xs text-neutral-400 cursor-pointer px-1",
@@ -3967,7 +3967,7 @@ fn WorkflowIntake(
                                         }
                                         if require_clean_checkout() && !st.clean {
                                             p { class: "w-full text-[11px] text-red-300",
-                                                "Clean repo required: commit or stash these changes before creating/running work, or uncheck 'Require clean repo' to merge via a Worktree later."
+                                                "Clean repo required: commit or stash these changes before creating/running work, or uncheck 'Require clean repo' to integrate through a worktree later."
                                             }
                                         }
                                     }

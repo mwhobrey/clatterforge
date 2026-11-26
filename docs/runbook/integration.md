@@ -19,7 +19,7 @@ Integration applies the exact accepted candidate as **unstaged changes**. To kee
 - **Checkout** (the default): the assigned source checkout, which must be clean.
 - **Worktree**: a new Git worktree under the forge's state folder, on a new branch `conductor/integrate-<task id prefix>` (made unique if taken) started from the recorded base. Your own checkout is untouched. The target cannot change once a plan has been applied.
 
-In the desktop, select the accepted parent, enter the operator name, and choose **Prepare Direct Merge** (checkout) or **Prepare Worktree Merge** (worktree); neither performs a Git merge. Review the destination, branch/base and every listed create/update/delete. **Apply Unstaged to Repo** or **Apply Unstaged to Worktree** submits the exact plan digest and revision. The displayed integration status must reach `applied`; task status remains the historical `accepted` result.
+In the desktop, select the accepted parent, enter the operator name, and choose **Prepare Checkout Integration** or **Prepare Worktree Integration**. Preparing only builds the plan; nothing is written yet. Review the destination, branch/base and every listed create/update/delete. **Apply Unstaged to Repo** or **Apply Unstaged to Worktree** submits the exact plan digest and revision. The displayed integration status must reach `applied`; task status remains the historical `accepted` result.
 
 ```powershell
 clatterforge integration-prepare TASK --by "Your name"            # add --worktree for the worktree target
