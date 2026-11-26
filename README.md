@@ -17,7 +17,7 @@ Coding agents are fast and confidently wrong often enough that you want a record
 - **Approval binds to an exact assignment.** Scope, worker, verifier and limits are approved together, and the approval is tied to that revision. Change anything and it needs a new one.
 - **Runs are supervised.** Workers run as owned process trees with timeouts, cancellation and a global stop. A crash leaves the task marked unknown with its evidence; it is never silently rerun.
 - **Verification is independent.** A separate verifier decides pass or fail. What the agent claims about its own work is recorded, never trusted as proof.
-- **Integration is a separate step.** An accepted change is applied to your checkout explicitly, or delivered as a branch and pull request.
+- **Integration is a separate step.** You apply an accepted change as unstaged edits (from the desktop, API or CLI), or deliver it as a commit on a new branch, optionally pushed as a pull request (CLI). Neither happens automatically.
 
 What it does **not** do matters as much: a worktree isolates Git changes, not processes, and the coding CLIs still run with your account, profile and network. The [security boundaries](SECURITY.md) spell out exactly what is and isn't enforced.
 
@@ -27,7 +27,7 @@ What it does **not** do matters as much: a worktree isolates Git changes, not pr
 2. **Approval.** You approve one assignment. In a multi-step workflow, a local model (for example Gemma via Ollama) picks which approved worker runs next; it can only choose from what you approved.
 3. **Supervised run.** Cursor or Codex works in an isolated worktree under the forge's process supervision.
 4. **Review.** You get the candidate diff, logs and the verifier's result. Review comments feed the next repair round.
-5. **Integration.** Apply the accepted candidate, or hand it off as a branch and pull request.
+5. **Integration.** Apply the accepted candidate as unstaged changes, or deliver it as a branch and pull request; see [integration](docs/runbook/integration.md).
 
 The desktop app, an authenticated HTTP API and an MCP server all drive the same task lifecycle. Edge clients ("Sparks") on other machines connect to one main forge, which alone holds state and policy.
 
@@ -43,7 +43,7 @@ Download the installer for your platform from the [latest release](../../release
 | Linux x86_64 | `Clatterforge_<version>_amd64.AppImage` | Single file, updates itself. |
 | Debian / Ubuntu | `Clatterforge_<version>_amd64.deb` | No update channel yet (no apt repository): install each new release yourself. |
 
-The Windows, macOS and AppImage builds update themselves from signed releases. Your state lives outside the install folder, so updates and uninstalls leave it alone.
+The Windows, macOS and AppImage builds update themselves; every update is signed and verified before it installs. Only the macOS builds are code-signed. Your state lives outside the install folder, so updates and uninstalls leave it alone.
 
 **To run real work you also need:**
 
@@ -67,7 +67,7 @@ On Windows, `scripts/demo.ps1` creates a throwaway repository, runs one task wit
 
 ## Status
 
-This is an **alpha**. Working today: the main forge on Windows, macOS and Linux with signed self-updating installers; Linux edge clients; the web client; the HTTP and MCP interfaces; and an optional verifier sandbox (Docker, or a Windows AppContainer). Still in progress: Windows and Linux code signing, guided onboarding, and automatic recovery. The [release notes](docs/RELEASE.md) track the remaining gates.
+This is an **alpha**. Working today: the main forge on Windows, macOS and Linux, with installers whose updates are signed and verified (macOS builds are also code-signed and notarized); Linux edge clients; the web client; the HTTP and MCP interfaces; and an optional verifier sandbox (Docker, or a Windows AppContainer). Still in progress: Windows and Linux code signing, guided onboarding, and automatic recovery. The [release notes](docs/RELEASE.md) track the remaining gates.
 
 ## Documentation
 
