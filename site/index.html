@@ -23,10 +23,11 @@
       <span class="brand-name">Clatterforge</span>
     </a>
     <nav aria-label="Sections">
-      <a href="#routing"><b>01</b> Routing</a>
-      <a href="#tolerances"><b>02</b> Tolerances</a>
-      <a href="#assembly"><b>03</b> Assembly</a>
-      <a href="#parts"><b>04</b> Parts</a>
+      <a href="#exhibit"><b>01</b> Exhibit</a>
+      <a href="#routing"><b>02</b> Routing</a>
+      <a href="#tolerances"><b>03</b> Tolerances</a>
+      <a href="#assembly"><b>04</b> Assembly</a>
+      <a href="#parts"><b>05</b> Parts</a>
       <a href="{{REPO}}" class="nav-src">Source ↗</a>
     </nav>
   </header>
@@ -59,13 +60,54 @@
       <tr><th>Drawing</th><td colspan="3">CF-0001 · Clatterforge forge</td></tr>
       <tr><th>Rev</th><td>{{VERSION}}</td><th>Status</th><td class="tb-alpha">Alpha</td></tr>
       <tr><th>Runs on</th><td colspan="3">Windows · macOS · Linux</td></tr>
-      <tr><th>License</th><td>Apache-2.0</td><th>Sheet</th><td>1 of 4</td></tr>
+      <tr><th>License</th><td>Apache-2.0</td><th>Sheet</th><td>1 of 5</td></tr>
     </table>
+  </section>
+
+  <section class="part" id="exhibit">
+    <header class="part-head">
+      <p class="part-no">Sheet 01</p>
+      <h2>Exhibit</h2>
+      <p class="part-sub">The app itself, not a mock-up. Real screenshots of Clatterforge v0.1.0 working on a demo repository.</p>
+    </header>
+
+    <figure class="fig fig-main">
+      <div class="fig-frame">
+        <img src="shots/review.png" width="1392" height="637" alt="Clatterforge review screen: a task list on the left with tasks marked Needs Review and Needs Approval; on the right the selected task, Add retry with exponential backoff to the HTTP client, with its diff, Accept Changes and Reject buttons, and one execution attempt marked passed.">
+        <span class="balloon b1" aria-hidden="true">1</span>
+        <span class="balloon b2" aria-hidden="true">2</span>
+        <span class="balloon b3" aria-hidden="true">3</span>
+        <span class="balloon b4" aria-hidden="true">4</span>
+        <span class="balloon b5" aria-hidden="true">5</span>
+      </div>
+      <figcaption>
+        <p class="fig-no">Fig. 1 · Review</p>
+        <ol class="legend">
+          <li>The board: everything waiting on you, by state.</li>
+          <li>Status, task, repository and branch.</li>
+          <li>The diff exactly as the worker produced it, in its own worktree.</li>
+          <li>Accept or reject. Nothing lands in your checkout until you do.</li>
+          <li>Each attempt and the independent verifier's result.</li>
+        </ol>
+      </figcaption>
+    </figure>
+
+    <div class="fig-row">
+      <figure class="fig">
+        <div class="fig-frame"><img src="shots/approval.png" width="1392" height="468" alt="Approval panel for the task Document the public client API, with Approve and Run, Approve Only and Cancel, noting the run happens in an isolated worktree." loading="lazy"></div>
+        <figcaption><p class="fig-no">Fig. 2 · Approval</p><p>Nothing runs until you approve the assignment, and it runs in an isolated worktree.</p></figcaption>
+      </figure>
+      <figure class="fig">
+        <div class="fig-frame"><img src="shots/provenance.png" width="938" height="381" alt="Provenance and scope record: task ID, repository, branch, worktree, agent, approver, assignment and evidence digests, and the editable file scope." loading="lazy"></div>
+        <figcaption><p class="fig-no">Fig. 3 · Provenance</p><p>Every task keeps who approved what, against which assignment, with which evidence.</p></figcaption>
+      </figure>
+    </div>
+    <p class="margin-note"><span>Note</span> The worker in these screenshots is the built-in deterministic test worker (<code>fake-process-v1</code>), so the demo runs anywhere. In use it is a Codex or Cursor CLI.</p>
   </section>
 
   <section class="part" id="routing">
     <header class="part-head">
-      <p class="part-no">Sheet 01</p>
+      <p class="part-no">Sheet 02</p>
       <h2>Routing sheet</h2>
       <p class="part-sub">Every change travels the same route. Each operation leaves a record you can inspect.</p>
     </header>
@@ -116,7 +158,7 @@
 
   <section class="part" id="tolerances">
     <header class="part-head">
-      <p class="part-no">Sheet 02</p>
+      <p class="part-no">Sheet 03</p>
       <h2>Tolerances</h2>
       <p class="part-sub">What the forge holds, and what it does not. Agent tooling tends to blur this line; here it is in writing.</p>
     </header>
@@ -136,7 +178,7 @@
 
   <section class="part" id="assembly">
     <header class="part-head">
-      <p class="part-no">Sheet 03</p>
+      <p class="part-no">Sheet 04</p>
       <h2>Assembly</h2>
       <p class="part-sub">One forge holds the state and the policy. Other machines connect to it.</p>
     </header>
@@ -167,7 +209,7 @@
 
   <section class="part" id="parts">
     <header class="part-head">
-      <p class="part-no">Sheet 04</p>
+      <p class="part-no">Sheet 05</p>
       <h2>Parts list <span class="rev">rev {{VERSION}}</span></h2>
       <p class="part-sub">Every build updates itself from signed releases. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
     </header>
