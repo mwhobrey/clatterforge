@@ -222,7 +222,7 @@
     <header class="part-head">
       <p class="part-no">Sheet 05</p>
       <h2>Parts list <span class="rev">rev {{VERSION}}</span></h2>
-      <p class="part-sub">The Windows, macOS and AppImage builds update themselves from signed releases; the <code>.deb</code> has no update channel yet, so install each new release yourself. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
+      <p class="part-sub">The Windows, macOS and AppImage builds update themselves, and every update is signed and verified before it installs; the <code>.deb</code> has no update channel yet, so install each new release yourself. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
     </header>
     <table class="bom">
       <thead>
@@ -233,7 +233,7 @@
           <td class="item">1</td>
           <th scope="row">Windows <small>x64</small></th>
           <td data-label="Part"><code>Clatterforge_{{VERSION}}_x64-setup.exe</code></td>
-          <td data-label="Finish" class="finish raw">Unsigned. SmartScreen warns on first run.</td>
+          <td data-label="Finish" class="finish raw">Not code-signed yet: SmartScreen warns on first run</td>
           <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_x64-setup.exe">Download</a></td>
         </tr>
         <tr>
