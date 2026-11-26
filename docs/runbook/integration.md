@@ -14,7 +14,7 @@ An accepted workflow or direct CLI-agent result leaves the forge only through on
 
 ## Source integration: prepare and apply
 
-Integration applies the exact accepted candidate as **unstaged changes**. Review and commit them through the repository's normal Git workflow. It has two targets:
+Integration applies the exact accepted candidate as **unstaged changes**. To keep work from starting on a dirty checkout at all, enable **Require clean repo** on the profile or dispatch form (`require_clean_checkout`); it blocks create, approve, run and retry while the checkout has uncommitted or untracked changes. Review and commit them through the repository's normal Git workflow. It has two targets:
 
 - **Checkout** (the default): the assigned source checkout, which must be clean.
 - **Worktree**: a new Git worktree under the forge's state folder, on a new branch `conductor/integrate-<task id prefix>` (made unique if taken) started from the recorded base. Your own checkout is untouched. The target cannot change once a plan has been applied.
