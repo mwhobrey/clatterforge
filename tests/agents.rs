@@ -938,7 +938,7 @@ fn real_process_kill_leaves_a_dead_owner_and_reconcile_recovers_without_replay()
         .unwrap();
 
     let agents = Agents::open(&state).unwrap();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let active = loop {
         let current = agents.task(&task_id).unwrap();
         if current.status == AgentStatus::Running && current.owner.is_some() {
@@ -1014,7 +1014,7 @@ fn reconcile_refuses_a_task_whose_owner_is_still_alive() {
 
     let watcher = Agents::open(&state).unwrap();
     let task_id = approved.id.clone();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let active = loop {
         let current = watcher.task(&task_id).unwrap();
         if current.status == AgentStatus::Running && current.owner.is_some() {
@@ -1149,7 +1149,7 @@ fn shared_service_cancel_reaches_a_running_agent_task() {
 
     let task_id = approved.id.clone();
     let watcher = Agents::open(&state).unwrap();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let active = loop {
         let current = watcher.task(&task_id).unwrap();
         if current.status == AgentStatus::Running && current.owner.is_some() {
@@ -1219,7 +1219,7 @@ fn real_global_stop_cli_terminates_a_genuinely_hanging_verifier() {
     // before invoking the real global-stop entry point, rather than
     // guessing a sleep duration.
     let watcher = Agents::open(&state).unwrap();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let current = watcher.task(&task_id).unwrap();
         if current.status == AgentStatus::Verifying && current.owner.is_some() {
@@ -1431,7 +1431,7 @@ fn acknowledging_a_quarantined_agent_lease_unblocks_a_fresh_dispatch_without_rep
         .unwrap();
 
     let agents = Agents::open(&state).unwrap();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let current = agents.task(&crashed_id).unwrap();
         if current.status == AgentStatus::Running && current.owner.is_some() {
@@ -1864,7 +1864,7 @@ fn real_process_kill_leaves_a_dead_codex_owner_and_reconcile_recovers_without_re
         .unwrap();
 
     let agents = Agents::open(&state).unwrap();
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let active = loop {
         let current = agents.task(&task_id).unwrap();
         if current.status == AgentStatus::Running && current.owner.is_some() {

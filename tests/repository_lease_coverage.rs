@@ -110,7 +110,7 @@ fn create_and_approve(
 /// active attempt to cancel", not a race this test should paper over
 /// with a blind sleep).
 fn await_running(state: &Path, id: &str) {
-    let until = Instant::now() + Duration::from_secs(8);
+    let until = Instant::now() + Duration::from_secs(30);
     loop {
         let current = Store::open(state).unwrap().task(id).unwrap();
         if current.status == clatterforge::store::Status::Running {

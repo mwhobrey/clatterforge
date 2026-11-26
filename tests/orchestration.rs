@@ -534,7 +534,9 @@ fn start_cli(state: &Path, task: &Task) -> OwnedCli {
     )
 }
 fn await_generation(o: &Orchestrator, id: &str, server: &Server) -> Task {
-    let until = Instant::now() + Duration::from_secs(8);
+    // The CLI child prepares a Git worktree before generating; a cold Windows CI runner
+    // has needed more than 8 s for that.
+    let until = Instant::now() + Duration::from_secs(30);
     loop {
         let t = o.task(id).unwrap();
         if t.status == Status::Generating && !server.requests.lock().unwrap().is_empty() {

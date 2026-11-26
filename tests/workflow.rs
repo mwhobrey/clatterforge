@@ -1437,7 +1437,7 @@ fn cancelling_during_local_planning_stops_before_any_cli_dispatch() {
     let revision = f.workflow.revision;
     let runner =
         thread::spawn(move || Workflows::open(&state).unwrap().run(&id, revision).unwrap());
-    let until = Instant::now() + Duration::from_secs(8);
+    let until = Instant::now() + Duration::from_secs(30);
     while model.requests.lock().unwrap().is_empty() {
         assert!(Instant::now() < until);
         thread::sleep(Duration::from_millis(10));
@@ -1478,7 +1478,7 @@ fn owner_crash_marks_workflow_unknown_and_never_replays_the_model_or_worker() {
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    let until = Instant::now() + Duration::from_secs(8);
+    let until = Instant::now() + Duration::from_secs(30);
     while model.requests.lock().unwrap().is_empty() {
         assert!(Instant::now() < until);
         thread::sleep(Duration::from_millis(10));
