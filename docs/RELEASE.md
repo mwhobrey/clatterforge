@@ -33,17 +33,16 @@ These are separate obligations; none is complete.
 
 ## Every release
 
-1. Bump `version` in `gui/src-tauri/tauri.conf.json`, merge it, and confirm CI is green on `main`.
+1. Prepare the release change: bump `version` in `gui/src-tauri/tauri.conf.json` and, if dependencies changed, regenerate the [third-party notices](../THIRD_PARTY_NOTICES.md) with `python scripts/collect-third-party-notices.py`. Commit both together, merge, and confirm CI is green on `main`. The notices must be in the tagged source, so they come before the tag.
 2. Push the tag `v<version>`. The release workflow builds every platform and creates a **draft** release; nothing is public yet.
 3. Install the draft's artifacts and run the installed-artifact smoke test against each one before publishing. Building, generating an installer and installing it do not show the app works.
-4. If dependencies changed, regenerate the [third-party notices](../THIRD_PARTY_NOTICES.md) with `python scripts/collect-third-party-notices.py`.
-5. Publish the draft. That makes `releases/latest/download/latest.json` live for installed apps.
+4. Publish the draft. That makes `releases/latest/download/latest.json` live for installed apps.
 
 The [packaging runbook](runbook/packaging.md) describes the workflow, its required secrets and local builds.
 
 ## Installed-artifact smoke test
 
-`scripts/release/smoke-installed.py --app <installed desktop executable>` launches the installed app against a throwaway state folder and checks three things: the bundled backend starts and enforces its token, the frontend initializes and reaches the backend, and one UI interaction (opening the Verifier Sandbox panel, which loads its settings from the backend) works. It exits non-zero on any failure and can write a JSON report.
+`python scripts/release/smoke-installed.py --app <installed desktop executable>` (use `python3` where `python` is not Python 3) launches the installed app against a throwaway state folder and checks three things: the bundled backend starts and enforces its token, the frontend initializes and reaches the backend, and one UI interaction (opening the Verifier Sandbox panel, which loads its settings from the backend) works. It exits non-zero on any failure and can write a JSON report.
 
 - **Windows:** the checks run inside the app's own WebView2 window through a DevTools port, so a missing WebView runtime or a window that fails to load its interface fails the test.
 - **Linux and macOS:** their native webviews cannot be driven this way. Pass `--browser <Chromium>` to run the frontend and interaction checks against the installed UI bundle served by the installed backend. That proves the bundle and backend work together, not that the native window renders; confirm the window by eye until that can be automated.
