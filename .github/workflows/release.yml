@@ -161,7 +161,12 @@ jobs:
           $dest = Join-Path $env:RUNNER_TEMP 'smoke-install'
           $install = Start-Process $setup.FullName -ArgumentList @('/S', "/D=$dest") -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "installer exited $($install.ExitCode)" }
-          python scripts/release/smoke-installed.py --app (Join-Path $dest 'clatterforge-desktop.exe') --timeout 180
+          # GitHub's Windows runners never open WebView2's DevTools port, so the native window
+          # cannot be inspected here; the runner's Chrome checks the served UI instead, and the
+          # report says served-ui-fallback. The native check is done on a real desktop before
+          # publishing (docs/RELEASE.md).
+          python scripts/release/smoke-installed.py --app (Join-Path $dest 'clatterforge-desktop.exe') `
+            --browser 'C:\Program Files\Google\Chrome\Application\chrome.exe' --timeout 180
           if ($LASTEXITCODE -ne 0) { throw 'installed-artifact smoke test failed' }
       # Evidence for a failed Windows smoke test: what the runner's desktop showed, and the exact
       # installer, so it can be reproduced locally. Never named installer-*, so the release job

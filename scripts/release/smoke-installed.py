@@ -17,7 +17,10 @@ Frontend and interaction run inside the app's own WebView where one can be inspe
 Windows, WebView2 exposes a DevTools port through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS. Linux
 (WebKitGTK) and macOS (WKWebView) cannot be driven this way, so there the same checks run
 against the installed UI bundle as served by the installed backend, in headless Chromium given
-with --browser, and the report says "served-ui" instead of "native-webview". A missing or
+with --browser, and the report says "served-ui" instead of "native-webview".
+On Windows, --browser also enables a fallback for environments whose WebView2 never opens its
+DevTools port (GitHub's Windows runners): the report then says "served-ui-fallback" with
+"native_inspectable": false, and the native window still needs checking on a real desktop. A missing or
 unusable WebView runtime fails the native check: the backend only starts after the window does.
 
 This is not real-provider acceptance and not independent validation; it proves the installed
@@ -270,7 +273,8 @@ def stop(process):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--app', required=True, type=Path, help='installed desktop executable')
-    parser.add_argument('--browser', type=Path, help='Chromium for the served-UI check (Linux, macOS)')
+    parser.add_argument('--browser', type=Path, help='Chromium for the served-UI check (Linux, macOS), '
+                        'and on Windows the fallback when the native WebView cannot be inspected')
     parser.add_argument('--timeout', type=int, default=90)
     parser.add_argument('--json', type=Path, help='also write the report here')
     args = parser.parse_args()
@@ -303,25 +307,13 @@ def main():
                                  'desktop session, check for a WebView runtime error dialog',
                                  'app_running': process.poll() is None}
 
-        if native:
-            report['mode'] = 'native-webview'
-            target = page_target(devtools_port, deadline)
-            if not target:
-                report['frontend'] = {'ok': False, 'detail': 'the app WebView exposed no page',
-                                      'diagnostics': windows_webview_diagnostics(process, devtools_port)}
-                report['interact'] = {'ok': False, 'detail': 'skipped: no WebView page'}
-            else:
-                ui_checks(DevTools(target), deadline, report)
-        elif not port:
-            report['mode'] = 'served-ui'
-            report['frontend'] = {'ok': False, 'detail': 'skipped: no backend to serve the UI'}
-            report['interact'] = {'ok': False, 'detail': 'skipped: no backend to serve the UI'}
-        elif not args.browser:
-            report['mode'] = 'served-ui'
-            report['frontend'] = {'ok': False, 'detail': 'pass --browser to check the UI on this platform'}
-            report['interact'] = {'ok': False, 'detail': 'skipped: no browser'}
-        else:
-            report['mode'] = 'served-ui'
+        def served_ui_checks(mode):
+            nonlocal browser
+            report['mode'] = mode
+            if not port:
+                report['frontend'] = {'ok': False, 'detail': 'skipped: no backend to serve the UI'}
+                report['interact'] = {'ok': False, 'detail': 'skipped: no backend to serve the UI'}
+                return
             browser_port = free_port()
             profile = state / 'browser-profile'  # removed with the throwaway state
             browser = subprocess.Popen(
@@ -329,12 +321,42 @@ def main():
                  f'--remote-debugging-port={browser_port}', f'--user-data-dir={profile}',
                  f'http://127.0.0.1:{port}/#token={token}'],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-            target = page_target(browser_port, deadline, prefer=f'http://127.0.0.1:{port}')
+            target = page_target(browser_port, time.time() + args.timeout, prefer=f'http://127.0.0.1:{port}')
             if target:
-                ui_checks(DevTools(target), deadline, report)
+                ui_checks(DevTools(target), time.time() + args.timeout, report)
             else:
                 report['frontend'] = {'ok': False, 'detail': 'browser exposed no page'}
                 report['interact'] = {'ok': False, 'detail': 'skipped: no browser page'}
+
+        if native:
+            report['mode'] = 'native-webview'
+            # With a fallback browser, give the native window a bounded wait so the fallback
+            # still has time; without one, the native check is all there is.
+            native_deadline = min(deadline, time.time() + 60) if args.browser else deadline
+            target = page_target(devtools_port, native_deadline)
+            if target:
+                report['native_inspectable'] = True
+                ui_checks(DevTools(target), deadline, report)
+            else:
+                diagnostics = windows_webview_diagnostics(process, devtools_port)
+                report['native_inspectable'] = False
+                report['native_diagnostics'] = diagnostics
+                if args.browser:
+                    # Some environments (GitHub's Windows runners) never open WebView2's
+                    # DevTools port. Fall back to the served UI and say so: this does not show
+                    # that the native window renders, which must then be checked on a real
+                    # Windows desktop.
+                    served_ui_checks('served-ui-fallback')
+                else:
+                    report['frontend'] = {'ok': False, 'detail': 'the app WebView exposed no page',
+                                          'diagnostics': diagnostics}
+                    report['interact'] = {'ok': False, 'detail': 'skipped: no WebView page'}
+        elif not args.browser:
+            report['mode'] = 'served-ui'
+            report['frontend'] = {'ok': False, 'detail': 'pass --browser to check the UI on this platform'}
+            report['interact'] = {'ok': False, 'detail': 'skipped: no browser'}
+        else:
+            served_ui_checks('served-ui')
     finally:
         if browser:
             stop(browser)
