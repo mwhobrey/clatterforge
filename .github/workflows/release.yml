@@ -80,7 +80,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libxdo-dev \
-            libssl-dev libayatana-appindicator3-dev librsvg2-dev build-essential file xdg-utils
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev build-essential file xdg-utils xvfb
       - name: Rust toolchain
         shell: bash
         run: |
@@ -151,6 +151,34 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VERSION: ${{ needs.check.outputs.version }}
         run: sh scripts/release/build-installer.sh --out-dir dist/release --notes "Clatterforge $VERSION"
+      # Installing is not evidence the app works: install what was just built and smoke-test it
+      # (backend, frontend, one UI interaction) before anything is uploaded. See docs/RELEASE.md.
+      - name: Smoke-test the installed Windows app
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/release -Filter '*-setup.exe' | Select-Object -First 1
+          $dest = Join-Path $env:RUNNER_TEMP 'smoke-install'
+          $install = Start-Process $setup.FullName -ArgumentList @('/S', "/D=$dest") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "installer exited $($install.ExitCode)" }
+          python scripts/release/smoke-installed.py --app (Join-Path $dest 'clatterforge-desktop.exe') --timeout 180
+          if ($LASTEXITCODE -ne 0) { throw 'installed-artifact smoke test failed' }
+      - name: Smoke-test the installed Linux app
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get install -y ./dist/release/*.deb
+          xvfb-run -a dbus-run-session -- python3 scripts/release/smoke-installed.py \
+            --app /usr/bin/clatterforge-desktop --browser "$(command -v google-chrome)" --timeout 180
+      - name: Smoke-test the installed macOS app
+        if: startsWith(matrix.name, 'macos')
+        run: |
+          mount=$(mktemp -d)
+          hdiutil attach dist/release/*.dmg -nobrowse -readonly -mountpoint "$mount"
+          cp -R "$mount"/*.app "$RUNNER_TEMP/"
+          hdiutil detach "$mount"
+          app=$(find "$RUNNER_TEMP" -maxdepth 1 -name '*.app' | head -n 1)
+          python3 scripts/release/smoke-installed.py --app "$app/Contents/MacOS/clatterforge-desktop" \
+            --browser "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --timeout 180
       - name: Name this platform's manifest
         shell: bash
         run: mv dist/release/latest.json "dist/release/latest-${{ matrix.name }}.json"
