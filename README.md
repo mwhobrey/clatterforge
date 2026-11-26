@@ -2,7 +2,7 @@
 
 **Coding agents, on a short and well-documented leash.**
 
-Clatterforge is a local-first forge for coding agents. You approve the scope. Local workers (the Cursor and Codex CLIs you already use, routed by a local model) write the change in an isolated Git worktree. You review the diff and an independent verifier's evidence. Nothing touches your checkout until you integrate it.
+Clatterforge is a local-first forge for coding agents. You approve the scope. Local workers (the Cursor and Codex CLIs you already use, routed by a local model) write the change in their own Git worktree, not your checkout. You review the diff and an independent verifier's evidence, and the forge applies nothing to your checkout until you accept it.
 
 ![The Clatterforge review screen: a task board on the left and, on the right, a task's diff with Accept and Reject and its verified attempt](site/shots/review.png)
 
@@ -41,7 +41,7 @@ Download the installer for your platform from the [latest release](../../release
 | macOS, Apple silicon | `Clatterforge_<version>_aarch64.dmg` | Signed and notarized. |
 | macOS, Intel | `Clatterforge_<version>_x64.dmg` | Signed and notarized. |
 | Linux x86_64 | `Clatterforge_<version>_amd64.AppImage` | Single file, updates itself. |
-| Debian / Ubuntu | `Clatterforge_<version>_amd64.deb` | Updates through your package manager. |
+| Debian / Ubuntu | `Clatterforge_<version>_amd64.deb` | No update channel yet (no apt repository): install each new release yourself. |
 
 The Windows, macOS and AppImage builds update themselves from signed releases. Your state lives outside the install folder, so updates and uninstalls leave it alone.
 

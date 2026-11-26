@@ -48,7 +48,7 @@ It needs Tauri's Linux build dependencies, `tauri-cli`, `dioxus-cli` and the `wa
 
 - **Layout:** the `.deb` installs `/usr/bin/clatterforge-desktop`, the backend as `/usr/bin/clatterforge` and the UI under `/usr/lib/Clatterforge/ui`, and depends on `libwebkit2gtk-4.1-0` and `libgtk-3-0`. The AppImage carries the same tree.
 - **State:** `$XDG_DATA_HOME/clatterforge/state` (default `~/.local/share/clatterforge/state`); `CLATTERFORGE_STATE` overrides it. Removing the package leaves it.
-- **Updates:** only the AppImage updates itself (Tauri replaces the file named by `$APPIMAGE`). `.deb` installs update through the package manager. The script's `latest.json` holds only the `linux-x86_64` entry; the release workflow (#40) merges it with the Windows one.
+- **Updates:** only the AppImage updates itself (Tauri replaces the file named by `$APPIMAGE`). `.deb` installs have no update channel yet (no apt repository is published), so users install each new release themselves. The script's `latest.json` holds only the `linux-x86_64` entry; the release workflow (#40) merges it with the Windows one.
 
 Verified on a clean Debian 12 container as an unprivileged user under Xvfb, for the `.deb` and the extracted AppImage: the app starts its sidecar with the XDG state folder and the bundled UI, the UI is served, the API answers 200 with the token and 401 without it, and uninstalling the `.deb` keeps the state. A signed build with a throwaway key produced the AppImage `.sig` and `latest.json`. Not yet exercised: an in-place AppImage update (it needs a mounted AppImage, so a FUSE-capable desktop) and desktop integration on distributions other than Debian.
 

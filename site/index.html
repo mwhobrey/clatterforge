@@ -59,7 +59,7 @@
     </div>
 
     <div class="hero-text">
-      <p class="lede">You approve the scope. Local workers write the change in an isolated Git worktree. You review the diff and an independent verifier's evidence. <strong>Nothing touches your checkout until you integrate it.</strong></p>
+      <p class="lede">You approve the scope. Local workers write the change in their own Git worktree, not your checkout. You review the diff and an independent verifier's evidence. <strong>The forge applies nothing to your checkout until you accept it.</strong></p>
       <div class="cta">
         <a class="btn btn-primary" href="#parts">Get v{{VERSION}}</a>
         <a class="btn btn-line" href="{{REPO}}">Read the source</a>
@@ -222,7 +222,7 @@
     <header class="part-head">
       <p class="part-no">Sheet 05</p>
       <h2>Parts list <span class="rev">rev {{VERSION}}</span></h2>
-      <p class="part-sub">The Windows, macOS and AppImage builds update themselves from signed releases; the <code>.deb</code> updates through your package manager. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
+      <p class="part-sub">The Windows, macOS and AppImage builds update themselves from signed releases; the <code>.deb</code> has no update channel yet, so install each new release yourself. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
     </header>
     <table class="bom">
       <thead>
@@ -261,7 +261,7 @@
           <td class="item">5</td>
           <th scope="row">Linux <small>Debian, Ubuntu</small></th>
           <td data-label="Part"><code>Clatterforge_{{VERSION}}_amd64.deb</code></td>
-          <td data-label="Finish" class="finish">Updates through your package manager</td>
+          <td data-label="Finish" class="finish">No auto-update yet; install new releases yourself</td>
           <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_amd64.deb">Download</a></td>
         </tr>
       </tbody>
