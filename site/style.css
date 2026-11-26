@@ -9,7 +9,7 @@
   --orange: #FF754F;
   --teal: #66D8CE;
   --steel: #8D9DAD;
-  --dim: #6B7C8D;
+  --dim: #7A8B9C; /* at least 4.9:1 on every background here (WCAG AA for small text) */
   --white: #F2F5F7;
   --text: #CFD8E0;
   --mono: 'JetBrains Mono', 'Cascadia Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
@@ -52,7 +52,10 @@ h1, h2, h3 { color: var(--white); }
     background: rgba(12, 17, 24, 0.72);
     box-shadow: inset 0 0 0 6px var(--ink), inset 0 0 0 7px var(--rule);
   }
-  /* Crop marks outside the frame corners. */
+}
+/* Crop marks outside the frame corners, only when the viewport has room for them
+   (frame 1240 px + 2 x 30 px of marks), so they never cause horizontal scrolling. */
+@media (min-width: 1320px) {
   .sheet::before, .sheet::after {
     content: ""; position: absolute; width: 22px; height: 22px; pointer-events: none;
     border-color: var(--steel); border-style: solid;

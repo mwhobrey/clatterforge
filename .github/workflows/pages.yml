@@ -23,6 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # A release event would check out its tag; always build the current site from the
+          # default branch so a newer site change is never replaced by an older tagged copy.
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       # The source never names the owner or a version: links are filled in from this repository
       # and its latest published release, so download links always point at files that exist.
