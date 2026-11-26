@@ -69,6 +69,8 @@ On Windows, `scripts/demo.ps1` creates a throwaway repository, runs one task wit
 
 This is an **alpha**. Working today: the main forge on Windows, macOS and Linux, with installers whose updates are signed and verified (macOS builds are also code-signed and notarized); Linux edge clients; the web client; the HTTP and MCP interfaces; and an optional verifier sandbox (Docker, or a Windows AppContainer). Still in progress: Windows and Linux code signing, guided onboarding, and automatic recovery. The [release notes](docs/RELEASE.md) track the remaining gates.
 
+**Known issue in v0.1.0:** on Windows the app's window does not load its interface (the backend runs, the window shows a file-not-found page). Linux and macOS are not affected by the same cause. See the [release blockers](docs/RELEASE.md#release-blockers).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) and the [workflows runbook](docs/runbook/workflows.md)
