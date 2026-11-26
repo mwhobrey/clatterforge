@@ -3,66 +3,272 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clatterforge</title>
-<meta name="description" content="A local-first forge for supervised coding agents: approve the scope, let local workers do the coding, review the evidence.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>Clatterforge: supervised coding agents, on your machine</title>
+<meta name="description" content="A local-first forge for coding agents. You approve the scope, local workers write the change in an isolated Git worktree, and you review the diff and the verification evidence before anything lands.">
+<meta name="theme-color" content="#0C1118">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c2410c'/%3E%3Cpath d='M9 22h14M11 22V12h10v10M14 12V8h4v4' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="mark.svg" type="image/svg+xml">
 </head>
 <body>
-<header class="wrap top">
-  <span class="mark">Clatterforge</span>
-  <nav><a href="#how">How it works</a><a href="#safety">Safety</a><a href="#status">Status</a><a href="{{REPO}}">Source</a></nav>
-</header>
+<a class="skip" href="#main">Skip to content</a>
 
-<main>
-<section class="wrap hero">
-  <p class="eyebrow">Local-first · Apache-2.0 · Alpha</p>
-  <h1>Coding agents on a short, well-documented leash.</h1>
-  <p class="lede">Give Clatterforge an objective and approve its scope. Local workers (Cursor and Codex CLIs, routed by a local model) write the change in an isolated Git worktree. You review the diff and the verification evidence. Nothing lands in your checkout until you integrate it.</p>
-  <p class="actions">
-    <a class="button primary" href="{{REPO}}/releases/latest">Download</a>
-    <a class="button" href="{{REPO}}#readme">Build from source</a>
-  </p>
-</section>
+<div class="sheet">
+  <div class="zones zones-top" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+  <div class="zones zones-side" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span></div>
 
-<section id="how" class="wrap">
-  <h2>How it works</h2>
-  <ol class="steps">
-    <li><strong>Objective.</strong> Describe the change. The forge captures repository context and the exact base commit.</li>
-    <li><strong>Approval.</strong> You approve one assignment: its scope, worker, verifier and limits. The approval binds to that revision; any change needs a new one.</li>
-    <li><strong>Supervised run.</strong> Workers run as owned process trees with timeouts, cancellation and a global stop. A crash never replays work; it leaves evidence.</li>
-    <li><strong>Review.</strong> You get a candidate patch, logs and an independent verifier result. Agent claims are recorded, never trusted as proof.</li>
-    <li><strong>Integration.</strong> Applying an accepted candidate to your checkout is a separate, explicit step.</li>
-  </ol>
-</section>
+  <header class="masthead">
+    <a class="brand" href="#top" aria-label="Clatterforge home">
+      <img src="mark.svg" alt="" width="30" height="30">
+      <span class="brand-name">Clatterforge</span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#exhibit"><b>01</b> Exhibit</a>
+      <a href="#routing"><b>02</b> Routing</a>
+      <a href="#tolerances"><b>03</b> Tolerances</a>
+      <a href="#assembly"><b>04</b> Assembly</a>
+      <a href="#parts"><b>05</b> Parts</a>
+      <a href="{{REPO}}" class="nav-src">Source ↗</a>
+    </nav>
+  </header>
 
-<section id="safety" class="wrap">
-  <h2>Safety model</h2>
-  <div class="grid">
-    <article><h3>Worktrees isolate Git, not processes</h3><p>Each run gets its own worktree. That keeps your checkout clean; it does not sandbox the agent, and the docs say so.</p></article>
-    <article><h3>Optional verifier sandbox</h3><p>Verifiers can run in a digest-pinned Docker image or a Windows AppContainer, with isolated, network or trusted-path levels capped per preset.</p></article>
-    <article><h3>Environment allowlist</h3><p>Workers see platform and profile variables plus the names a preset lists. Tokens and keys in your shell stay out.</p></article>
-    <article><h3>One place to change settings</h3><p>Only the main forge can change policy. Sparks, the edge clients on other machines, can't widen their repository scope or raise sandbox levels.</p></article>
-  </div>
-  <p class="note">The coding CLIs themselves still run with your account, profile and network. Read the <a href="{{REPO}}/blob/main/SECURITY.md">security boundaries</a> and the <a href="{{REPO}}/blob/main/docs/runbook/sandbox.md">sandbox runbook</a> before pointing it at anything you care about.</p>
-</section>
+  <main id="main">
+  <section class="hero" id="top">
+    <div class="hero-type">
+      <p class="hero-pre">A local-first forge for coding agents</p>
+      <h1>
+        <span class="line">Control the</span>
+        <span class="line chaos"><span class="sr">chaos.</span><span aria-hidden="true">c</span><span aria-hidden="true">h</span><span aria-hidden="true">a</span><span aria-hidden="true">o</span><span aria-hidden="true">s</span><span aria-hidden="true">.</span></span>
+      </h1>
+      <div class="stamp" aria-hidden="true">
+        <span class="stamp-top">Approved</span>
+        <span class="stamp-mid">scope · rev 4</span>
+        <span class="stamp-bot">operator</span>
+      </div>
+    </div>
 
-<section id="status" class="wrap">
-  <h2>Status</h2>
-  <ul class="status">
-    <li><span class="pill ok">Available</span> Windows main forge: per-user installer with signed self-update, desktop app, HTTP and MCP interfaces.</li>
-    <li><span class="pill ok">Available</span> Linux Sparks (<code>clatterforge-edge</code>) and the web client.</li>
-    <li><span class="pill ok">Available</span> Linux main forge: AppImage (self-updating) and <code>.deb</code> builds.</li>
-    <li><span class="pill ok">Available</span> macOS main forge: signed and notarized <code>.dmg</code> for Apple silicon and Intel, self-updating.</li>
-    <li><span class="pill wip">In progress</span> Windows and Linux code signing, general onboarding.</li>
-  </ul>
-  <p>Start with the <a href="{{REPO}}/blob/main/docs/FIRST_AGENT.md">first-agent guide</a>, the <a href="{{REPO}}/blob/main/docs/ARCHITECTURE.md">architecture</a> and the <a href="{{REPO}}/blob/main/docs/runbook/00_INDEX.md">runbook</a>. Bugs and ideas go to <a href="{{REPO}}/issues">issues</a>; read <a href="{{REPO}}/blob/main/CONTRIBUTING.md">contributing</a> first.</p>
-</section>
-</main>
+    <div class="hero-text">
+      <p class="lede">You approve the scope. Local workers write the change in an isolated Git worktree. You review the diff and an independent verifier's evidence. <strong>Nothing touches your checkout until you integrate it.</strong></p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#parts">Get v{{VERSION}}</a>
+        <a class="btn btn-line" href="{{REPO}}">Read the source</a>
+      </div>
+      <p class="note">Runs the Cursor and Codex CLIs you already have, routed by a local model. No cloud service of ours in the loop.</p>
+    </div>
 
-<footer class="wrap foot">
-  <p>Clatterforge is licensed under Apache-2.0. Dependencies keep their own terms (see <a href="{{REPO}}/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a>). Models and coding CLIs are installed and licensed separately.</p>
-</footer>
+    <table class="titleblock" aria-label="Drawing title block">
+      <tr><th>Drawing</th><td colspan="3">CF-0001 · Clatterforge forge</td></tr>
+      <tr><th>Rev</th><td>{{VERSION}}</td><th>Status</th><td class="tb-alpha">Alpha</td></tr>
+      <tr><th>Runs on</th><td colspan="3">Windows · macOS · Linux</td></tr>
+      <tr><th>License</th><td>Apache-2.0</td><th>Sheet</th><td>1 of 5</td></tr>
+    </table>
+  </section>
+
+  <section class="part" id="exhibit">
+    <header class="part-head">
+      <p class="part-no">Sheet 01</p>
+      <h2>Exhibit</h2>
+      <p class="part-sub">The app itself, not a mock-up. Real screenshots of Clatterforge v0.1.0 working on a demo repository.</p>
+    </header>
+
+    <figure class="fig fig-main">
+      <div class="fig-frame">
+        <img src="shots/review.png" width="1392" height="637" alt="Clatterforge review screen: a task list on the left with tasks marked Needs Review and Needs Approval; on the right the selected task, Add retry with exponential backoff to the HTTP client, with its diff, Accept Changes and Reject buttons, and one execution attempt marked passed.">
+        <span class="balloon b1" aria-hidden="true">1</span>
+        <span class="balloon b2" aria-hidden="true">2</span>
+        <span class="balloon b3" aria-hidden="true">3</span>
+        <span class="balloon b4" aria-hidden="true">4</span>
+        <span class="balloon b5" aria-hidden="true">5</span>
+      </div>
+      <figcaption>
+        <p class="fig-no">Fig. 1 · Review</p>
+        <ol class="legend">
+          <li>The board: everything waiting on you, by state.</li>
+          <li>Status, task, repository and branch.</li>
+          <li>The diff exactly as the worker produced it, in its own worktree.</li>
+          <li>Accept or reject. Nothing lands in your checkout until you do.</li>
+          <li>Each attempt and the independent verifier's result.</li>
+        </ol>
+      </figcaption>
+    </figure>
+
+    <div class="fig-row">
+      <figure class="fig">
+        <div class="fig-frame"><img src="shots/approval.png" width="1392" height="468" alt="Approval panel for the task Document the public client API, with Approve and Run, Approve Only and Cancel, noting the run happens in an isolated worktree." loading="lazy"></div>
+        <figcaption><p class="fig-no">Fig. 2 · Approval</p><p>Nothing runs until you approve the assignment, and it runs in an isolated worktree.</p></figcaption>
+      </figure>
+      <figure class="fig">
+        <div class="fig-frame"><img src="shots/provenance.png" width="938" height="381" alt="Provenance and scope record: task ID, repository, branch, worktree, agent, approver, assignment and evidence digests, and the editable file scope." loading="lazy"></div>
+        <figcaption><p class="fig-no">Fig. 3 · Provenance</p><p>Every task keeps who approved what, against which assignment, with which evidence.</p></figcaption>
+      </figure>
+    </div>
+    <p class="margin-note"><span>Note</span> The worker in these screenshots is the built-in deterministic test worker (<code>fake-process-v1</code>), so the demo runs anywhere. In use it is a Codex or Cursor CLI.</p>
+  </section>
+
+  <section class="part" id="routing">
+    <header class="part-head">
+      <p class="part-no">Sheet 02</p>
+      <h2>Routing sheet</h2>
+      <p class="part-sub">Every change travels the same route. Each operation leaves a record you can inspect.</p>
+    </header>
+    <table class="routing">
+      <thead>
+        <tr><th scope="col">Op</th><th scope="col">Operation</th><th scope="col">Work center</th><th scope="col">What it records</th><th scope="col">Inspection</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="op">010</td>
+          <th scope="row">Objective</th>
+          <td data-label="Work center">You</td>
+          <td data-label="Records">Repository context and the exact base commit</td>
+          <td data-label="Inspection" class="insp">—</td>
+        </tr>
+        <tr>
+          <td class="op">020</td>
+          <th scope="row">Approval</th>
+          <td data-label="Work center">You</td>
+          <td data-label="Records">Scope, worker, verifier and limits, bound to one revision</td>
+          <td data-label="Inspection" class="insp sign">Signed off</td>
+        </tr>
+        <tr>
+          <td class="op">030</td>
+          <th scope="row">Supervised run</th>
+          <td data-label="Work center">Worker cell</td>
+          <td data-label="Records">Owned process tree, timeouts, logs; a crash leaves evidence, never a rerun</td>
+          <td data-label="Inspection" class="insp">—</td>
+        </tr>
+        <tr>
+          <td class="op">040</td>
+          <th scope="row">Verification</th>
+          <td data-label="Work center">Independent verifier</td>
+          <td data-label="Records">Exit code and output, separate from anything the agent claims</td>
+          <td data-label="Inspection" class="insp pass">Pass / fail</td>
+        </tr>
+        <tr>
+          <td class="op">050</td>
+          <th scope="row">Integration</th>
+          <td data-label="Work center">You</td>
+          <td data-label="Records">An explicit apply to your checkout, or a branch and pull request</td>
+          <td data-label="Inspection" class="insp sign">Your call</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="margin-note"><span>Note</span> Review comments on a candidate feed the next repair round, back through op 030.</p>
+  </section>
+
+  <section class="part" id="tolerances">
+    <header class="part-head">
+      <p class="part-no">Sheet 03</p>
+      <h2>Tolerances</h2>
+      <p class="part-sub">What the forge holds, and what it does not. Agent tooling tends to blur this line; here it is in writing.</p>
+    </header>
+    <ul class="spec">
+      <li class="held"><span class="verdict">Held</span><span>An approval binds to one exact revision of the assignment.</span></li>
+      <li class="held"><span class="verdict">Held</span><span>Workers run as owned process trees with timeouts and a global stop.</span></li>
+      <li class="held"><span class="verdict">Held</span><span>After a crash a task is reconciled as unknown. It is never silently rerun.</span></li>
+      <li class="held"><span class="verdict">Held</span><span>Verification is independent of the worker's own claims.</span></li>
+      <li class="held"><span class="verdict">Held</span><span>Workers see an allowlisted environment. Tokens in your shell stay out.</span></li>
+      <li class="held"><span class="verdict">Held</span><span>Only the main forge changes policy. Edge clients cannot widen their scope.</span></li>
+      <li class="not"><span class="verdict">Not held</span><span>A worktree isolates Git changes. It does not sandbox the agent's process.</span></li>
+      <li class="not"><span class="verdict">Not held</span><span>Coding CLIs run with your account, your profile and your network.</span></li>
+      <li class="not"><span class="verdict">Not held</span><span>Process and network limits apply only to verifiers in the optional sandbox (Docker, or a Windows AppContainer).</span></li>
+    </ul>
+    <p class="margin-note"><span>Read</span> the <a href="{{REPO}}/blob/main/SECURITY.md">security boundaries</a> and the <a href="{{REPO}}/blob/main/docs/runbook/sandbox.md">sandbox runbook</a> before pointing it at anything you care about.</p>
+  </section>
+
+  <section class="part" id="assembly">
+    <header class="part-head">
+      <p class="part-no">Sheet 04</p>
+      <h2>Assembly</h2>
+      <p class="part-sub">One forge holds the state and the policy. Other machines connect to it.</p>
+    </header>
+    <div class="assembly">
+      <div class="asm asm-main">
+        <p class="callout">A</p>
+        <h3>Main forge</h3>
+        <p>The desktop app. Owns state, approvals, supervision and policy, with HTTP and MCP interfaces over the same task lifecycle.</p>
+        <p class="asm-os">Windows · macOS · Linux</p>
+      </div>
+      <div class="asm-link" aria-hidden="true"></div>
+      <div class="asm-side">
+        <div class="asm">
+          <p class="callout">B</p>
+          <h3>Sparks <code>clatterforge-edge</code></h3>
+          <p>Edge clients on other machines, acting within the scope the forge grants.</p>
+          <p class="asm-os">Linux</p>
+        </div>
+        <div class="asm">
+          <p class="callout">C</p>
+          <h3>Web client</h3>
+          <p>The same interface served by the forge, for review from another machine.</p>
+          <p class="asm-os">Loopback by default</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="part" id="parts">
+    <header class="part-head">
+      <p class="part-no">Sheet 05</p>
+      <h2>Parts list <span class="rev">rev {{VERSION}}</span></h2>
+      <p class="part-sub">The Windows, macOS and AppImage builds update themselves from signed releases; the <code>.deb</code> updates through your package manager. State lives outside the install folder, so updates and uninstalls leave it alone.</p>
+    </header>
+    <table class="bom">
+      <thead>
+        <tr><th scope="col">Item</th><th scope="col">Platform</th><th scope="col">Part</th><th scope="col">Finish</th><th scope="col"><span class="sr">Download</span></th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="item">1</td>
+          <th scope="row">Windows <small>x64</small></th>
+          <td data-label="Part"><code>Clatterforge_{{VERSION}}_x64-setup.exe</code></td>
+          <td data-label="Finish" class="finish raw">Unsigned. SmartScreen warns on first run.</td>
+          <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_x64-setup.exe">Download</a></td>
+        </tr>
+        <tr>
+          <td class="item">2</td>
+          <th scope="row">macOS <small>Apple silicon</small></th>
+          <td data-label="Part"><code>Clatterforge_{{VERSION}}_aarch64.dmg</code></td>
+          <td data-label="Finish" class="finish ok">Signed and notarized</td>
+          <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_aarch64.dmg">Download</a></td>
+        </tr>
+        <tr>
+          <td class="item">3</td>
+          <th scope="row">macOS <small>Intel</small></th>
+          <td data-label="Part"><code>Clatterforge_{{VERSION}}_x64.dmg</code></td>
+          <td data-label="Finish" class="finish ok">Signed and notarized</td>
+          <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_x64.dmg">Download</a></td>
+        </tr>
+        <tr>
+          <td class="item">4</td>
+          <th scope="row">Linux <small>x86_64</small></th>
+          <td data-label="Part"><code>Clatterforge_{{VERSION}}_amd64.AppImage</code></td>
+          <td data-label="Finish" class="finish">One file, updates itself in place</td>
+          <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_amd64.AppImage">Download</a></td>
+        </tr>
+        <tr>
+          <td class="item">5</td>
+          <th scope="row">Linux <small>Debian, Ubuntu</small></th>
+          <td data-label="Part"><code>Clatterforge_{{VERSION}}_amd64.deb</code></td>
+          <td data-label="Finish" class="finish">Updates through your package manager</td>
+          <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_amd64.deb">Download</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="margin-note"><span>Also</span> signatures and release notes on the <a href="{{REPO}}/releases/latest">release page</a>. To build from source, start with the <a href="{{REPO}}#readme">README</a> and the <a href="{{REPO}}/blob/main/docs/FIRST_AGENT.md">first-agent guide</a>.</p>
+  </section>
+  </main>
+
+  <footer class="foot">
+    <p>Clatterforge is Apache-2.0. Dependencies keep their own terms (<a href="{{REPO}}/blob/main/THIRD_PARTY_NOTICES.md">notices</a>). Models and coding CLIs are installed and licensed separately.</p>
+    <nav aria-label="Project">
+      <a href="{{REPO}}/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+      <a href="{{REPO}}/blob/main/docs/runbook/00_INDEX.md">Runbook</a>
+      <a href="{{REPO}}/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="{{REPO}}/issues">Issues</a>
+    </nav>
+    <p class="foot-mark">CF // SYSTEMS · Control the chaos.</p>
+  </footer>
+</div>
 </body>
 </html>
