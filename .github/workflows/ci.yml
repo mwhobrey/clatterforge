@@ -98,6 +98,7 @@ jobs:
         run: |
           python3 scripts/test-check-privacy.py
           python3 scripts/check-privacy.py --history
+          python3 scripts/test-check-doc-claims.py
           python3 scripts/check-doc-claims.py
       - run: rustup toolchain install 1.90.0 --profile minimal
       - run: cargo +1.90.0 install cargo-audit --version 0.22.2 --locked

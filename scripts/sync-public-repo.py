@@ -199,6 +199,10 @@ def main():
                       help='push every pending change straight to main instead of opening a PR')
     mode.add_argument('--bundle', action='store_true',
                       help='open one PR carrying every pending change, one commit each')
+    parser.add_argument('--skip', action='append', default=[], metavar='SHA',
+                        help='record a development commit as unpublished without exporting it; only '
+                             'for a change reverted later in the pending range, since each later '
+                             'commit is exported as a full tree')
     args = parser.parse_args()
     clone = args.clone.resolve()
     args.privacy_policy = args.privacy_policy.resolve()
@@ -230,7 +234,15 @@ def main():
     work = Path(tempfile.mkdtemp(prefix='public-sync-'))
     published = []
     try:
+        skip = {git(ROOT, 'rev-parse', sha).strip() for sha in args.skip}
+        unknown = skip - set(pending)
+        if unknown:
+            raise RuntimeError(f'--skip commits are not pending: {sorted(s[:7] for s in unknown)}')
         for sha in pending:
+            if sha in skip:
+                print(f'{sha[:7]}: skipped by --skip, recorded as unpublished')
+                published.append({'dev': sha, 'public': None})
+                continue
             worktree, export = work / f'wt-{sha[:12]}', work / f'export-{sha[:12]}'
             git(ROOT, 'worktree', 'add', '-q', '--detach', str(worktree), sha)
             try:

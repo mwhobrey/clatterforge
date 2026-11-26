@@ -39,6 +39,37 @@ MAINTAINED = [
 ]
 
 
+def normalized(text):
+    """Lower-cased text with every whitespace run (including line breaks) collapsed to one
+    space, plus the source line each character came from, so a claim wrapped across lines is
+    still found and reported at the line where it starts."""
+    chars, lines, line, in_space = [], [], 1, False
+    for ch in text:
+        if ch.isspace():
+            if not in_space:
+                chars.append(' ')
+                lines.append(line)
+                in_space = True
+            if ch == '\n':
+                line += 1
+            continue
+        lower = ch.lower()
+        chars.append(lower if len(lower) == 1 else ch)
+        lines.append(line)
+        in_space = False
+    return ''.join(chars), lines
+
+
+def findings(name, text):
+    flat, lines = normalized(text)
+    for phrase, now in RETIRED:
+        needle = ' '.join(phrase.lower().split())
+        start = flat.find(needle)
+        while start != -1:
+            yield f'{name}:{lines[start]}: "{phrase}" is retired ({now})'
+            start = flat.find(needle, start + 1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
@@ -49,11 +80,7 @@ def main():
         if not path.is_file():
             continue
         scanned += 1
-        for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-            lower = line.casefold()
-            for phrase, now in RETIRED:
-                if phrase.casefold() in lower:
-                    problems.append(f'{name}:{number}: "{phrase}" is retired ({now})')
+        problems.extend(findings(name, path.read_text(encoding='utf-8')))
     if problems:
         print('Retired claims found:', file=sys.stderr)
         for problem in problems:

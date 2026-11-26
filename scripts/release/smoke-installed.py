@@ -252,12 +252,16 @@ def main():
     args = parser.parse_args()
 
     state = Path(tempfile.mkdtemp(prefix='clatterforge-smoke-'))
-    report = {'app': str(args.app), 'mode': None}
+    # The file name only: a full install path can reveal a user name in shared evidence.
+    report = {'app': args.app.name, 'mode': None}
     env = {**os.environ, 'CLATTERFORGE_STATE': str(state)}
     native = os.name == 'nt'
     devtools_port = free_port()
     if native:
         env['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS'] = f'--remote-debugging-port={devtools_port}'
+        # Its own WebView2 profile: a running copy of the app holding the default profile with
+        # different browser arguments would otherwise make WebView2 refuse this instance.
+        env['WEBVIEW2_USER_DATA_FOLDER'] = str(state / 'webview2')
     deadline = time.time() + args.timeout
     process = subprocess.Popen([str(args.app)], env=env, stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL, start_new_session=not native)
@@ -294,7 +298,7 @@ def main():
         else:
             report['mode'] = 'served-ui'
             browser_port = free_port()
-            profile = tempfile.mkdtemp(prefix='clatterforge-smoke-browser-')
+            profile = state / 'browser-profile'  # removed with the throwaway state
             browser = subprocess.Popen(
                 [str(args.browser), '--headless=new', '--no-sandbox', '--disable-gpu',
                  f'--remote-debugging-port={browser_port}', f'--user-data-dir={profile}',
