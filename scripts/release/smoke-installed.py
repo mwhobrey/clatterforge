@@ -203,7 +203,7 @@ PANEL_JS = (
 CLICK_JS = (
     "(() => { const b = [...document.querySelectorAll('button')]"
     f".find(e => e.textContent.includes({json.dumps(PANEL_TEXT)}));"
-    " if (!b) return false; b.click(); return true; })()"
+    " if (!b) return false; for (let p = b.parentElement; p; p = p.parentElement) { if (p.tagName === 'DETAILS') p.open = true; } b.click(); return true; })()"
 )
 LOADED_JS = (
     "(() => { const b = [...document.querySelectorAll('button')]"

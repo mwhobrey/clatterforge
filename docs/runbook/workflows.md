@@ -4,6 +4,14 @@ Use a workflow when the user supplies an objective and Conductor should choose t
 
 New assignments use a shared Git worktree; legacy snapshot assignments retain their approved interpretation.
 
+## Safe project setup and desktop scope
+
+Onboarding protects detected acceptance tests and verifier configuration by default, excludes tests from the initial editable scope, and records up to 1,024 protected files without silently truncating the set. A task cannot edit those protected inputs. The desktop shows the exact editable and protected lists before approval.
+
+Objective matching offers file suggestions; typing an objective or acceptance criteria never changes desktop permissions. Choose suggested paths explicitly, or leave the field blank to use the project scope. Existing test edits require the onboarding **Allow edits to existing tests** option (`allow_test_edits` in HTTP, `--allow-test-edits` in CLI) and explicit editable-file selection. Tests permitted to change are not protected independent acceptance inputs; choose a separate acceptance check. Re-onboarding an older project refreshes protection and the standard reviewer contract while preserving existing task approvals.
+
+Connected desktop sessions use a compact header, a collapsible **New job** form and **Workspace settings**. The active task shows its stage/model and total elapsed job time separately from stage execution. **Accept result** does not apply a diff; application remains a separate reviewed action.
+
 ## Configure the envelope
 
 Create normal agent presets first. Each worker has a purpose and an exact editable file scope. All workers in one workflow profile must share the same checkout/base, protected sources and acceptance verifier. They can use different supported CLI adapters/models (currently Cursor and Codex). The profile pins the verifier executable and one local inference model artifact; implicit fallback is disabled.

@@ -25,6 +25,57 @@ pub(crate) fn short_id(id: &str) -> String {
     id.chars().take(8).collect()
 }
 
+fn task_title(objective: &str) -> String {
+    let line = objective.lines().next().unwrap_or_default().trim();
+    let title: String = line.chars().take(100).collect();
+    if line.chars().count() > 100 {
+        format!("{title}…")
+    } else {
+        title
+    }
+}
+
+fn active_stage_label(workflow: &WorkflowView) -> &'static str {
+    let worker = workflow.steps.last().map(|s| s.worker.as_str());
+    if workflow
+        .agentlets
+        .iter()
+        .any(|a| Some(a.worker.as_str()) == worker && a.definition.capability == "review")
+    {
+        "Reviewing candidate"
+    } else {
+        "Implementing change"
+    }
+}
+
+fn active_stage_model(workflow: &WorkflowView) -> String {
+    let worker = workflow.steps.last().map(|s| s.worker.as_str());
+    workflow
+        .decisions
+        .iter()
+        .rev()
+        .find(|d| d.decision["worker"].as_str() == worker)
+        .and_then(|d| d.decision["model"].as_str())
+        .unwrap_or("Model selected at dispatch")
+        .to_owned()
+}
+
+fn workflow_elapsed(workflow: &WorkflowView, progress: Option<&AgentProgress>) -> Option<u64> {
+    let start = workflow
+        .events
+        .iter()
+        .find(|e| e.stage == "workflow_approved" && e.at > 0)?
+        .at;
+    let latest = workflow
+        .events
+        .iter()
+        .map(|e| e.at)
+        .max()
+        .unwrap_or(start)
+        .max(progress.map_or(start, |p| p.observed_at));
+    Some(latest.saturating_sub(start))
+}
+
 pub(crate) fn repo_basename(path: &str) -> &str {
     let trimmed = path.trim_end_matches(['/', '\\']);
     trimmed
@@ -131,6 +182,8 @@ pub(crate) fn budget_label(value: &str) -> String {
         return value.into();
     };
     let label = match name {
+        "generation_alert_ms" => "Execution alert target",
+        "verification_alert_ms" => "Verification alert target",
         "generation_timeout_ms" | "timeout_ms" => "Execution hard limit",
         "verification_timeout_ms" => "Verification limit",
         "generation_idle_timeout_ms" => "Inactivity limit",
@@ -290,7 +343,7 @@ enum TimelineEntry {
         complexity: Option<String>,
         rationale: Option<String>,
         dispatched_objective: Option<String>,
-        step: Option<WorkflowStep>,
+        step: Option<Box<WorkflowStep>>,
     },
     Rejected {
         decision_num: usize,
@@ -310,6 +363,34 @@ enum TimelineEntry {
 }
 
 fn build_timeline(workflow: &WorkflowView) -> Vec<TimelineEntry> {
+    // Rewinds retain old decisions but replace steps. Their list positions no longer
+    // correspond, so bind current rows only to the authoritative current steps.
+    if !workflow.archived_steps.is_empty() {
+        return workflow
+            .steps
+            .iter()
+            .enumerate()
+            .map(|(idx, step)| {
+                let field = |key: &str| {
+                    step.result
+                        .as_ref()
+                        .and_then(|r| r.get(key))
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned)
+                };
+                TimelineEntry::Step {
+                    step_num: idx + 1,
+                    worker: step.worker.clone(),
+                    model: field("model"),
+                    tier: field("tier"),
+                    complexity: field("complexity"),
+                    rationale: None,
+                    dispatched_objective: None,
+                    step: Some(Box::new(step.clone())),
+                }
+            })
+            .collect();
+    }
     let mut entries = Vec::new();
     let mut step_cursor = 0usize;
 
@@ -338,7 +419,7 @@ fn build_timeline(workflow: &WorkflowView) -> Vec<TimelineEntry> {
 
         match action {
             "dispatch" => {
-                let step = workflow.steps.get(step_cursor).cloned();
+                let step = workflow.steps.get(step_cursor).cloned().map(Box::new);
                 if step.is_some() {
                     step_cursor += 1;
                 }
@@ -463,7 +544,7 @@ fn build_timeline(workflow: &WorkflowView) -> Vec<TimelineEntry> {
             complexity,
             rationale: None,
             dispatched_objective: None,
-            step: Some(extra.clone()),
+            step: Some(Box::new(extra.clone())),
         });
     }
 
@@ -1293,12 +1374,14 @@ pub(crate) fn TaskInspector(
     let mut selected_preview = use_signal(|| 0usize);
     let mut last_task_id = use_signal(|| task.id.clone());
     let mut retry_guidance = use_signal(String::new);
+    let mut review_action = use_signal(|| None::<bool>);
 
     if *last_task_id.read() != task.id {
         last_task_id.set(task.id.clone());
         active_tab.set(InspectorTab::Pipeline);
         selected_preview.set(0);
         retry_guidance.set(String::new());
+        review_action.set(None);
     }
 
     let is_workflow_child = task.parent_workflow_id.is_some();
@@ -1440,8 +1523,18 @@ pub(crate) fn TaskInspector(
                     }
                 }
 
-                h2 { class: "text-sm sm:text-base font-semibold text-[#F2F5F7] leading-snug break-words",
-                    "{task.objective}"
+                h2 { class: "text-base sm:text-lg font-semibold text-[#F2F5F7] leading-snug break-words",
+                    "{task_title(&task.objective)}"
+                }
+                details { class: "mt-2 text-sm text-[#8D9DAD]",
+                    summary { class: "cursor-pointer min-h-8", "Objective and acceptance criteria" }
+                    p { class: "mt-2 text-[#F2F5F7] whitespace-pre-wrap", "{task.objective}" }
+                    if let Some(wf) = &task.workflow {
+                        if !wf.acceptance.is_empty() {
+                            p { class: "mt-2 font-semibold", "Acceptance criteria" }
+                            p { class: "mt-1 text-[#F2F5F7] whitespace-pre-wrap", "{wf.acceptance}" }
+                        }
+                    }
                 }
                 if let Some(parent_id) = &task.parent_workflow_id {
                     {
@@ -1533,8 +1626,9 @@ pub(crate) fn TaskInspector(
                 }
 
                 if let Some(warn) = &task.workspace_warning {
-                    div { class: "rounded-lg border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200 break-words",
-                        "⚠ {warn}"
+                    details { class: "rounded-lg border border-amber-700/70 bg-amber-950/30 px-3 py-2 text-sm text-amber-200 break-words",
+                        summary { class: "cursor-pointer", "Native build path may be too long" }
+                        p { class: "mt-2", "{warn}" }
                     }
                 }
 
@@ -1551,7 +1645,33 @@ pub(crate) fn TaskInspector(
                 }
 
                 // 2. LIVE PROGRESS (shown cleanly only while task is actually live)
+                if needs_approval {
+                    if let Some(wf) = &task.workflow {
+                        div { class: "rounded border border-[#202D3A] p-3 text-sm",
+                            strong { "Execution scope: {task.allowed_scope.len()} editable · {wf.protected_files.len()} protected acceptance inputs" }
+                            details { class: "mt-2",
+                                summary { class: "cursor-pointer", "Inspect exact file scope" }
+                                p { class: "mt-2 font-semibold", "May edit" }
+                                for path in &task.allowed_scope { div { class: "font-mono text-xs", "{path}" } }
+                                p { class: "mt-2 font-semibold", "Must stay unchanged" }
+                                for path in &wf.protected_files { div { class: "font-mono text-xs", "{path}" } }
+                            }
+                        }
+                    }
+                }
                 if live {
+                    if let Some(wf) = &task.workflow {
+                        if let Some(step) = wf.steps.last() {
+                            div { class: "flex flex-wrap gap-2 text-sm text-[#66D8CE]", role: "status",
+                                strong { "Stage {wf.steps.len()}: {active_stage_label(wf)}" }
+                                span { "· {active_stage_model(wf)}" }
+                                if let Some(elapsed) = workflow_elapsed(wf, task.progress.as_ref()) {
+                                    span { class: "text-[#8D9DAD]", "· Job elapsed {duration(elapsed)}" }
+                                }
+                                span { class: "font-mono text-xs text-[#8D9DAD]", "{step.worker}" }
+                            }
+                        }
+                    }
                     if let Some(progress) = &task.progress {
                         ProgressPanel { progress: progress.clone() }
                     } else if let Some(pp) = task.workflow.as_ref().and_then(|w| w.planner_progress.as_ref()) {
@@ -1669,7 +1789,7 @@ pub(crate) fn TaskInspector(
                                 if let Some((passed, exit_code, _)) = &ver_status {
                                     if *passed {
                                         span { class: "text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/70 text-emerald-300",
-                                            "✓ Verification passed"
+                                    "✓ Tests passed"
                                         }
                                     } else {
                                         span { class: "text-[11px] font-semibold px-2 py-0.5 rounded bg-red-950/80 border border-red-700/70 text-red-300",
@@ -1686,22 +1806,33 @@ pub(crate) fn TaskInspector(
                                 button {
                                     class: "bg-emerald-500 hover:bg-emerald-400 text-[#0C1118] disabled:opacity-45 font-bold rounded px-4 py-2 text-xs",
                                     disabled: busy || !has_actor,
-                                    onclick: move |_| on_review.call(true),
-                                    if busy { "Accepting…" } else { "✓ Accept Changes" }
+                                    onclick: move |_| { review_action.set(Some(true)); on_review.call(true); },
+                                    if busy && review_action() == Some(true) { "Accepting…" } else { "✓ Accept result" }
                                 }
                                 button {
                                     class: "rounded px-3.5 py-2 text-xs font-semibold border border-amber-700/70 bg-amber-950/50 hover:bg-amber-900/60 text-amber-200 disabled:opacity-45",
                                     disabled: busy || !has_actor,
-                                    onclick: move |_| on_review.call(false),
-                                    if busy { "Rejecting…" } else { "✕ Reject" }
+                                    onclick: move |_| { review_action.set(Some(false)); on_review.call(false); },
+                                    if busy && review_action() == Some(false) { "Rejecting…" } else { "✕ Reject" }
                                 }
                             }
                         }
 
                         if let Some(wf) = &task.workflow {
+                            if let Some(coverage) = wf.steps.last().and_then(|s| s.result.as_ref()).and_then(|r| r["agentlet_result"].get("review_evidence")) {
+                                {
+                                    let label = coverage["coverage"].as_str().unwrap_or("unavailable");
+                                    let count = coverage["reviewed_files"].as_array().map_or(0, |files| files.len());
+                                    rsx! { p { class: "text-sm text-[#66D8CE]",
+                                        "Reviewer coverage: {label} · {count} changed files. You still decide whether to accept."
+                                    } }
+                                }
+                            } else if wf.agentlets.iter().any(|a| a.definition.completion_gate) {
+                                p { class: "text-sm text-amber-200", "This older profile has no report covering the exact diff. Inspect the reviewer limitations; re-onboard the project to require complete coverage." }
+                            }
                             if !wf.pending_agentlet_gates.is_empty() {
                                 p { class: "text-xs text-amber-200/90",
-                                    "Pending gates: {wf.pending_agentlet_gates.join(\", \")}"
+                                    "Required reviews still pending: {wf.pending_agentlet_gates.join(\", \")}"
                                 }
                             }
                         }
@@ -1762,11 +1893,11 @@ pub(crate) fn TaskInspector(
                         }
                     } else {
                         div { class: "rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3.5 flex flex-col gap-3",
-                            div { class: "flex flex-col sm:flex-row sm:items-center justify-between gap-3",
+                            div { class: "flex flex-col gap-3",
                                 div {
                                     p { class: "text-xs sm:text-sm font-semibold text-emerald-300",
                                         if let Some(rev) = &task.reviewer {
-                                            "✓ Accepted by {rev}"
+                                            "✓ Result accepted by {rev}"
                                         } else {
                                             "✓ Accepted"
                                         }
@@ -1775,6 +1906,7 @@ pub(crate) fn TaskInspector(
                                         p { class: "text-xs text-[#F2F5F7]/90 mt-1 break-words", "{summary}" }
                                     }
                                 }
+                                p { class: "text-sm text-[#F2F5F7]", "Accepted — not yet applied to your project." }
                                 if can_prepare_int {
                                     div { class: "flex flex-wrap items-center gap-2 shrink-0",
                                         button {
@@ -1782,14 +1914,14 @@ pub(crate) fn TaskInspector(
                                             disabled: busy || !has_actor,
                                             title: "Create an isolated Git worktree and branch for the unstaged changes, so integration works even if your main checkout has uncommitted work",
                                             onclick: move |_| on_prepare_integration.call("worktree".to_string()),
-                                            if busy { "Preparing…" } else { "Prepare Worktree Integration" }
+                                            if busy { "Preparing…" } else { "Prepare application in a new worktree" }
                                         }
                                         button {
                                             class: "rounded px-3.5 py-2 text-xs font-semibold border border-[#202D3A] bg-[#111A26] hover:bg-[#202D3A]/70 text-[#F2F5F7] disabled:opacity-45",
                                             disabled: busy || !has_actor,
                                             title: "Prepare unstaged changes directly in the repository checkout (requires a clean checkout)",
                                             onclick: move |_| on_prepare_integration.call("checkout".to_string()),
-                                            if busy { "Preparing…" } else { "Prepare Checkout Integration" }
+                                            if busy { "Preparing…" } else { "Prepare application to project" }
                                         }
                                     }
                                 }
@@ -1956,7 +2088,7 @@ fn IntegrationActionCard(
             div { class: "flex flex-wrap items-center justify-between gap-2",
                 div { class: "flex flex-wrap items-center gap-2 text-xs",
                     if let Some(rev) = &reviewer {
-                        span { class: "font-semibold text-emerald-300", "✓ Accepted by {rev}" }
+                        span { class: "font-semibold text-emerald-300", "✓ Result accepted by {rev}" }
                         span { class: "text-[#8D9DAD]", "·" }
                     }
                     span { class: "font-semibold {status_cls}", "Integration plan: {plan.status}" }
@@ -1995,9 +2127,9 @@ fn IntegrationActionCard(
                             if busy {
                                 "Applying…"
                             } else if is_worktree {
-                                "Apply Unstaged to Worktree"
+                                "Apply to new worktree"
                             } else {
-                                "Apply Unstaged to Repo"
+                                "Apply to project"
                             }
                         }
                     }
@@ -2043,7 +2175,7 @@ fn IntegrationActionCard(
                     if is_worktree {
                         "Applies unstaged changes inside the isolated worktree so your main checkout WIP stays untouched. Originals are journaled for safe restore."
                     } else {
-                        "Applies as unstaged changes to your checkout. Originals are journaled so you can restore anytime."
+                        "Applies as unstaged changes. Restore is available while the applied files and repository state still match this plan."
                     }
                 } else if plan.status == "applied" {
                     if is_worktree {
@@ -2071,6 +2203,16 @@ fn PipelineTab(
     rsx! {
         div { class: "flex flex-col gap-3",
             if let Some(wf) = &task.workflow {
+                if !wf.archived_steps.is_empty() {
+                    details { class: "text-xs text-[#8D9DAD]",
+                        summary { class: "cursor-pointer", "Previous attempts and routing ({wf.archived_steps.len()} archived)" }
+                        p { "Current stages are shown below. A retry replans the remaining work within the approved scope and may choose a different worker." }
+                        pre { class: "whitespace-pre-wrap break-all max-h-64 overflow-auto", "{serde_json::to_string_pretty(&wf.archived_steps).unwrap_or_default()}" }
+                        for record in &wf.decisions {
+                            pre { class: "whitespace-pre-wrap break-all max-h-64 overflow-auto", "{serde_json::to_string_pretty(&record.decision).unwrap_or_default()}" }
+                        }
+                    }
+                }
                 {
                     let timeline = build_timeline(wf);
                     let steps_done = wf.steps.len();
@@ -2627,6 +2769,12 @@ fn SpecsAndAuditTab(task: TaskDetail, on_depend: EventHandler<String>) -> Elemen
                 if !task.allowed_scope.is_empty() {
                     div { class: "mt-3 pt-3 border-t border-[#202D3A]",
                         span { class: "block text-[11px] text-[#8D9DAD] mb-1.5", "Editable file scope ({task.allowed_scope.len()})" }
+                        if let Some(wf) = &task.workflow {
+                            details { class: "mb-3 text-xs",
+                                summary { class: "cursor-pointer text-[#66D8CE]", "Protected acceptance inputs ({wf.protected_files.len()})" }
+                                for path in &wf.protected_files { div { class: "font-mono text-[#8D9DAD]", "{path}" } }
+                            }
+                        }
                         div { class: "flex flex-wrap gap-1.5",
                             for path in &task.allowed_scope {
                                 span { class: "text-[11px] font-mono px-2 py-0.5 rounded bg-[#0E151F] border border-[#202D3A] text-[#F2F5F7] break-all",
@@ -2807,5 +2955,67 @@ fn SpecRow(label: &'static str, value: String, mono: bool) -> Element {
                 "{value}"
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod readiness_tests {
+    use super::*;
+    #[test]
+    fn retry_timeline_does_not_pair_old_review_decisions_with_current_workers() {
+        let w: WorkflowView = serde_json::from_value(serde_json::json!({
+            "phase":"executing", "planner_model":"builtin:router-v1", "summary":null, "planner_progress":null,
+            "steps":[{"worker":"editor","task_id":"one","result":{"model":"editor-model"}}, {"worker":"editor","task_id":"new"}],
+            "archived_steps":[{"step":{"worker":"reviewer","task_id":"old"}}],
+            "decisions":[{"decision":{"action":"dispatch","worker":"editor","model":"editor-model"}}, {"decision":{"action":"dispatch","worker":"reviewer","model":"review-model"}}, {"decision":{"action":"dispatch","worker":"editor","model":"editor-model"}}]
+        })).unwrap();
+        let rows = build_timeline(&w);
+        assert_eq!(rows.len(), 2);
+        let TimelineEntry::Step {
+            worker,
+            model,
+            step,
+            step_num,
+            ..
+        } = &rows[1]
+        else {
+            panic!("expected current stage")
+        };
+        assert_eq!(worker, "editor");
+        assert!(model.is_none());
+        assert_eq!(step.as_ref().unwrap().task_id, "new");
+        assert_eq!(*step_num, 2);
+    }
+    #[test]
+    fn soft_and_hard_deadlines_have_distinct_labels() {
+        assert_eq!(
+            budget_label("generation_alert_ms=600000"),
+            "Execution alert target: 10m 00s"
+        );
+        assert_eq!(
+            budget_label("generation_timeout_ms=600000"),
+            "Execution hard limit: 10m 00s"
+        );
+        assert_eq!(
+            budget_label("verification_alert_ms=180000"),
+            "Verification alert target: 3m 00s"
+        );
+        assert_eq!(
+            budget_label("generation_idle_timeout_ms=360000"),
+            "Inactivity limit: 6m 00s"
+        );
+    }
+    #[test]
+    fn stage_identity_and_total_elapsed_survive_a_worker_transition() {
+        let w:WorkflowView=serde_json::from_value(serde_json::json!({
+            "phase":"executing","planner_model":"builtin:router-v1","summary":null,"planner_progress":null,
+            "steps":[{"worker":"implementer","task_id":"one"},{"worker":"reviewer","task_id":"two"}],
+            "decisions":[{"decision":{"worker":"reviewer","model":"review-model"},"error":null}],
+            "events":[{"stage":"workflow_approved","revision":1,"at":1000},{"stage":"worker_selected","revision":2,"at":14000}],
+            "agentlets":[{"worker":"reviewer","definition":{"id":"reviewer","version":2,"purpose":"Review","instructions":"Inspect","capability":"review","completion_gate":true,"require_review_evidence":true}}]
+        })).unwrap();
+        assert_eq!(active_stage_label(&w), "Reviewing candidate");
+        assert_eq!(active_stage_model(&w), "review-model");
+        assert_eq!(workflow_elapsed(&w, None), Some(13000));
     }
 }

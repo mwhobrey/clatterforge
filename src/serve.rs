@@ -519,6 +519,10 @@ fn workflow_profile_summary_with_index(
         "require_clean_checkout": p.require_clean_checkout,
         "low_spec": low_spec,
         "scope": p.scope(),
+        "protected_files": first.map(|w| &w.verification_files),
+        "review_contract": if p.workers.iter().any(|w| w.preset.agentlet.as_ref().is_some_and(|a| a.completion_gate)) {
+            if p.workers.iter().filter_map(|w| w.preset.agentlet.as_ref()).filter(|a| a.completion_gate).all(|a| a.require_review_evidence) { "diff_coverage" } else { "legacy_report" }
+        } else { "none" },
         "indexed_files": indexed_files,
         "workers": p
             .workers
@@ -527,6 +531,8 @@ fn workflow_profile_summary_with_index(
                 serde_json::json!({
                     "name": w.preset.name,
                     "purpose": w.purpose,
+                    "backend": w.preset.backend.target(),
+                    "model": w.preset.backend.model(),
                     "files": w.preset.allowed_files
                 })
             })
