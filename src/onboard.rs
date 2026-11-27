@@ -602,12 +602,16 @@ pub fn detected_test_files(repo_path: &Path) -> Result<Vec<String>> {
     let paths = git_text(repo_path, &["ls-files"])?;
     Ok(paths
         .lines()
-        .filter(|p| !is_ignored_repo_path(p) && is_acceptance_test_path(p))
+        .filter(|p| is_acceptance_test_path(p))
         .map(str::to_owned)
         .collect())
 }
 
 fn protect_acceptance_files(req: &mut OnboardRequest) -> Result<()> {
+    ensure!(
+        !req.allow_test_edits || !req.verification_files.is_empty(),
+        "No protected verifier files remain. Disable test edits to keep acceptance inputs protected."
+    );
     if !req.allow_test_edits {
         for path in detected_test_files(&req.repository_path)? {
             if !req
@@ -2183,6 +2187,9 @@ mod acceptance_protection_tests {
         for n in 0..24 {
             std::fs::write(root.path().join(format!("tests/test_{n}.py")), "pass").unwrap();
         }
+        for name in ["snapshot.svg", "sample.png", "fixture.lock"] {
+            std::fs::write(root.path().join("tests").join(name), [0, 255, 1]).unwrap();
+        }
         crate::repository::git(root.path(), &["init", "-b", "main"]).unwrap();
         crate::repository::git(root.path(), &["add", "."]).unwrap();
         let mut req = OnboardRequest {
@@ -2201,13 +2208,29 @@ mod acceptance_protection_tests {
             by: "fixture".into(),
         };
         protect_acceptance_files(&mut req).unwrap();
-        assert_eq!(req.verification_files.len(), 25);
+        assert_eq!(req.verification_files.len(), 28);
         assert_eq!(detect_suggested_files(root.path()), vec!["invoice.py"]);
         req.allowed_files = vec!["tests/test_0.py".into()];
         assert!(protect_acceptance_files(&mut req).is_err());
+        for path in [
+            "tests/snapshot.svg",
+            "tests/sample.png",
+            "tests/fixture.lock",
+        ] {
+            assert!(req.verification_files.contains(&path.to_string()));
+            req.allowed_files = vec![path.into()];
+            assert!(protect_acceptance_files(&mut req).is_err());
+        }
         req.allow_test_edits = true;
         req.verification_files = vec!["pyproject.toml".into()];
         protect_acceptance_files(&mut req).unwrap();
         assert_eq!(req.verification_files, vec!["pyproject.toml"]);
+        req.verification_files.clear();
+        assert!(
+            protect_acceptance_files(&mut req)
+                .unwrap_err()
+                .to_string()
+                .contains("Disable test edits")
+        );
     }
 }
