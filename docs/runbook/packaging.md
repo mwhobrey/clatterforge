@@ -101,6 +101,10 @@ The workflow is linted (actionlint) and the merge script is unit-tested (`script
 
 Code signing (a platform-trusted signature on the executable) is separate from update signing (the minisign signature every self-updating build verifies). macOS builds are code-signed with a Developer ID and notarized (see [macOS](#macos)). Windows and Linux binaries are not code-signed yet, so Windows SmartScreen warns on first run. On Windows, `-SignCommand "<signing command> %1"` passes a signing command to Tauri, which signs each file before update signatures are computed; use it once a certificate or signing service is available.
 
+## Marketing evidence
+
+The marketing site's `site/examples.html` contains a worked example of two shipped onboarding fixes, reproduced directly against production functions. It is explicitly not an agent-workflow benchmark or desktop walkthrough. Its PDF and evidence ZIP live under `site/downloads/acceptance-protection/`; screenshots live under `site/shots/examples/`. Keep host paths and author metadata out of public assets, including PDF text and ZIP members, and refresh both the internal ZIP checksums and the download checksums after changing evidence. Keep pages at the site root unless the Pages placeholder substitution is expanded to nested HTML.
+
 ## Not covered
 
 A separately staged always-on host (`manage-local-host.ps1` with a `runtime\` copy, as in a development forge) is still upgraded by hand: stop it, back up `state.sqlite`, replace the runtime binary and UI, start it.

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worked example: protecting acceptance inputs | Clatterforge</title>
+<meta name="description" content="Two real Clatterforge onboarding defects, reproduced against the original and fixed code. Inspect test output, screenshots, the production patch and downloadable evidence.">
+<meta name="theme-color" content="#0C1118">
+<link rel="canonical" href="{{SITE}}examples.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Clatterforge">
+<meta property="og:title" content="Real bugs. Captured results. Inspectable evidence.">
+<meta property="og:description" content="A worked example from Clatterforge itself, with before-and-after test output, the production patch and evidence downloads.">
+<meta property="og:url" content="{{SITE}}examples.html">
+<meta property="og:image" content="{{SITE}}social.png">
+<meta property="og:image:alt" content="Clatterforge: Control the chaos.">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="mark.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="sheet">
+  <header class="masthead">
+    <a class="brand" href="index.html" aria-label="Clatterforge home"><img src="mark.svg" alt="" width="30" height="30"><span class="brand-name">Clatterforge</span></a>
+    <nav aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="#results">Results</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#downloads">Downloads</a>
+      <a href="{{REPO}}" class="nav-src">Source</a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="case-intro">
+      <p class="hero-pre">Worked example 01 / Clatterforge itself</p>
+      <h1>Acceptance inputs<br>belong under protection.</h1>
+      <p class="case-lede">Two real onboarding defects. The original code, the shipped fix, and fresh test output you can inspect.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="downloads/acceptance-protection/report.pdf" download>Download report (PDF)</a>
+        <a class="btn btn-line" href="#evidence">Inspect the evidence</a>
+      </div>
+      <p class="case-boundary">Historical-fix reproduction &middot; Windows / Rust 1.90.0 &middot; November 27, 2026<br>This replay tests Clatterforge's production code directly. It is not a new agent workflow run or a desktop walkthrough.</p>
+    </section>
+
+    <section class="part" id="results">
+      <header class="part-head"><p class="part-no">Inspection 01</p><h2>Two failures become two passes.</h2><p class="part-sub">The same added regression tests ran against the exact parent and fix snapshots. The original acceptance-protection tests also passed on the fixed snapshot.</p></header>
+      <div class="case-results">
+        <div><p class="case-state">Before the fix</p><p class="case-count">0 passed <span>/ 2 failed</span></p><p>Test process exit code <code>101</code>.</p></div>
+        <div><p class="case-state">After the fix</p><p class="case-count case-pass">2 passed <span>/ 0 failed</span></p><p>Test process exit code <code>0</code>.</p></div>
+      </div>
+      <div class="case-prose">
+        <h3>The bug: tracked fixtures disappeared.</h3>
+        <p>Onboarding reused a general repository-file exclusion filter when discovering acceptance inputs. It omitted tracked SVG, PNG and lock-file fixtures under <code>tests/</code>. The reproduction observed only <code>pyproject.toml</code> in the protected list.</p>
+        <h3>The second gap: no protected verifier remained.</h3>
+        <p>Enabling edits to tests skipped automatic test protection. Without a separate check, onboarding accepted that option even with an empty protected-verifier list.</p>
+        <h3>The fix: enforce both protections at onboarding.</h3>
+        <p>Tracked-test discovery now retains the fixtures. Test-edit mode requires protected verifier files to remain. The focused checks below call the actual onboarding functions using temporary repositories as controlled inputs.</p>
+      </div>
+    </section>
+
+    <section class="part" id="evidence">
+      <header class="part-head"><p class="part-no">Inspection 02</p><h2>Read the output. Inspect the change.</h2><p class="part-sub">These screenshots show captured test output and the production patch in an evidence viewer. They are not screenshots of the desktop app. Open any image at full size to read it.</p></header>
+      <div class="case-figures">
+        <figure class="fig">
+          <a class="fig-frame case-image" href="shots/examples/acceptance-before.png" aria-label="Open full-size before-fix test output"><img src="shots/examples/acceptance-before.png" alt="Before the fix: all three tracked test fixtures are absent from protection, zero protected verifier files are accepted, and both regression checks fail." width="1280" height="920" loading="lazy"></a>
+          <figcaption><p class="fig-no">Fig. 1 / Before</p><p>Three tracked fixtures are unprotected; test-edit mode accepts an empty protected list. Both checks fail.</p></figcaption>
+        </figure>
+        <figure class="fig">
+          <a class="fig-frame case-image" href="shots/examples/acceptance-after.png" aria-label="Open full-size after-fix test output"><img src="shots/examples/acceptance-after.png" alt="After the fix: all three fixtures remain protected, the empty-verifier configuration is rejected, and both regression checks pass." width="1280" height="651" loading="lazy"></a>
+          <figcaption><p class="fig-no">Fig. 2 / After</p><p>The same checks now observe all three fixtures and an explicit refusal of the empty-protection configuration.</p></figcaption>
+        </figure>
+        <figure class="fig">
+          <a class="fig-frame case-image" href="shots/examples/acceptance-patch.png" aria-label="Open full-size production patch"><img src="shots/examples/acceptance-patch.png" alt="Actual Rust production patch: remove the repository exclusion filter from acceptance-file discovery and add a guard requiring protected verifier files when test edits are enabled." width="1280" height="891" loading="lazy"></a>
+          <figcaption><p class="fig-no">Fig. 3 / Production patch</p><p>The two backend changes in <code>src/onboard.rs</code>. The complete file diff, including its original test additions, is in the evidence download.</p></figcaption>
+        </figure>
+      </div>
+      <div class="case-prose">
+        <h3>How to read this result</h3>
+        <p>This replay confirms the reported behavior and these two backend corrections. It does not measure worker quality, end-to-end workflow speed, desktop interaction or process isolation. Only the focused checks were rerun, rather than the full product suite.</p>
+        <p>The parent snapshot is <code class="case-hash">3f119cbcd7667b047b8c0fe15765249acb83df23</code>; the fix is <code class="case-hash">392230c214b34fe5e6292419b7c296ce9958ce71</code>. These identify the development-history snapshots used for this replay. Public source history has different commit IDs.</p>
+      </div>
+    </section>
+
+    <section class="part" id="downloads">
+      <header class="part-head"><p class="part-no">Inspection 03</p><h2>Take the evidence with you.</h2><p class="part-sub">Direct downloads. No account or email required. Host-specific paths and author metadata are removed; test outcomes are preserved.</p></header>
+      <div class="case-downloads">
+        <article><h3>The short report</h3><p>Four pages covering the defect, cause, production change and verified before-and-after result.</p><a class="get" href="downloads/acceptance-protection/report.pdf" download>Download PDF</a></article>
+        <article><h3>The evidence pack</h3><p>The report, three screenshots, test logs, production diff, added regression module and SHA-256 checksums.</p><a class="get" href="downloads/acceptance-protection/evidence.zip" download>Download ZIP</a></article>
+      </div>
+      <p class="margin-note"><span>Verify</span> <a href="downloads/acceptance-protection/SHA256SUMS.txt">download checksums</a> or <a href="downloads/acceptance-protection/README.txt">read the evidence notes</a>. The pack is for inspection; it does not include a full historical source checkout.</p>
+      <p class="margin-note"><span>Try it</span> Ready to inspect your own project? <a href="index.html#parts">Get the current Clatterforge installer</a> and review the <a href="{{REPO}}#readme">setup guide</a>.</p>
+    </section>
+  </main>
+  <footer class="foot"><p>Clatterforge is Apache-2.0. Models and coding CLIs are installed and licensed separately.</p><nav aria-label="Project"><a href="index.html">Overview</a><a href="{{REPO}}/issues">Issues</a></nav><p class="foot-mark">CF // SYSTEMS &middot; Control the chaos.</p></footer>
+</div>
+</body>
+</html>
