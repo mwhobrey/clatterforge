@@ -21,6 +21,7 @@ struct Server {
     url: String,
     requests: Arc<Mutex<Vec<(String, Value)>>>,
     stop: Arc<AtomicBool>,
+    hold: Arc<AtomicBool>,
     worker: Option<thread::JoinHandle<()>>,
 }
 impl Server {
@@ -29,6 +30,8 @@ impl Server {
         let address = http.server_addr().to_ip().unwrap();
         let requests = Arc::new(Mutex::new(vec![]));
         let stop = Arc::new(AtomicBool::new(false));
+        let hold = Arc::new(AtomicBool::new(false));
+        let stream_hold = hold.clone();
         let copy = requests.clone();
         let done = stop.clone();
         let worker = thread::spawn(move || {
@@ -58,6 +61,8 @@ impl Server {
                         data: std::io::Cursor::new(padded.into_bytes()),
                         pause_after: split + 9000,
                         paused: false,
+                        hold: stream_hold.clone(),
+                        stop: done.clone(),
                     };
                     let response = tiny_http::Response::new(status, vec![], reader, None, None);
                     let _ = request.respond(response);
@@ -72,6 +77,7 @@ impl Server {
             url: format!("http://{address}/"),
             requests,
             stop,
+            hold,
             worker: Some(worker),
         }
     }
@@ -89,12 +95,18 @@ struct SlowRead {
     data: std::io::Cursor<Vec<u8>>,
     pause_after: usize,
     paused: bool,
+    hold: Arc<AtomicBool>,
+    stop: Arc<AtomicBool>,
 }
 impl Read for SlowRead {
     fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
         let position = self.data.position() as usize;
         if position >= self.pause_after && !self.paused {
             self.paused = true;
+            // Crash tests control completion explicitly instead of racing a 350ms window.
+            while self.hold.load(Ordering::SeqCst) && !self.stop.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(5));
+            }
             thread::sleep(Duration::from_millis(350));
         }
         let count = if !self.paused {
@@ -669,13 +681,14 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
     for cancel in [false, true] {
         let temp = TempDir::new().unwrap();
         let server = Server::start();
+        server.hold.store(true, Ordering::SeqCst);
         let cfg = config(&temp, &server);
         let root = temp.path().join("state");
         let mut store = JobStore::open(&root).unwrap();
         let mut req = request("slow", false);
         // Cancellation must win well before its deadline; the status assertion below
         // tells the two outcomes apart, so the bounds only need to rule out a hang.
-        req.deadline_ms = if cancel { 20_000 } else { 100 };
+        req.deadline_ms = if cancel { 60_000 } else { 100 };
         let job = store
             .create(cfg.clone(), None, req, Some("native".into()))
             .unwrap();
@@ -696,7 +709,7 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
                         break;
                     }
                     assert!(
-                        start.elapsed() < Duration::from_secs(10),
+                        start.elapsed() < Duration::from_secs(30),
                         "status={:?}, failure={:?}, generations={:?}",
                         current.status,
                         current.failure,
@@ -710,11 +723,12 @@ fn deadline_and_cancellation_close_transport_but_quarantine_unconfirmed_server_w
         };
         let start = Instant::now();
         let stopped = execute(&mut store, &job, None, false);
+        server.hold.store(false, Ordering::SeqCst);
         if let Some(t) = thread {
             t.join().unwrap();
         }
         assert!(
-            start.elapsed() < Duration::from_secs(10),
+            start.elapsed() < Duration::from_secs(30),
             "{:?}",
             start.elapsed()
         );
@@ -1178,6 +1192,7 @@ impl Drop for OwnedCli {
 fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() {
     let temp = TempDir::new().unwrap();
     let server = Server::start();
+    server.hold.store(true, Ordering::SeqCst);
     let cfg = config(&temp, &server);
     let state = temp.path().join("state");
     let config_path = temp.path().join("config.json");
@@ -1284,6 +1299,7 @@ fn cli_import_and_actual_owner_crash_preserve_unknown_without_dispatch_replay() 
     assert!(store.reconcile(&job.id, partial.revision).is_err());
     child.0.kill().unwrap();
     child.0.wait().unwrap();
+    server.hold.store(false, Ordering::SeqCst);
     let dead = store.job(&job.id).unwrap();
     let result = cli(
         &state,
@@ -1525,6 +1541,7 @@ fn real_killed_process_still_auto_recovers_the_next_real_dispatch_without_reconc
     // the owner-liveness check at all - see `src/inference/state.rs`.
     let temp = TempDir::new().unwrap();
     let server = Server::start();
+    server.hold.store(true, Ordering::SeqCst);
     let cfg = config(&temp, &server);
     let state = temp.path().join("state");
     let config_path = temp.path().join("config.json");
@@ -1532,7 +1549,12 @@ fn real_killed_process_still_auto_recovers_the_next_real_dispatch_without_reconc
     std::fs::write(&config_path, serde_json::to_vec(&cfg).unwrap()).unwrap();
     std::fs::write(
         &request_path,
-        serde_json::to_vec(&request("slow", false)).unwrap(),
+        serde_json::to_vec(&{
+            let mut req = request("slow", false);
+            req.deadline_ms = 60_000;
+            req
+        })
+        .unwrap(),
     )
     .unwrap();
 
@@ -1582,7 +1604,7 @@ fn real_killed_process_still_auto_recovers_the_next_real_dispatch_without_reconc
             break;
         }
         assert!(
-            began.elapsed() < Duration::from_secs(5),
+            began.elapsed() < Duration::from_secs(20),
             "worker did not persist partial stream"
         );
         thread::sleep(Duration::from_millis(5));
@@ -1591,6 +1613,7 @@ fn real_killed_process_still_auto_recovers_the_next_real_dispatch_without_reconc
     // A real, abrupt process kill - no graceful shutdown, no Drop.
     child.0.kill().unwrap();
     child.0.wait().unwrap();
+    server.hold.store(false, Ordering::SeqCst);
 
     let coordinator = Coordinator::open(&cfg.admission_db).unwrap();
     let reservations = coordinator.reservations().unwrap();
@@ -1660,6 +1683,7 @@ fn global_stop_still_blocks_admission_even_through_the_auto_recovery_path() {
     // quarantine involved at all, confirmed against the real CLI.
     let temp = TempDir::new().unwrap();
     let server = Server::start();
+    server.hold.store(true, Ordering::SeqCst);
     let cfg = config(&temp, &server);
     let state = temp.path().join("state");
     let config_path = temp.path().join("config.json");
@@ -1667,7 +1691,12 @@ fn global_stop_still_blocks_admission_even_through_the_auto_recovery_path() {
     std::fs::write(&config_path, serde_json::to_vec(&cfg).unwrap()).unwrap();
     std::fs::write(
         &request_path,
-        serde_json::to_vec(&request("slow", false)).unwrap(),
+        serde_json::to_vec(&{
+            let mut req = request("slow", false);
+            req.deadline_ms = 60_000;
+            req
+        })
+        .unwrap(),
     )
     .unwrap();
 
@@ -1711,11 +1740,12 @@ fn global_stop_still_blocks_admission_even_through_the_auto_recovery_path() {
         {
             break;
         }
-        assert!(began.elapsed() < Duration::from_secs(5));
+        assert!(began.elapsed() < Duration::from_secs(20));
         thread::sleep(Duration::from_millis(5));
     }
     child.0.kill().unwrap();
     child.0.wait().unwrap();
+    server.hold.store(false, Ordering::SeqCst);
 
     assert!(
         cli(
