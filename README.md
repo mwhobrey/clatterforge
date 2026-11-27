@@ -2,13 +2,13 @@
 
 **Coding agents, on a short and well-documented leash.**
 
-Clatterforge is a local-first forge for coding agents. You approve the scope. Local workers (the Cursor and Codex CLIs you already use, routed by a local model) write the change in their own Git worktree, not your checkout. You review the diff and an independent verifier's evidence, and the forge applies nothing to your checkout until you accept it.
+Clatterforge is a local-first forge for coding agents. You approve the scope. Supported coding CLIs work in an isolated Git worktree, with a built-in local router and optional planning through a local model. Tests stay protected by default. You review the diff, independent test results and specialist coverage, accept the result, then explicitly apply it to your project.
 
 ![The Clatterforge review screen: a task board on the left and, on the right, a task's diff with Accept and Reject and its verified attempt](site/shots/review.png)
 
 <sub>A real screenshot of v0.1.0 reviewing a demo repository, with the built-in test worker.</sub>
 
-[**Download v0.1.0**](../../releases/latest) · Windows · macOS · Linux · Apache-2.0 · alpha
+[**Download the latest release**](../../releases/latest) · Windows · macOS · Linux · Apache-2.0 · alpha
 
 ## Why
 
@@ -24,7 +24,7 @@ What it does **not** do matters as much: a worktree isolates Git changes, not pr
 ## How it works
 
 1. **Objective.** Describe the change. The forge records repository context and the exact base commit.
-2. **Approval.** You approve one assignment. In a multi-step workflow, a local model (for example Gemma via Ollama) picks which approved worker runs next; it can only choose from what you approved.
+2. **Approval.** You approve one assignment. In a multi-step workflow, the built-in router or an optional local model picks which approved worker runs next; it can only choose from what you approved.
 3. **Supervised run.** Cursor or Codex works in an isolated worktree under the forge's process supervision.
 4. **Review.** You get the candidate diff, logs and the verifier's result. Review comments feed the next repair round.
 5. **Integration.** Apply the accepted candidate as unstaged changes, or deliver it as a branch and pull request; see [integration](docs/runbook/integration.md).
@@ -48,8 +48,8 @@ The Windows, macOS and AppImage builds update themselves; every update is signed
 **To run real work you also need:**
 
 - **Git**, and a repository you are willing to point agents at.
-- **The Codex CLI and/or the Cursor CLI**, installed and signed in with their own instructions. Clatterforge does not bundle accounts or install provider tools.
-- **For multi-step workflows, a local model** to route between workers, served by [Ollama](https://ollama.com). The [example configuration](examples/orchestration-gemma26b-config.json) uses Gemma; the [inference guide](docs/INFERENCE.md) covers limits. A single-worker task needs no model.
+- **A supported coding CLI**, such as Codex or Cursor, installed and signed in with its own instructions. Clatterforge does not bundle accounts or install provider tools.
+- **Optional: a local model** for model-based planning, served by [Ollama](https://ollama.com). The default built-in router needs no local model. The [example configuration](examples/orchestration-gemma26b-config.json) uses Gemma; the [inference guide](docs/INFERENCE.md) covers limits.
 - **Optional: Docker**, to run verifiers in a pinned sandbox image.
 
 Then set up a worker preset and your first workflow with the [workflows runbook](docs/runbook/workflows.md), using a throwaway repository first.
@@ -69,7 +69,7 @@ On Windows, `scripts/demo.ps1` creates a throwaway repository, runs one task wit
 
 This is an **alpha**. Working today: the main forge on Windows, macOS and Linux, with installers whose updates are signed and verified (macOS builds are also code-signed and notarized); Linux edge clients; the web client; the HTTP and MCP interfaces; and an optional verifier sandbox (Docker, or a Windows AppContainer). Still in progress: Windows and Linux code signing, guided onboarding, and automatic recovery. The [release notes](docs/RELEASE.md) track the remaining gates.
 
-**Known issue in v0.1.0:** on Windows the app's window does not load its interface (the backend runs, the window shows a file-not-found page). Linux and macOS are not affected by the same cause. See the [release blockers](docs/RELEASE.md#release-blockers).
+The Windows interface-loading defect in v0.1.0 was **fixed in v0.1.1** and checked in the native WebView2 window. Use the latest release; see [release verification and limits](docs/RELEASE.md).
 
 ## Documentation
 
