@@ -548,15 +548,30 @@ fn agentlets_cli_execution_does_not_inherit_ambient_credential_variables() {
         .env("CONDUCTOR_AGENTLET_CREDENTIAL_SENTINEL", "synthetic")
         .output()
         .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
     let done = Workflows::open(&f.state)
         .unwrap()
         .get(&f.workflow.id)
         .unwrap();
+    let diagnostics = if output.status.success() {
+        Vec::new()
+    } else {
+        let agents = Agents::open(&f.state).unwrap();
+        done.steps
+            .iter()
+            .map(|step| {
+                agents
+                    .task(&step.task_id)
+                    .map(|task| (task.status, task.error))
+            })
+            .collect()
+    };
+    assert!(
+        output.status.success(),
+        "{}; workflow error={:?}; child outcomes={:?}",
+        String::from_utf8_lossy(&output.stderr),
+        done.error,
+        diagnostics
+    );
     assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
 }
 
