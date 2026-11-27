@@ -4,7 +4,7 @@ First-party packages use Apache-2.0. This repository carries the reviewed source
 
 ## Status
 
-As of November 25, 2026.
+As of November 26, 2026.
 
 ### Completed, with evidence
 
@@ -13,19 +13,21 @@ As of November 25, 2026.
 - **First release.** v0.1.0 was published November 25, 2026 by the tag-triggered release workflow: installers for Windows x64, macOS (Apple silicon and Intel) and Linux x86_64, signed update artifacts for every self-updating build, and one merged `latest.json`.
 - **Pre-publication install checks of the CI-built v0.1.0 artifacts.** The `.deb` and the AppImage installed and ran in a clean Debian 12 container: the app started its backend with the per-user state folder, served the UI, and the API answered 200 with its token and 401 without it. Update signatures verified against the committed public key. On a clean Windows Sandbox without the Visual C++ Redistributable, the installed backend started and served the UI and API (the first build could not, which is why the backend is now linked statically). These checks covered installation and the backend; none of them inspected the desktop window itself (see the blocker below).
 - **Provider acceptance, bounded.** One disposable project ran with real local Gemma routing to Cursor implementation and Codex review, followed by explicit source integration and restore.
+- **Windows update and native interface.** A published 0.1.0 scratch installation updated itself to 0.1.1 and relaunched successfully. Its existing database schemas/rows and token were preserved. The CI-built 0.1.1 app passed backend, frontend and settings interaction checks inside its own WebView2 window. This was a scratch installation, not a populated production-history migration test.
+- **Readiness workflow.** The 0.1.2 source protects recognized tracked acceptance files by default and binds required specialist coverage to the candidate tree and full host diff. A bounded real Windows Python job passed 12 tests and five additional checks, followed by explicit acceptance, application and restart without worker replay. Existing profiles retain their original contracts until explicitly re-onboarded.
 
-### Release blockers
+### Resolved Windows 0.1.0 blocker
 
 - **The v0.1.0 Windows desktop window does not load its interface.** Found November 25, 2026 by the installed-artifact smoke test (below), run against the published installer: the backend starts and answers correctly, but the app's WebView navigates to a `file:///D:/a/...` path from the CI build machine and shows `ERR_FILE_NOT_FOUND`. The release build passes that build folder to Tauri as a Windows drive path, which is read as an address to load rather than files to embed. Linux and macOS builds pass a Unix path and are not expected to be affected, but their desktop windows have not been inspected either. Do not treat any Windows build as functional until the smoke test passes against it. **Fixed in 0.1.1:** the release build now passes a relative path. The CI-built 0.1.1 Windows installer passed the smoke test inside its own WebView2 window on a Windows 11 desktop (backend, frontend and interaction), November 26, 2026.
 
 ### Outstanding
 
-These are separate obligations; none is complete.
+These remain separate validation and distribution obligations.
 
-- **Installed-artifact smoke test on every platform.** It passes the backend checks on Windows but fails the frontend check (the blocker above). Linux and macOS can only run its served-UI form, which checks the installed UI bundle but not the native window.
+- **Native window verification beyond Windows.** Every release must pass the installed-artifact checks below. Linux and macOS use the served-UI form, which checks the installed UI bundle and backend together but does not establish that the native window renders. Windows requires the additional real-desktop check before publication.
 
 - **Executable code signing for Windows and Linux.** Windows SmartScreen warns on first run.
-- **Update verification end to end.** Update artifacts are signed and their signatures check out against the committed key, but no installed release has yet updated itself to a newer one; that needs a second release.
+- **Updates on additional platforms.** The Windows 0.1.0-to-0.1.1 update passed. In-place AppImage and macOS updates remain unverified; the Debian package has no self-update channel.
 - **Fresh-machine runs of the complete desktop app** on clean Windows and macOS machines. The Windows Sandbox check covered the backend only, because the sandbox cannot use its WebView2 runtime.
 - **Fresh-machine setup with real providers** following only the public documentation, and broader trials on unfamiliar projects.
 - **Hosted CI parity.** macOS has no hosted test job, and Linux runs library tests only; both platforms' full suites are run locally, which is not hosted evidence.
