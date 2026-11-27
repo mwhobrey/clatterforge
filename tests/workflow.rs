@@ -548,30 +548,37 @@ fn agentlets_cli_execution_does_not_inherit_ambient_credential_variables() {
         .env("CONDUCTOR_AGENTLET_CREDENTIAL_SENTINEL", "synthetic")
         .output()
         .unwrap();
-    let done = Workflows::open(&f.state)
-        .unwrap()
-        .get(&f.workflow.id)
-        .unwrap();
+    let recorded = Workflows::open(&f.state).and_then(|workflows| workflows.get(&f.workflow.id));
     let diagnostics = if output.status.success() {
-        Vec::new()
+        String::new()
     } else {
-        let agents = Agents::open(&f.state).unwrap();
-        done.steps
-            .iter()
-            .map(|step| {
-                agents
-                    .task(&step.task_id)
-                    .map(|task| (task.status, task.error))
-            })
-            .collect()
+        match &recorded {
+            Ok(done) => match Agents::open(&f.state) {
+                Ok(agents) => format!(
+                    "workflow error={:?}; child outcomes={:?}",
+                    done.error,
+                    done.steps
+                        .iter()
+                        .map(|step| agents
+                            .task(&step.task_id)
+                            .map(|task| (task.status, task.error)))
+                        .collect::<Vec<_>>()
+                ),
+                Err(error) => format!(
+                    "workflow error={:?}; agent state error={error:#}",
+                    done.error
+                ),
+            },
+            Err(error) => format!("workflow reload error={error:#}"),
+        }
     };
     assert!(
         output.status.success(),
-        "{}; workflow error={:?}; child outcomes={:?}",
+        "{}; {}",
         String::from_utf8_lossy(&output.stderr),
-        done.error,
         diagnostics
     );
+    let done = recorded.unwrap();
     assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
 }
 
