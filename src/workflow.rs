@@ -201,7 +201,8 @@ impl Profile {
                     .is_some_and(|a| a.capability == crate::agentlet::Capability::Review)
                     || !p.allowed_files.is_empty())
                     && p.allowed_files.len() <= crate::orchestration::MAX_ALLOWED_FILES
-                    && (1..=16).contains(&p.verification_files.len()),
+                    && (1..=crate::agents::MAX_VERIFICATION_FILES)
+                        .contains(&p.verification_files.len()),
                 "invalid worker file scope"
             );
             if let Some(agentlet) = &p.agentlet {
@@ -2035,7 +2036,7 @@ pub fn plan_next_decision_with_scoreboard(
         }
         return Decision::Finish {
             summary: format!(
-                "Verified across {} stage(s) via builtin:router-v1; latest worker '{}' passed independent verification and all completion gates.",
+                "Independent tests passed across {} stage(s). Latest specialist: '{}'. Inspect the diff and specialist findings before accepting the result.",
                 w.steps.len(),
                 last.worker
             ),
@@ -3838,7 +3839,7 @@ impl Workflows {
                         task.assignment.backend.target(),
                         &task.assignment.spec.model,
                     );
-                    let result = json!({"status":d.status,"execution_outcome":task.execution.as_ref().map(|r|&r.outcome),"verification_outcome":task.verification.as_ref().map(|r|&r.outcome),"verification_exit_code":task.verification.as_ref().and_then(|r|r.exit_code),"verification_stdout":bounded_artifact(&task.verification.as_ref().unwrap().stdout.artifact,2048)?,"verification_stderr":bounded_artifact(&task.verification.as_ref().unwrap().stderr.artifact,2048)?,"agent_summary":if let Some(report)=&task.agentlet_result {report.summary.clone()} else {bounded_artifact(&task.execution.as_ref().unwrap().stdout.artifact,4096)?},"agentlet_result":task.agentlet_result,"patch":task.patch,"checkpoint":checkpoint,"backend":task.assignment.backend.target(),"model":task.assignment.spec.model,"tier":selected_tier.as_str(),"complexity":complexity.as_str(),"effort":effort.as_str()});
+                    let result = json!({"status":d.status,"execution_outcome":task.execution.as_ref().map(|r|&r.outcome),"verification_outcome":task.verification.as_ref().map(|r|&r.outcome),"verification_exit_code":task.verification.as_ref().and_then(|r|r.exit_code),"verification_stdout":bounded_artifact(&task.verification.as_ref().unwrap().stdout.artifact,2048)?,"verification_stderr":bounded_artifact(&task.verification.as_ref().unwrap().stderr.artifact,2048)?,"agent_summary":if let Some(report)=&task.agentlet_result {report.summary.clone()} else {bounded_artifact(&task.execution.as_ref().unwrap().stdout.artifact,4096)?},"agentlet_result":task.agentlet_result,"review_context":task.review_context,"patch":task.patch,"checkpoint":checkpoint,"backend":task.assignment.backend.target(),"model":task.assignment.spec.model,"tier":selected_tier.as_str(),"complexity":complexity.as_str(),"effort":effort.as_str()});
                     let evidence = agents.evidence_digest(&task)?;
                     let updated = self.update(id, "worker_evidence_recorded", |w| {
                         let s = w.steps.last_mut().unwrap();
@@ -3976,6 +3977,17 @@ impl Workflows {
                             == Some(&serde_json::to_value(&task.agentlet_result)?),
                     "stage agentlet result missing or changed"
                 );
+                if preset
+                    .agentlet
+                    .as_ref()
+                    .is_some_and(|a| a.require_review_evidence)
+                {
+                    ensure!(
+                        step.result.as_ref().and_then(|r| r.get("review_context"))
+                            == Some(&serde_json::to_value(&task.review_context)?),
+                        "stage review context missing or changed"
+                    );
+                }
             }
         }
         ensure!(
@@ -4353,7 +4365,7 @@ impl Workflows {
             None
         };
         d.workflow = Some(
-            json!({"phase":phase,"planner_progress":planner_progress,"planner_model":w.assignment.profile.inference.target(&w.assignment.profile.inference.default_target)?.model,"decisions":w.decisions,"git_reads":w.git_reads,"steps":w.steps.iter().map(|s|json!({"worker":s.worker,"task_id":s.task_id,"evidence_digest":s.evidence_digest,"checkpoint":s.checkpoint,"result":s.result})).collect::<Vec<_>>(),"archived_steps":w.archived_steps,"resume_guidance":w.resume_guidance,"operator_plan":w.assignment.operator_plan.as_ref().map(|p|json!({"stage":"plan","supplied_by":"operator","source":p.source,"digest":p.digest,"imported_by":p.imported_by,"imported_at":p.imported_at,"bytes":p.text.len()})),"agentlets":w.assignment.profile.workers.iter().filter_map(|worker|worker.preset.agentlet.as_ref().map(|a|json!({"worker":worker.preset.name,"definition":a}))).collect::<Vec<_>>(),"pending_agentlet_gates":pending_agentlet_gates(&w),"events":self.events(id)?,"summary":w.summary}),
+            json!({"phase":phase,"acceptance":w.assignment.acceptance,"planner_progress":planner_progress,"planner_model":w.assignment.profile.inference.target(&w.assignment.profile.inference.default_target)?.model,"decisions":w.decisions,"git_reads":w.git_reads,"steps":w.steps.iter().map(|s|json!({"worker":s.worker,"task_id":s.task_id,"evidence_digest":s.evidence_digest,"checkpoint":s.checkpoint,"result":s.result})).collect::<Vec<_>>(),"archived_steps":w.archived_steps,"resume_guidance":w.resume_guidance,"operator_plan":w.assignment.operator_plan.as_ref().map(|p|json!({"stage":"plan","supplied_by":"operator","source":p.source,"digest":p.digest,"imported_by":p.imported_by,"imported_at":p.imported_at,"bytes":p.text.len()})),"protected_files":w.assignment.profile.workers.first().map(|worker| &worker.preset.verification_files),"agentlets":w.assignment.profile.workers.iter().filter_map(|worker|worker.preset.agentlet.as_ref().map(|a|json!({"worker":worker.preset.name,"definition":a}))).collect::<Vec<_>>(),"pending_agentlet_gates":pending_agentlet_gates(&w),"events":self.events(id)?,"summary":w.summary}),
         );
         Ok(d)
     }
@@ -4388,11 +4400,27 @@ fn pending_agentlet_gates_for_profile(profile: &Profile, steps: &[Step]) -> Vec<
                         && s.result.as_ref().is_some_and(|r| {
                             r["agentlet_result"]["outcome"] == "completed"
                                 && r["verification_outcome"] == "succeeded"
+                                && (!worker
+                                    .preset
+                                    .agentlet
+                                    .as_ref()
+                                    .is_some_and(|a| a.require_review_evidence)
+                                    || review_coverage_matches(r, tree.unwrap_or_default()))
                         })
                 })
         })
         .map(|worker| worker.preset.name.clone())
         .collect()
+}
+
+fn review_coverage_matches(result: &Value, tree: &str) -> bool {
+    let (Ok(report), Ok(context)) = (
+        serde_json::from_value::<crate::agentlet::Report>(result["agentlet_result"].clone()),
+        serde_json::from_value::<crate::agentlet::ReviewContext>(result["review_context"].clone()),
+    ) else {
+        return false;
+    };
+    context.candidate_tree == tree && report.validate_review(&context).is_ok()
 }
 
 pub fn status(value: &AgentStatus) -> String {

@@ -277,15 +277,25 @@ fn run(f: &Fixture) -> Workflow {
 }
 
 fn agentlet_fixture(model: &Model, steps: usize) -> Fixture {
+    agentlet_fixture_with_review_evidence(model, steps, false)
+}
+
+fn agentlet_fixture_with_review_evidence(
+    model: &Model,
+    steps: usize,
+    require_review: bool,
+) -> Fixture {
     use clatterforge::agentlet::{Capability, Definition};
     let mut f = fixture(model, steps);
     let definitions = [Definition { schema_version:1, id:"implementer".into(), version:1,
         purpose:"Implement only the assigned component".into(),
         instructions:"Respect the approved file scope and return a structured summary of the work and unresolved findings".into(),
-        capability:Capability::EditApprovedFiles,completion_gate:false },
+        capability:Capability::EditApprovedFiles,completion_gate:false,
+            require_review_evidence: false,},
         Definition {schema_version:1,id:"reviewer".into(),version:1,purpose:"Review the final candidate".into(),
             instructions:"Inspect the candidate and independently reported verification; make no candidate edits. Report unresolved errors honestly".into(),
-            capability:Capability::Review,completion_gate:true}];
+            capability:Capability::Review,completion_gate:true,
+            require_review_evidence: require_review,}];
     for definition in definitions {
         let path = f.state.join(format!("{}.json", definition.id));
         fs::write(&path, serde_json::to_vec(&definition).unwrap()).unwrap();
@@ -589,6 +599,7 @@ fn agentlets_changed_cursor_entry_point_stops_before_planning() {
                 instructions: "Edit only the approved file".into(),
                 capability: clatterforge::agentlet::Capability::EditApprovedFiles,
                 completion_gate: false,
+                require_review_evidence: false,
             },
             "fixture",
         )
@@ -2603,6 +2614,7 @@ fn reviewer_needs_work_attributes_failure_to_implementer_and_multi_scope_router_
                 instructions: "Inspect candidate".into(),
                 capability: Capability::Review,
                 completion_gate: true,
+                require_review_evidence: false,
             },
             "fixture",
         )
@@ -2951,6 +2963,7 @@ fn standard_task_quota_fallback_swaps_across_all_clis_and_review_gate() {
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
     let rev_def = Definition {
         schema_version: 1,
@@ -2960,6 +2973,7 @@ fn standard_task_quota_fallback_swaps_across_all_clis_and_review_gate() {
         instructions: "Review candidate".into(),
         capability: Capability::Review,
         completion_gate: true,
+        require_review_evidence: false,
     };
 
     // Mirrors `onboard.rs` multi-CLI profile:
@@ -3250,6 +3264,7 @@ fn quota_fallback_handles_stage2_shared_worktree_and_long_jsonl_stream() {
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
 
     presets
@@ -3426,6 +3441,7 @@ fn quota_fallback_falls_back_to_local_when_cloud_clis_exhausted() {
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
 
     presets
@@ -3553,6 +3569,7 @@ fn verifier_timeout_records_step_result_and_escalates_blocked_agentlet_cleanly()
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
 
     presets
@@ -3653,6 +3670,7 @@ fn clear_tasks_removes_failed_workflow_and_children_while_preserving_pending_and
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
     let old = presets.get("worker-a").unwrap();
     presets
@@ -3818,6 +3836,7 @@ fn workflow_create_with_scope_overrides_edit_workers_and_keeps_reviewer_readonly
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
     let rev_def = Definition {
         schema_version: 1,
@@ -3827,6 +3846,7 @@ fn workflow_create_with_scope_overrides_edit_workers_and_keeps_reviewer_readonly
         instructions: "Inspect diff".into(),
         capability: Capability::Review,
         completion_gate: true,
+        require_review_evidence: false,
     };
     presets
         .bind_agentlet("worker-a", "impl-scoped", impl_def, "fixture")
@@ -3915,6 +3935,7 @@ fn execution_timeout_records_step_result_resets_workspace_and_fails_over_cleanly
         instructions: "Edit approved files".into(),
         capability: Capability::EditApprovedFiles,
         completion_gate: false,
+        require_review_evidence: false,
     };
     let codex_home = f._dir.path().join("exec-timeout-codex");
     fs::create_dir_all(&codex_home).unwrap();
@@ -4339,6 +4360,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
             instructions: "Respect approved scope".into(),
             capability: Capability::EditApprovedFiles,
             completion_gate: false,
+            require_review_evidence: false,
         },
         Definition {
             schema_version: 1,
@@ -4348,6 +4370,7 @@ fn shared_worktree_workflow_integration_ignores_untouched_oversized_scope_files(
             instructions: "Inspect candidate without editing".into(),
             capability: Capability::Review,
             completion_gate: true,
+            require_review_evidence: false,
         },
     ] {
         let path = state.join(format!("{}.json", definition.id));
@@ -5557,4 +5580,94 @@ fn preset_workers_get_the_allowlist_plus_listed_names_only() {
     assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
     let report = fs::read_to_string(done.assignment.workspace.join("a.txt")).unwrap();
     assert_eq!(report, "fixed-a secret=false listed=true");
+}
+
+#[test]
+fn required_reviewer_uses_host_diff_and_binds_coverage_to_the_checkpoint() {
+    let model = Model::new(vec![
+        dispatch("implement-a", "WORK_A"),
+        dispatch("implement-b", "WORK_B"),
+        dispatch("review-final", "REVIEW_OK"),
+        json!({"action":"finish","summary":"Ready for human review"}),
+    ]);
+    let f = agentlet_fixture_with_review_evidence(&model, 3, true);
+    let done = run(&f);
+    assert_eq!(done.status, AgentStatus::AwaitingReview, "{:?}", done.error);
+    let step = done.steps.last().unwrap();
+    let result = step.result.as_ref().unwrap();
+    assert_eq!(
+        result["agentlet_result"]["review_evidence"]["coverage"],
+        "complete"
+    );
+    assert_eq!(
+        result["review_context"]["candidate_tree"],
+        step.checkpoint.as_ref().unwrap().tree
+    );
+    assert_eq!(
+        result["agentlet_result"]["review_evidence"]["diff_digest"],
+        result["review_context"]["diff"]["hash"]
+    );
+    let child = Agents::open(&f.state).unwrap().task(&step.task_id).unwrap();
+    let context = child.review_context.as_ref().unwrap();
+    fs::write(&context.diff.path, "tampered review diff").unwrap();
+    assert!(
+        Agents::open(&f.state)
+            .unwrap()
+            .evidence_digest(&child)
+            .is_err()
+    );
+}
+
+#[test]
+fn required_review_never_passes_when_the_worker_omits_or_limits_its_coverage() {
+    for marker in ["MISSING_REVIEW_EVIDENCE", "LIMITED_REVIEW_EVIDENCE"] {
+        let model = Model::new(vec![
+            dispatch("implement-a", "WORK_A"),
+            dispatch("implement-b", "WORK_B"),
+            dispatch("review-final", marker),
+        ]);
+        let f = agentlet_fixture_with_review_evidence(&model, 3, true);
+        let done = run(&f);
+        assert_eq!(
+            done.status,
+            AgentStatus::NeedsWork,
+            "{marker}: {:?}",
+            done.error
+        );
+        let last = done.steps.last().unwrap();
+        let child = Agents::open(&f.state).unwrap().task(&last.task_id).unwrap();
+        assert_eq!(child.status, AgentStatus::NeedsWork);
+        assert!(child.error.as_ref().unwrap().contains("required review"));
+        assert!(
+            child.verification.is_none(),
+            "a passing verifier must not erase an incomplete required review"
+        );
+    }
+}
+
+#[test]
+fn required_review_is_invalidated_by_later_edits_without_losing_historical_evidence() {
+    let model = Model::new(vec![
+        dispatch("implement-a", "WORK_A"),
+        dispatch("implement-b", "WORK_B"),
+        dispatch("review-final", "REVIEW_OK"),
+        dispatch("implement-a", "WORK_A_CHANGED"),
+        json!({"action":"finish","summary":"Try to reuse a stale review"}),
+    ]);
+    let f = agentlet_fixture_with_review_evidence(&model, 5, true);
+    let done = run(&f);
+    assert_eq!(done.status, AgentStatus::NeedsWork, "{:?}", done.error);
+    assert!(done.error.unwrap().contains("required agentlet review"));
+    assert_ne!(
+        done.steps[2].checkpoint.as_ref().unwrap().tree,
+        done.steps[3].checkpoint.as_ref().unwrap().tree
+    );
+    let child = Agents::open(&f.state)
+        .unwrap()
+        .task(&done.steps[2].task_id)
+        .unwrap();
+    Agents::open(&f.state)
+        .unwrap()
+        .evidence_digest(&child)
+        .unwrap();
 }
