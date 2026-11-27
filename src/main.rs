@@ -3461,6 +3461,10 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             let mut v_files = v_files;
             if *allow_test_edits {
                 v_files.retain(|p| !report.detected_test_files.contains(p));
+                anyhow::ensure!(
+                    !v_files.is_empty(),
+                    "No protected verifier files remain. Disable --allow-test-edits to keep acceptance inputs protected."
+                );
             }
             let final_allowed_files = if !allowed_files.is_empty() {
                 allowed_files.clone()

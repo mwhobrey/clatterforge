@@ -2036,7 +2036,7 @@ pub fn plan_next_decision_with_scoreboard(
         }
         return Decision::Finish {
             summary: format!(
-                "Independent tests passed across {} stage(s). Latest specialist: '{}'. Inspect the diff and specialist findings before accepting the result.",
+                "The latest candidate passed independent verification after {} stage(s). Latest specialist: '{}'. Inspect the diff and specialist findings before accepting the result.",
                 w.steps.len(),
                 last.worker
             ),
