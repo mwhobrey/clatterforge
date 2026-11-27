@@ -59,7 +59,7 @@
     </div>
 
     <div class="hero-text">
-      <p class="lede">You approve the scope. Local workers write the change in their own Git worktree, not your checkout. You review the diff and an independent verifier's evidence. <strong>The forge applies nothing to your checkout until you accept it.</strong></p>
+      <p class="lede">You approve the scope. Local workers write the change in their own Git worktree. Tests stay protected by default. You review the diff, independent test results and specialist review coverage. <strong>Accept the result, then explicitly apply it to your project when you are ready.</strong></p>
       <div class="cta">
         <a class="btn btn-primary" href="#parts">Get v{{VERSION}}</a>
         <a class="btn btn-line" href="{{REPO}}">Read the source</a>
@@ -79,7 +79,7 @@
     <header class="part-head">
       <p class="part-no">Sheet 01</p>
       <h2>Exhibit</h2>
-      <p class="part-sub">The app itself, not a mock-up. Real screenshots of Clatterforge v0.1.0 working on a demo repository.</p>
+      <p class="part-sub">The app itself, not a mock-up. These earlier v0.1.0 demo screenshots show the workflow; the current interface adds protected-test defaults, explicit review coverage and clearer accept/apply controls.</p>
     </header>
 
     <figure class="fig fig-main">
@@ -97,7 +97,7 @@
           <li>The board: everything waiting on you, by state.</li>
           <li>Status, task, repository and branch.</li>
           <li>The diff exactly as the worker produced it, in its own worktree.</li>
-          <li>Accept or reject. Nothing lands in your checkout until you do.</li>
+          <li>Accept or reject the result. Applying it to your checkout is a separate, explicit action.</li>
           <li>Each attempt and the independent verifier's result.</li>
         </ol>
       </figcaption>
@@ -113,7 +113,7 @@
         <figcaption><p class="fig-no">Fig. 3 · Provenance</p><p>Every task keeps who approved what, against which assignment, with which evidence.</p></figcaption>
       </figure>
     </div>
-    <p class="margin-note"><span>Note</span> The worker in these screenshots is the built-in deterministic test worker (<code>fake-process-v1</code>), so the demo runs anywhere. In use it is a Codex or Cursor CLI.</p>
+    <p class="margin-note"><span>Note</span> The worker in these screenshots is the built-in deterministic test worker (<code>fake-process-v1</code>), so the demo runs anywhere. In use it is a supported coding CLI. New project profiles protect recognized tracked tests and verifier metadata by default. Required specialist reviews are bound to the candidate and full host diff; incomplete coverage stops the run even when tests pass. Existing profiles retain their contracts until explicitly re-onboarded.</p>
   </section>
 
   <section class="part" id="routing">
@@ -233,7 +233,7 @@
           <td class="item">1</td>
           <th scope="row">Windows <small>x64</small></th>
           <td data-label="Part"><code>Clatterforge_{{VERSION}}_x64-setup.exe</code></td>
-          <td data-label="Finish" class="finish raw">Known issue in v0.1.0: the window does not load its interface. Not code-signed yet</td>
+          <td data-label="Finish" class="finish raw">Native Windows interface. Signed updates; executable not code-signed yet (SmartScreen may warn)</td>
           <td><a class="get" href="{{REPO}}/releases/download/v{{VERSION}}/Clatterforge_{{VERSION}}_x64-setup.exe">Download</a></td>
         </tr>
         <tr>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Clatterforge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "dev.clatterforge.desktop",
   "build": {
     "frontendDist": "../target/dx/clatterforge-gui/release/web/public",

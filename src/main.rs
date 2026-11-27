@@ -347,6 +347,9 @@ enum Commands {
         /// Optional coding worker filter (e.g. --worker cursor, --worker codex, --worker agy, --worker local)
         #[arg(long = "worker")]
         workers: Vec<String>,
+        /// Allow selected test files to be edited instead of protected acceptance inputs
+        #[arg(long, default_value_t = false)]
+        allow_test_edits: bool,
         /// Accept auto-detected defaults non-interactively
         #[arg(long, default_value_t = false)]
         yes: bool,
@@ -3338,6 +3341,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
             verifier_args,
             allowed_files,
             workers,
+            allow_test_edits,
             yes,
             low_spec,
             probe_only,
@@ -3454,6 +3458,10 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                     .to_string()
             });
 
+            let mut v_files = v_files;
+            if *allow_test_edits {
+                v_files.retain(|p| !report.detected_test_files.contains(p));
+            }
             let final_allowed_files = if !allowed_files.is_empty() {
                 allowed_files.clone()
             } else if !report.suggested_allowed_files.is_empty() {
@@ -3485,6 +3493,7 @@ fn workflow_command(cli: &Cli) -> Result<bool> {
                 },
                 allowed_files: final_allowed_files,
                 workers: workers.clone(),
+                allow_test_edits: *allow_test_edits,
                 low_spec: *low_spec,
                 by: by.clone(),
             };

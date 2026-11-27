@@ -10,14 +10,22 @@ Create an ordinary execution preset for your exact repository, CLI executable/mo
 clatterforge agentlet-import --definition examples/agentlets/implementer.json --by "Your name"
 clatterforge agentlet-import --definition examples/agentlets/reviewer.json --by "Your name"
 clatterforge agentlet-list
-clatterforge agentlet-show reviewer --version 1
+clatterforge agentlet-show reviewer --version 2
 clatterforge agentlet-bind implementer --version 1 --preset project-cli --name project-implement --by "Your name"
-clatterforge agentlet-bind reviewer --version 1 --preset project-cli --name project-review --by "Your name"
+clatterforge agentlet-bind reviewer --version 2 --preset project-cli --name project-review --by "Your name"
 ```
 
 Definitions have a schema version, ID, positive integer version, purpose, instructions, capability and completion gate. Imported versions are immutable. Review imported instructions before binding. A definition cannot declare arbitrary executables, tools, endpoints, credentials or editable paths. Changing a specialist requires a new version and a new binding/profile; existing approvals keep their snapshot.
 
 An editor inherits the base preset's exact editable paths. A reviewer gets no editable candidate paths. Cursor bindings require a newly inspected preset with a hash-pinned JS entry point; recreate an older preset explicitly if binding reports that its pin is missing. Executables, models, verifier commands and budgets stay under the local preset's control. Codex uses its pinned account home; Cursor uses the installed CLI's login profile for the current OS user.
+
+## Required review coverage
+
+Newly onboarded projects use reviewer definition version 2 with `require_review_evidence: true`. The host supplies an immutable diff artifact, its digest, the candidate tree and changed-file list. Small diffs are also included in the review prompt; larger diffs must be read from the artifact. Reviewers can use this evidence when their CLI sandbox cannot run Git.
+
+A completed required review must report `review_evidence` with `coverage: complete`, the exact `candidate_tree` and `diff_digest`, every `reviewed_files` path, and an empty `limitations` list. Missing, limited, stale or mismatched coverage stops the attempt; a passing verifier cannot override it. Later candidate edits invalidate the review. Artifact or report tampering is rejected at result review.
+
+Coverage is a specialist's structured attestation tied to host evidence, not proof of semantic correctness. Human review remains required. Existing definitions, approvals and legacy reports retain their original meaning; explicitly re-onboard an older project or bind the new reviewer version to opt into this contract.
 
 ## Route and inspect
 
