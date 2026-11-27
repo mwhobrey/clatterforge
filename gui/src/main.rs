@@ -2976,6 +2976,13 @@ fn WorkflowIntake(
                 };
                 if allow_test_edits {
                     verification_files.retain(|p| !report.detected_test_files.contains(p));
+                    if verification_files.is_empty() {
+                        onboard_error.set(Some("No protected verifier files remain. Disable test edits to keep acceptance inputs protected.".into()));
+                        active_onboard_job.set(None);
+                        onboard_progress_state.set(None);
+                        onboard_probing.set(false);
+                        return;
+                    }
                 }
                 let edited_allowed = parse_file_list(&onboard_allowed_files());
                 let allowed_files = if !edited_allowed.is_empty() {
