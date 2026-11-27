@@ -1538,9 +1538,11 @@ fn long_workspace_paths_get_a_retained_non_blocking_warning() {
     let state = deep.join("state");
 
     let mut agents = Agents::open(&state).unwrap();
-    let task = agents
-        .create(spec(&repo, "fix the result"), policy())
-        .unwrap();
+    let cargo_verifier = deep.join("cargo.exe");
+    fs::copy(verifier(), &cargo_verifier).unwrap();
+    let mut cargo_spec = spec(&repo, "fix the result");
+    cargo_spec.verify_executable = cargo_verifier;
+    let task = agents.create(cargo_spec, policy()).unwrap();
     let digest = task.assignment.digest().unwrap();
     let approved = agents
         .approve(&task.id, task.revision, &digest, "fixture")
@@ -1570,6 +1572,23 @@ fn long_workspace_paths_get_a_retained_non_blocking_warning() {
                 .to_string()
         ),
         "the expected build-output location must be named in the diagnostic: {warning}"
+    );
+    let other = agents
+        .create(spec(&repo, "fix the result"), policy())
+        .unwrap();
+    let approved = agents
+        .approve(
+            &other.id,
+            other.revision,
+            &other.assignment.digest().unwrap(),
+            "fixture",
+        )
+        .unwrap();
+    let other = agents.run(&approved.id, approved.revision).unwrap();
+    assert_eq!(other.status, AgentStatus::AwaitingReview);
+    assert!(
+        other.workspace_warning.is_none(),
+        "non-Cargo verifiers must not receive a Cargo linker warning"
     );
 }
 

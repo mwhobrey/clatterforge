@@ -47,6 +47,8 @@ use std::{
 };
 use uuid::Uuid;
 
+pub const MAX_VERIFICATION_FILES: usize = 1024;
+
 // Protected inputs are hashed, never put into the model's bounded editable-text
 // context. Lockfiles commonly exceed that context's 64 KiB limit.
 fn bounded_stream_snippet(path: &Path, max_chars: usize) -> Option<String> {
@@ -1269,6 +1271,8 @@ pub struct ArchivedAgentAttempt {
     pub patch: Option<Artifact>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agentlet_result: Option<crate::agentlet::Report>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_context: Option<crate::agentlet::ReviewContext>,
     pub error: Option<String>,
     pub review: Option<Review>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1285,6 +1289,8 @@ pub struct ArchivedAgentAttempt {
 pub struct AgentTask {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agentlet_result: Option<crate::agentlet::Report>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_context: Option<crate::agentlet::ReviewContext>,
     pub id: String,
     pub revision: u64,
     pub status: AgentStatus,
@@ -1610,7 +1616,7 @@ impl Agents {
                 .is_some_and(|a| a.capability == crate::agentlet::Capability::Review)
                 || !spec.allowed_files.is_empty())
                 && spec.allowed_files.len() <= crate::orchestration::MAX_ALLOWED_FILES
-                && (1..=16).contains(&spec.verification_files.len()),
+                && (1..=MAX_VERIFICATION_FILES).contains(&spec.verification_files.len()),
             "invalid file scope bounds"
         );
         if let Some(agentlet) = &spec.agentlet {
@@ -1708,6 +1714,7 @@ impl Agents {
         };
         let task = AgentTask {
             agentlet_result: None,
+            review_context: None,
             id: id.clone(),
             revision: 1,
             status: AgentStatus::AwaitingApproval,
@@ -1975,6 +1982,7 @@ impl Agents {
                     verification: t.verification.take(),
                     patch: t.patch.take(),
                     agentlet_result: t.agentlet_result.take(),
+                    review_context: t.review_context.take(),
                     error: t.error.take(),
                     review: t.review.take(),
                     workspace_warning: t.workspace_warning.take(),
@@ -2457,6 +2465,63 @@ impl Agents {
         )?;
         let directory = self.root.join("agent-artifacts").join(id);
         fs::create_dir_all(&directory)?;
+        let task = if task
+            .assignment
+            .spec
+            .agentlet
+            .as_ref()
+            .is_some_and(|a| a.require_review_evidence)
+        {
+            let scope = task
+                .assignment
+                .shared_workspace
+                .as_ref()
+                .map(|s| s.candidate_scope.clone())
+                .unwrap_or_else(|| {
+                    task.assignment
+                        .handoff
+                        .as_ref()
+                        .map(|h| h.files.keys().cloned().collect())
+                        .unwrap_or_default()
+                });
+            let tree = crate::workflow_workspace::candidate_tree(
+                &self.root,
+                &task.assignment.workspace,
+                &task.assignment.repository.base,
+                &scope,
+            )?;
+            let checkpoint = crate::workflow_workspace::Checkpoint {
+                tree: tree.clone(),
+                reference: String::new(),
+            };
+            let changed_files = crate::workflow_workspace::stage_changes(
+                &task.assignment.repository,
+                &task.assignment.repository.base,
+                &checkpoint,
+            )?;
+            let diff = self.patch(&task)?;
+            ensure!(
+                diff.len() <= 4 * 1024 * 1024,
+                "required review diff exceeds 4 MiB; narrow the task scope"
+            );
+            let context = crate::agentlet::ReviewContext {
+                base: task.assignment.repository.base.clone(),
+                candidate_tree: tree,
+                diff: artifact(&directory.join("review.diff"), &diff)?,
+                changed_files,
+                inline_diff: if diff.len() <= 8192 {
+                    String::from_utf8(diff).ok()
+                } else {
+                    None
+                },
+            };
+            self.mutate_current(id, "review_evidence_prepared", "Agents::execute", |t| {
+                t.review_context = Some(context);
+                Ok(())
+            })?
+        } else {
+            task
+        };
         let baseline: BTreeMap<String, Option<String>> = task
             .assignment
             .spec
@@ -2494,6 +2559,7 @@ impl Agents {
                 base: &task.assignment.repository.base,
                 allowed_files: &task.assignment.spec.allowed_files,
                 prior_context: task.assignment.handoff.as_ref().map(|h| h.context.as_str()),
+                review_context: task.review_context.as_ref(),
             };
             agentlet.prompt(&input)?
         } else {
@@ -2657,6 +2723,25 @@ impl Agents {
         if task.assignment.spec.agentlet.is_some() {
             match crate::agentlet::report_from_receipt(&task.assignment.backend, &receipt) {
                 Ok(report) => {
+                    if let Some(context) = &task.review_context {
+                        let valid = crate::workflow_workspace::file_artifact(&context.diff.path)
+                            .and_then(|actual| {
+                                ensure!(
+                                    actual.hash == context.diff.hash
+                                        && actual.bytes == context.diff.bytes,
+                                    "host review diff changed during execution"
+                                );
+                                report.validate_review(context)
+                            });
+                        if let Err(error) = valid {
+                            self.retain_partial_patch(id)?;
+                            return self.finish(
+                                id,
+                                AgentStatus::NeedsWork,
+                                Some(format!("required review rejected: {error:#}")),
+                            );
+                        }
+                    }
                     self.mutate_current(
                         id,
                         "agentlet_result_validated",
@@ -2681,7 +2766,17 @@ impl Agents {
         }
         let task = self.mutate_current(id, "scope_checked", "Agents::execute", |t| {
             t.status = AgentStatus::Verifying;
-            t.workspace_warning = workspace_path_warning(&t.assignment.workspace);
+            t.workspace_warning = if t
+                .assignment
+                .spec
+                .verify_executable
+                .file_stem()
+                .is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("cargo"))
+            {
+                workspace_path_warning(&t.assignment.workspace)
+            } else {
+                None
+            };
             Ok(())
         })?;
         // A sandboxed verifier runs the pinned container command through the pinned Docker
@@ -2998,6 +3093,42 @@ impl Agents {
                     == *report,
                 "agentlet result changed after execution"
             );
+            if task
+                .assignment
+                .spec
+                .agentlet
+                .as_ref()
+                .is_some_and(|a| a.require_review_evidence)
+            {
+                let context = task
+                    .review_context
+                    .as_ref()
+                    .context("host review context is missing")?;
+                let actual = crate::workflow_workspace::file_artifact(&context.diff.path)?;
+                ensure!(
+                    actual.hash == context.diff.hash && actual.bytes == context.diff.bytes,
+                    "host review diff changed"
+                );
+                report.validate_review(context)?;
+                let patch = task
+                    .patch
+                    .as_ref()
+                    .context("reviewed candidate patch is missing")?;
+                let actual_patch = crate::workflow_workspace::file_artifact(&patch.path)?;
+                ensure!(
+                    actual_patch.hash == context.diff.hash
+                        && actual_patch.bytes == context.diff.bytes,
+                    "reviewed candidate patch changed"
+                );
+                return Ok(crate::digest(&serde_json::to_vec(&(
+                    &task.assignment,
+                    &task.execution,
+                    &task.verification,
+                    &task.patch,
+                    report,
+                    context,
+                ))?));
+            }
             return Ok(crate::digest(&serde_json::to_vec(&(
                 &task.assignment,
                 &task.execution,

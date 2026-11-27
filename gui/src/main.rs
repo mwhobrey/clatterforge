@@ -486,10 +486,16 @@ pub(crate) struct RoutingEvent {
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(crate) struct WorkflowView {
+    #[serde(default)]
+    pub(crate) acceptance: String,
+    #[serde(default)]
+    pub(crate) protected_files: Vec<String>,
     pub(crate) phase: String,
     pub(crate) planner_model: String,
     pub(crate) decisions: Vec<WorkflowDecision>,
     pub(crate) steps: Vec<WorkflowStep>,
+    #[serde(default)]
+    pub(crate) archived_steps: Vec<serde_json::Value>,
     pub(crate) summary: Option<String>,
     pub(crate) planner_progress: Option<PlannerProgress>,
     #[serde(default)]
@@ -514,9 +520,13 @@ pub(crate) struct AgentletDefinition {
     pub(crate) instructions: String,
     pub(crate) capability: String,
     pub(crate) completion_gate: bool,
+    #[serde(default)]
+    pub(crate) require_review_evidence: bool,
 }
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(crate) struct WorkflowEvent {
+    #[serde(default)]
+    pub(crate) at: u64,
     pub(crate) revision: u64,
     pub(crate) stage: String,
 }
@@ -566,7 +576,22 @@ struct WorkflowProfile {
     #[serde(default)]
     scope: Vec<String>,
     #[serde(default)]
+    protected_files: Vec<String>,
+    #[serde(default)]
+    workers: Vec<ProfileWorker>,
+    #[serde(default)]
+    review_contract: String,
+    #[serde(default)]
     indexed_files: Option<usize>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+struct ProfileWorker {
+    name: String,
+    #[serde(default)]
+    backend: String,
+    #[serde(default)]
+    model: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -708,86 +733,6 @@ fn apply_profile_timeout_fields(
     require_clean_checkout.set(p.require_clean_checkout);
 }
 
-fn strip_line_col_suffix(token: &str) -> &str {
-    let mut s = token;
-    for _ in 0..2 {
-        if let Some((head, tail)) = s.rsplit_once(':') {
-            if !tail.is_empty()
-                && tail.bytes().all(|b| b.is_ascii_digit())
-                && (head.contains('/') || head.contains('.'))
-            {
-                s = head;
-                continue;
-            }
-        }
-        break;
-    }
-    s
-}
-
-fn extract_objective_repo_files(
-    objective: &str,
-    repo_files: &[String],
-    profile_scope: &[String],
-) -> Option<Vec<String>> {
-    if repo_files.is_empty() || objective.trim().is_empty() {
-        return None;
-    }
-    let mut matched = Vec::new();
-    for raw in objective.split_whitespace() {
-        let trimmed = raw.trim_matches(|c: char| {
-            matches!(
-                c,
-                '\'' | '"'
-                    | '`'
-                    | '('
-                    | ')'
-                    | '['
-                    | ']'
-                    | '{'
-                    | '}'
-                    | '<'
-                    | '>'
-                    | ','
-                    | ';'
-                    | ':'
-                    | '.'
-                    | '!'
-                    | '?'
-            )
-        });
-        let cleaned = strip_line_col_suffix(trimmed)
-            .replace('\\', "/")
-            .trim_start_matches("./")
-            .to_string();
-        if cleaned.is_empty() || (!cleaned.contains('/') && !cleaned.contains('.')) {
-            continue;
-        }
-        if let Some(canonical) = repo_files.iter().find(|f| f.eq_ignore_ascii_case(&cleaned)) {
-            if !matched
-                .iter()
-                .any(|existing: &String| existing == canonical)
-            {
-                matched.push(canonical.clone());
-                if matched.len() >= 64 {
-                    break;
-                }
-            }
-        }
-    }
-    if matched.is_empty() {
-        return None;
-    }
-    let all_in_scope = matched
-        .iter()
-        .all(|m| profile_scope.iter().any(|s| s.eq_ignore_ascii_case(m)));
-    if all_in_scope {
-        None
-    } else {
-        Some(matched)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 struct SuggestedFileItem {
     path: String,
@@ -847,38 +792,11 @@ fn spawn_suggest_files(
                 return;
             }
             target.indexed_file_count.set(Some(resp.indexed_files));
-            if resp.matched.is_empty() {
-                target.suggested_matches.set(Vec::new());
-                if !*target.scope_manually_edited.peek() && target.auto_scope_note.peek().is_some()
-                {
-                    target.dispatch_allowed_files.set(String::new());
-                    target.auto_scope_note.set(None);
-                }
-            } else {
-                let match_count = resp.matched.len();
-                let merged_count = resp.merged_scope.len();
-                let cache_tag = if resp.used_cached_index {
-                    "cached"
-                } else {
-                    "indexed"
-                };
-                target.suggested_matches.set(resp.matched);
-                if !*target.scope_manually_edited.peek() {
-                    target
-                        .dispatch_allowed_files
-                        .set(resp.merged_scope.join(", "));
-                    let match_noun = if match_count == 1 { "file" } else { "files" };
-                    let idx_noun = if resp.indexed_files == 1 {
-                        "file"
-                    } else {
-                        "files"
-                    };
-                    target.auto_scope_note.set(Some(format!(
-                        "Auto-selected {match_count} matched {match_noun} merged with top profile files ({merged_count} total · {} indexed {idx_noun}, {cache_tag}).",
-                        resp.indexed_files
-                    )));
-                }
-            }
+            let count = resp.matched.len();
+            target.suggested_matches.set(resp.matched);
+            target.auto_scope_note.set(if count > 0 {
+                Some(format!("{count} suggested files. Review and choose them explicitly; your editable scope has not changed."))
+            } else { None });
         }
     });
 }
@@ -1008,6 +926,8 @@ fn default_true() -> bool {
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(crate) struct AgentProgress {
+    #[serde(default)]
+    pub(crate) observed_at: u64,
     pub(crate) phase: String,
     pub(crate) process_id: u32,
     pub(crate) elapsed_ms: u64,
@@ -2118,51 +2038,18 @@ fn Dashboard() -> Element {
         .is_some_and(|c| c.session_principal().is_some());
 
     rsx! {
-        div { class: "min-h-screen cf-chassis p-3 sm:p-4 md:p-6 font-mono text-sm max-w-full overflow-x-hidden", style: "background-color: #0C1118; color: #F2F5F7;",
-            header { class: "mb-4 pb-3 sm:pb-4 border-b", style: "border-color: #202D3A;",
-                div { class: "flex flex-col md:flex-row md:items-center md:justify-between gap-3",
-                    div { class: "min-w-0",
-                        div { class: "flex flex-wrap items-center gap-2 mb-1",
-                            span {
-                                class: "text-[11px] font-bold tracking-widest px-2 py-0.5 rounded border shrink-0",
-                                style: "color: #FF754F; border-color: #FF754F; background-color: rgba(255, 117, 79, 0.08);",
-                                "CF // SYSTEMS"
-                            }
-                            span {
-                                class: "text-[10px] sm:text-[11px] tracking-widest uppercase",
-                                style: "color: #8D9DAD;",
-                                "AGENT ORCHESTRATION / DISTRIBUTED EXECUTION"
-                            }
-                        }
-                        h1 { class: "cf-brand-heading",
-                            img {
-                                class: "cf-brand-logo",
-                                src: BRAND_LOGO,
-                                alt: "Clatterforge. Control the chaos.",
-                                width: "1600",
-                                height: "330",
-                            }
-                        }
-                        p { class: "text-xs mt-1", style: "color: #8D9DAD;",
-                            "We're not making agents smarter. We're making their work accountable."
-                        }
+        div { class: "min-h-screen cf-chassis p-3 sm:p-4 md:p-6 text-sm max-w-full overflow-x-hidden", style: "background-color: #0C1118; color: #F2F5F7;",
+            header { class: "mb-4 pb-3 border-b flex flex-wrap items-center justify-between gap-3", style: "border-color: #202D3A;",
+                div {
+                    h1 { class: "cf-brand-heading",
+                        img { class: if active_conn.is_some() { "cf-brand-logo cf-brand-logo-compact" } else { "cf-brand-logo" },
+                            src: BRAND_LOGO, alt: "Clatterforge. Control the chaos.", width: "1600", height: "330" }
                     }
-                    div {
-                        class: "rounded px-3 py-2 border text-xs flex flex-col gap-1 shrink-0",
-                        style: "background-color: #202D3A; border-color: #202D3A;",
-                        div { class: "flex flex-wrap items-center justify-between gap-3",
-                            span { class: "tracking-widest uppercase text-[10px]", style: "color: #8D9DAD;", "EXECUTION / TOPOLOGY" }
-                            span { class: "font-bold tracking-wider text-[10px]", style: "color: #66D8CE;", "● SYSTEM NOMINAL" }
-                        }
-                        div { class: "font-mono text-[11px] tracking-wider", style: "color: #F2F5F7;",
-                            span { style: "color: #FF754F;", "01" }
-                            " PLAN → "
-                            span { style: "color: #FF754F;", "02" }
-                            " EXECUTE → "
-                            span { style: "color: #66D8CE;", "03 VERIFY" }
-                        }
+                    if active_conn.is_none() {
+                        p { class: "mt-2 text-sm cf-steel-text", "Give your coding agents a clear task, independent tests, and a result you can review." }
                     }
                 }
+                p { class: "text-xs cf-steel-text", "Plan · Execute · Verify · Review" }
             }
 
             if let Some(conn) = active_conn.clone() {
@@ -2399,16 +2286,24 @@ fn Dashboard() -> Element {
             }
 
             if let Some(conn) = active_conn.clone() {
-                ProviderMonitor { config: conn.clone() }
-                ForgeSettings { config: conn.clone() }
-                WorkflowIntake {
-                    config: conn.clone(),
-                    actor,
-                    on_created: move |id: String| {
-                        selected.set(Some(id));
-                        refresh_rows(conn.clone());
-                    },
+                div { class: "cf-workspace-tools",
+                details { class: "mb-3 cf-panel rounded p-3",
+                    summary { class: "cursor-pointer font-semibold min-h-9 flex items-center", "Workspace settings" }
+                    p { class: "text-xs cf-steel-text mb-2", "Connected providers, model availability and verifier settings." }
+                    ProviderMonitor { config: conn.clone() }
+                    ForgeSettings { config: conn.clone() }
                 }
+                details { class: "mb-3 cf-panel rounded p-3", open: matches!(&*rows.read(), FetchState::Loaded(list) if list.is_empty()),
+                    summary { class: "cursor-pointer font-semibold min-h-9 flex items-center cf-signal-text", "+ New job" }
+                    WorkflowIntake {
+                        config: conn.clone(), actor,
+                        on_created: move |id: String| {
+                            selected.set(Some(id));
+                            refresh_rows(conn.clone());
+                        },
+                    }
+                }                }
+
 
                 {
                     let engaged = matches!(&*stop_state.read(), FetchState::Loaded(s) if s.stopped);
@@ -2828,6 +2723,8 @@ struct ProbeReport {
     #[serde(default)]
     additional_verifiers: Vec<DetectedVerifier>,
     detected_verification_files: Vec<String>,
+    #[serde(default)]
+    detected_test_files: Vec<String>,
     suggested_allowed_files: Vec<String>,
     #[serde(default)]
     total_source_files: usize,
@@ -2907,6 +2804,7 @@ fn WorkflowIntake(
     let mut onboard_model = use_signal(String::new);
     let mut onboard_allowed_files = use_signal(String::new);
     let mut onboard_low_spec = use_signal(|| false);
+    let mut onboard_allow_test_edits = use_signal(|| false);
     let mut onboard_probe = use_signal(|| None::<ProbeReport>);
     let mut onboard_verifier_idx = use_signal(|| 0usize);
     let mut onboard_probing = use_signal(|| false);
@@ -3029,6 +2927,7 @@ fn WorkflowIntake(
             let prof_name = onboard_name();
             let model_name = onboard_model();
             let low_spec = onboard_low_spec();
+            let allow_test_edits = onboard_allow_test_edits();
 
             onboard_probing.set(true);
             onboard_error.set(None);
@@ -3070,11 +2969,14 @@ fn WorkflowIntake(
                 let verifier_args = selected_verifier
                     .map(|v| v.args.clone())
                     .unwrap_or_else(|| vec!["test".into(), "--locked".into()]);
-                let verification_files = if report.detected_verification_files.is_empty() {
+                let mut verification_files = if report.detected_verification_files.is_empty() {
                     vec!["Cargo.toml".into()]
                 } else {
                     report.detected_verification_files.clone()
                 };
+                if allow_test_edits {
+                    verification_files.retain(|p| !report.detected_test_files.contains(p));
+                }
                 let edited_allowed = parse_file_list(&onboard_allowed_files());
                 let allowed_files = if !edited_allowed.is_empty() {
                     edited_allowed
@@ -3094,6 +2996,7 @@ fn WorkflowIntake(
                     "verification_files": verification_files,
                     "allowed_files": allowed_files,
                     "workers": [],
+                    "allow_test_edits": allow_test_edits,
                     "low_spec": low_spec,
                     "by": config.session_principal().unwrap_or("desktop-operator")
                 });
@@ -3377,27 +3280,14 @@ fn WorkflowIntake(
             let goal = objective();
             let checks = acceptance();
             let mut scope = parse_file_list(&dispatch_allowed_files());
-            let manual_override = scope_manually_edited();
-            if scope.is_empty() && !manual_override {
-                let p_scope = profiles()
+            if scope.is_empty() {
+                scope = profiles()
                     .into_iter()
                     .find(|p| p.name == profile)
                     .map(|p| p.scope)
                     .unwrap_or_default();
-                if let Some(auto) = extract_objective_repo_files(&goal, &repo_files(), &p_scope) {
-                    let mut merged = auto;
-                    for pf in p_scope {
-                        if merged.len() >= 64 {
-                            break;
-                        }
-                        if !merged.iter().any(|existing| existing == &pf) {
-                            merged.push(pf);
-                        }
-                    }
-                    scope = merged;
-                }
             }
-            let auto_scope = !manual_override && scope.is_empty();
+            let auto_scope = false;
             busy.set(true);
             busy_launch.set(false);
             error.set(None);
@@ -3455,27 +3345,14 @@ fn WorkflowIntake(
             let goal = objective();
             let checks = acceptance();
             let mut scope = parse_file_list(&dispatch_allowed_files());
-            let manual_override = scope_manually_edited();
-            if scope.is_empty() && !manual_override {
-                let p_scope = profiles()
+            if scope.is_empty() {
+                scope = profiles()
                     .into_iter()
                     .find(|p| p.name == profile)
                     .map(|p| p.scope)
                     .unwrap_or_default();
-                if let Some(auto) = extract_objective_repo_files(&goal, &repo_files(), &p_scope) {
-                    let mut merged = auto;
-                    for pf in p_scope {
-                        if merged.len() >= 64 {
-                            break;
-                        }
-                        if !merged.iter().any(|existing| existing == &pf) {
-                            merged.push(pf);
-                        }
-                    }
-                    scope = merged;
-                }
             }
-            let auto_scope = !manual_override && scope.is_empty();
+            let auto_scope = false;
             let by = {
                 let raw = actor().trim().to_string();
                 if raw.is_empty() {
@@ -3553,7 +3430,7 @@ fn WorkflowIntake(
 
     rsx! {
         div { class: "mb-4",
-            details { class: "mb-3 rounded border px-3 py-2", style: "border-color: #202D3A; background-color: rgba(32, 45, 58, 0.35);",
+            details { open: profiles().is_empty(), class: "mb-3 rounded border px-3 py-2", style: "border-color: #202D3A; background-color: rgba(32, 45, 58, 0.35);",
                 summary { class: "cursor-pointer font-semibold min-h-11 flex items-center tracking-wider uppercase text-xs", style: "color: #66D8CE;", "+ Onboard Project // Auto-Discovery" }
                 p { class: "text-xs mb-2", style: "color: #8D9DAD;", "Point Clatterforge at any local Git repository. It auto-detects the acceptance test framework, probes live CLI models, and configures deterministic zero-footprint or local-LLM routing." }
                 div { class: "flex flex-col sm:flex-row gap-2 mb-2",
@@ -3718,6 +3595,16 @@ fn WorkflowIntake(
                             }
                         }
 
+                        details { class: "mb-3 text-sm cf-steel-text",
+                            summary { class: "cursor-pointer min-h-9", "Protected acceptance inputs ({report.detected_verification_files.len()})" }
+                            p { "These files cannot change during execution. Test edits require the explicit option below and a separate independent acceptance check." }
+                            for path in &report.detected_verification_files { div { class: "font-mono text-xs", "{path}" } }
+                        }
+                        label { class: "flex items-center gap-2 mb-3 text-sm",
+                            input { r#type: "checkbox", checked: onboard_allow_test_edits(),
+                                onchange: move |e| onboard_allow_test_edits.set(e.checked()) }
+                            "Allow edits to existing tests (removes their acceptance protection)"
+                        }
                         label { r#for: "low_spec_cb", class: "flex items-center gap-2 mb-3 min-h-11 text-xs text-neutral-400 cursor-pointer",
                             input {
                                 r#type: "checkbox",
@@ -3839,6 +3726,20 @@ fn WorkflowIntake(
                             title: "Refresh git base commit, available CLIs, live model catalog, and default timeouts for the selected profile",
                             if profile_busy() { "Re-Onboarding…" } else { "Re-Onboard" }
                         }
+                    }
+                }
+                if let Some(profile) = profiles().into_iter().find(|p| p.name == chosen()) {
+                    details { class: "mb-3 rounded border border-[#202D3A] p-3 text-sm",
+                        summary { class: "cursor-pointer font-semibold", "Run plan: up to {profile.max_steps} stages · {profile.protected_files.len()} protected acceptance inputs" }
+                        p { class: "mt-2 cf-steel-text", "Uses your configured coding CLI accounts. Inspect the possible workers and protected files before starting." }
+                        for worker in &profile.workers {
+                            p { class: "mt-1 font-mono text-xs", "{worker.backend} · {worker.model} · {worker.name}" }
+                        }
+                        p { class: "mt-3 font-semibold", "These files must stay unchanged" }
+                        for path in &profile.protected_files { div { class: "font-mono text-xs", "{path}" } }
+                    }
+                    if profile.review_contract == "legacy_report" {
+                        p { class: "mb-3 text-sm text-amber-200", "This older profile does not require a review of the exact diff. Re-onboard the project to use the current protection and review defaults. Existing approvals are preserved." }
                     }
                 }
                 if !chosen().is_empty() {
@@ -3994,7 +3895,8 @@ fn WorkflowIntake(
                         }
                     }
                 }
-                textarea {
+                label { r#for: "job-objective", class: "block font-semibold mb-1", "What should change?" }
+                textarea { id: "job-objective",
                     class: "bg-neutral-900 border border-neutral-700 rounded px-2 py-2 w-full mb-2 text-base sm:text-sm",
                     rows: 3,
                     value: "{objective}",
@@ -4003,31 +3905,6 @@ fn WorkflowIntake(
                         move |e| {
                             let val = e.value();
                             objective.set(val.clone());
-                            if !scope_manually_edited() {
-                                let prof_scope = profiles()
-                                    .into_iter()
-                                    .find(|p| p.name == chosen())
-                                    .map(|p| p.scope)
-                                    .unwrap_or_default();
-                                if let Some(matched) = extract_objective_repo_files(&val, &repo_files(), &prof_scope) {
-                                    let mut merged = matched.clone();
-                                    for pf in &prof_scope {
-                                        if merged.len() >= 64 {
-                                            break;
-                                        }
-                                        if !merged.iter().any(|existing| existing == pf) {
-                                            merged.push(pf.clone());
-                                        }
-                                    }
-                                    dispatch_allowed_files.set(merged.join(", "));
-                                    let match_noun = if matched.len() == 1 { "file" } else { "files" };
-                                    auto_scope_note.set(Some(format!(
-                                        "Auto-selected {} matched {match_noun} merged with top profile files ({} total).",
-                                        matched.len(),
-                                        merged.len()
-                                    )));
-                                }
-                            }
                             spawn_suggest_files(
                                 config.clone(),
                                 chosen(),
@@ -4047,7 +3924,9 @@ fn WorkflowIntake(
                     },
                     placeholder: "What should Clatterforge execute?"
                 }
-                textarea {
+                label { r#for: "job-acceptance", class: "block font-semibold mb-1", "How will you verify it?" }
+                p { class: "text-xs cf-steel-text mb-2", "For example: existing tests pass, invalid input is rejected, and only the selected implementation files change." }
+                textarea { id: "job-acceptance",
                     class: "bg-neutral-900 border border-neutral-700 rounded px-2 py-2 w-full mb-2 text-base sm:text-sm",
                     rows: 2,
                     value: "{acceptance}",
@@ -4078,8 +3957,10 @@ fn WorkflowIntake(
                     placeholder: "What must pass independent verification when done?"
                 }
                 div { class: "mb-2",
+                    label { r#for: "job-files", class: "block font-semibold mb-1", "Files this job may edit" }
+                    p { class: "text-xs cf-steel-text mb-2", "Leave blank to use the project scope. Suggestions are optional and never change this list automatically." }
                     div { class: "flex flex-col sm:flex-row gap-2 mb-1",
-                        input {
+                        input { id: "job-files",
                             class: "bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 flex-1 font-mono text-xs text-neutral-200 placeholder:text-neutral-500",
                             value: "{dispatch_allowed_files}",
                             oninput: move |e| {
@@ -4088,7 +3969,7 @@ fn WorkflowIntake(
                                 auto_scope_note.set(None);
                                 dispatch_allowed_files.set(v);
                             },
-                            placeholder: "Target editable files (optional, comma-separated — auto-filled when objective matches)"
+                            placeholder: "Project scope, or enter comma-separated paths"
                         }
                         if !suggested_matches().is_empty() {
                             button {

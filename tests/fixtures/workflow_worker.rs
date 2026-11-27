@@ -115,9 +115,21 @@ fn main() {
             assert_eq!(fs::read_to_string(workspace.join("b.txt")).unwrap(),"fixed-b");
             assert!(prompt.contains("agentlet_result"),"structured prior result not handed off");
         }
-        let report=if objective.contains("BAD_REPORT") {"{\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"fake\",\"findings\":[],\"execute\":\"unapproved\"}".to_string()}
+        let mut report=if objective.contains("BAD_REPORT") {"{\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"fake\",\"findings\":[],\"execute\":\"unapproved\"}".to_string()}
         else if objective.contains("BLOCKED") {"{\"schema_version\":1,\"outcome\":\"blocked\",\"summary\":\"Needs operator attention\",\"findings\":[{\"severity\":\"error\",\"message\":\"Do not finish without a clean review\"}],\"next_objective\":\"Investigate the reported problem\"}".to_string()}
         else {"{\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"Specialist inspected its scope\",\"findings\":[],\"next_objective\":null}".to_string()};
+        if let Some(context) = prompt.split("\"review_context\":{").nth(1) {
+            if !objective.contains("MISSING_REVIEW_EVIDENCE") {
+                let scalar = |key:&str| context.split(&format!("\"{key}\":\"" )).nth(1).unwrap().split('"').next().unwrap().to_string();
+                let tree=scalar("candidate_tree");let digest=scalar("hash");
+                let files=context.split("\"changed_files\":").nth(1).unwrap().split(']').next().unwrap().to_string()+"]";
+                let path=scalar("path").replace("\\\\", "\\");
+                let diff=fs::read_to_string(path).expect("host review diff must be accessible without Git");
+                assert!(diff.contains("fixed-a") && diff.contains("fixed-b"));
+                let coverage=if objective.contains("LIMITED_REVIEW_EVIDENCE") {"limited"} else {"complete"};
+                report=format!(r#"{{"schema_version":1,"outcome":"completed","summary":"Inspected the immutable host diff and candidate files","findings":[],"next_objective":null,"review_evidence":{{"coverage":"{coverage}","candidate_tree":"{tree}","diff_digest":"{digest}","reviewed_files":{files},"limitations":[]}}}}"#);
+            }
+        }
         let is_agy = !is_codex && args.iter().any(|v| v == "--mode");
         if is_codex {
             println!("{{\"type\":\"thread.started\",\"thread_id\":\"t-fixture\"}}");

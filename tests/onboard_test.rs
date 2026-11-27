@@ -159,7 +159,11 @@ fn test_detect_verifiers_mixed_repository_and_file_ranking() {
     assert_eq!(suggested[1], "src/main.rs");
     assert_eq!(suggested[2], "src/alpha.rs");
     assert_eq!(suggested[3], "src/nested/deep/z.rs");
-    assert_eq!(suggested[4], "tests/aaa_test.rs");
+    assert_eq!(
+        suggested.len(),
+        4,
+        "acceptance tests must not be selected for editing"
+    );
 }
 
 #[test]
@@ -273,6 +277,7 @@ fn test_execute_onboard_end_to_end() {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/lib.rs".into()],
         workers: vec![],
+        allow_test_edits: false,
         low_spec: true,
         by: "test-operator".into(),
     };
@@ -368,6 +373,7 @@ fn test_execute_onboard_builtin_router_and_cursor_only_tiers() {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/lib.rs".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "cursor-operator".into(),
     };
@@ -440,6 +446,7 @@ fn test_reonboard_updates_existing_profile_and_failed_onboard_rolls_back_presets
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/lib.rs".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "op-1".into(),
     };
@@ -458,6 +465,7 @@ fn test_reonboard_updates_existing_profile_and_failed_onboard_rolls_back_presets
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/lib.rs".into(), "src/extra.rs".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: true,
         by: "op-2".into(),
     };
@@ -486,6 +494,7 @@ fn test_reonboard_updates_existing_profile_and_failed_onboard_rolls_back_presets
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["README.md".into()],
         workers: vec!["cursor".into(), "codex".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "op-3".into(),
     };
@@ -524,6 +533,7 @@ fn test_preset_routing_policy_trims_deduplicates_and_enforces_strict_allowlist()
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/lib.rs".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "operator".into(),
     };
@@ -574,8 +584,7 @@ fn test_provider_status_probe_report() {
 }
 
 #[test]
-fn test_detect_suggested_files_ranks_crate_sources_ahead_of_tsx_tests_and_returns_more_than_eight()
-{
+fn test_detect_suggested_files_excludes_tsx_acceptance_tests() {
     let dir = tempfile::tempdir().unwrap();
     let repo = dir.path().join("repo");
     fs::create_dir_all(repo.join("src")).unwrap();
@@ -623,23 +632,15 @@ fn test_detect_suggested_files_ranks_crate_sources_ahead_of_tsx_tests_and_return
 
     let (suggested, total) = detect_suggested_files_with_count(&repo);
     assert_eq!(total, 13);
-    assert_eq!(suggested.len(), 13);
+    assert_eq!(suggested.len(), 3);
     assert!(
         suggested
             .iter()
             .any(|p| p == "crates/core-lib/src/recorder.rs")
     );
-    let recorder_pos = suggested
-        .iter()
-        .position(|p| p == "crates/core-lib/src/recorder.rs")
-        .unwrap();
-    let first_test_pos = suggested
-        .iter()
-        .position(|p| p.ends_with(".test.tsx"))
-        .unwrap();
     assert!(
-        recorder_pos < first_test_pos,
-        "workspace crate source {recorder_pos} must rank ahead of .test.tsx tests {first_test_pos}: {suggested:?}"
+        suggested.iter().all(|p| !p.ends_with(".test.tsx")),
+        "{suggested:?}"
     );
 }
 
@@ -663,6 +664,7 @@ fn test_execute_onboard_accepts_over_sixteen_allowed_files() {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: allowed_files.clone(),
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "operator".into(),
     };
@@ -694,6 +696,7 @@ fn test_reonboard_profile_refreshes_commit_timeouts_and_preserves_scope() {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: custom_scope.clone(),
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "operator".into(),
     };
@@ -825,6 +828,7 @@ pub fn query_session_flight_log(content: &str) {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/App.tsx".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "operator".into(),
     };
@@ -979,6 +983,7 @@ fn test_reonboard_with_progress_emits_monotonic_stages_and_file_counts() {
         verification_files: vec!["Cargo.toml".into()],
         allowed_files: vec!["src/mod_00.rs".into()],
         workers: vec!["cursor".into()],
+        allow_test_edits: false,
         low_spec: false,
         by: "operator".into(),
     };

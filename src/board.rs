@@ -324,8 +324,24 @@ pub fn agent_row(task: &agents::AgentTask) -> Row {
 pub fn agent_detail(task: &agents::AgentTask, evidence_digest: Option<String>) -> Result<Detail> {
     let spec = &task.assignment.spec;
     let mut budget = vec![
-        format!("generation_timeout_ms={}", spec.generation_timeout_ms),
-        format!("verification_timeout_ms={}", spec.verification_timeout_ms),
+        format!(
+            "{}={}",
+            if spec.soft_timeouts {
+                "generation_alert_ms"
+            } else {
+                "generation_timeout_ms"
+            },
+            spec.generation_timeout_ms
+        ),
+        format!(
+            "{}={}",
+            if spec.soft_timeouts {
+                "verification_alert_ms"
+            } else {
+                "verification_timeout_ms"
+            },
+            spec.verification_timeout_ms
+        ),
     ];
     if let Some(idle) = spec.generation_idle_timeout_ms {
         budget.push(format!("generation_idle_timeout_ms={idle}"));
